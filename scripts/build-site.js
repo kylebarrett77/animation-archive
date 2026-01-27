@@ -101,6 +101,51 @@ function escapeHtml(str) { if (!str) return ''; return str.replace(/&/g, '&amp;'
 function slugify(str) { return (str || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
 function getFilmUrl(film) { return `films/${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
 
+/// Generate footer with random film link
+// pathPrefix: '' for root, '../' for sub-pages
+function generateFooter(pathPrefix = '') {
+  // For static pages, pick a random film at build time (changes daily with rebuilds)
+  const randomFilm = films[Math.floor(Math.random() * films.length)];
+  const randomUrl = pathPrefix + getFilmUrl(randomFilm);
+  return `<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><a href="${randomUrl}" class="footer-random">🎲 Random Film</a><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>`;
+}
+
+// Film of the Day: deterministic selection based on date
+function getFilmOfTheDay(filmList) {
+  const today = new Date();
+  const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  const index = seed % filmList.length;
+  return filmList[index];
+}
+
+function generateFilmOfTheDayCard(film) {
+  const synopsis = film.synopsis ? (film.synopsis.length > 120 ? film.synopsis.substring(0, 117) + '...' : film.synopsis) : '';
+  const techniques = film.technique?.join(', ') || 'Unknown';
+
+  return `
+    <div class="film-of-day">
+      <div class="film-of-day-header">
+        <span class="film-of-day-label">Film of the Day</span>
+        <span class="film-of-day-date">${BUILD_DATE}</span>
+      </div>
+      <div class="film-of-day-content">
+        <div class="film-of-day-info">
+          <a href="${getFilmUrl(film)}" class="film-of-day-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>
+          <div class="film-of-day-meta">
+            <span class="film-of-day-year">${film.year || '?'}</span>
+            <span class="film-of-day-country">${getCountryCode(film.country)}</span>
+            <span class="film-of-day-technique">${escapeHtml(techniques)}</span>
+          </div>
+          ${synopsis ? `<p class="film-of-day-synopsis">${escapeHtml(synopsis)}</p>` : ''}
+        </div>
+        <div class="film-of-day-actions">
+          <a href="${getFilmUrl(film)}" class="film-of-day-details-btn">View Details</a>
+          ${film.watchLinks ? `<a href="${escapeHtml(film.watchLinks)}" class="film-of-day-watch-btn" target="_blank" rel="noopener">▶ Watch</a>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
 function generateTableRows(filmList) {
   return filmList.map(film => `
     <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${film.watchLinks ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}">
@@ -242,7 +287,8 @@ function generateIndexPage() {
     </div></div>
   </aside>
   <main class="content" id="main-content">
-    <div class="content-header"><div><h2 class="content-title">From the Collection</h2><span class="content-meta" id="results-count">${stats.total.toLocaleString()} films</span></div><div class="search-box"><label for="search-input" class="visually-hidden">Search films</label><input type="text" id="search-input" placeholder="Search titles, directors..." aria-describedby="results-count" /></div></div>
+    <div class="content-header"><div><h2 class="content-title">From the Collection</h2><span class="content-meta" id="results-count">${stats.total.toLocaleString()} films</span></div><div class="search-actions"><div class="search-box"><label for="search-input" class="visually-hidden">Search films</label><input type="text" id="search-input" placeholder="Search titles, directors..." aria-describedby="results-count" /></div><button id="random-film-btn" class="random-btn" aria-label="Go to random film">🎲 Random</button></div></div>
+    ${generateFilmOfTheDayCard(getFilmOfTheDay(films))}
     <div class="table-wrapper"><table class="film-table" role="grid"><thead><tr><th scope="col" style="width:90px">Year</th><th scope="col">Title</th><th scope="col">Director / Studio</th><th scope="col" style="width:100px">Technique</th><th scope="col" style="width:70px">Runtime</th><th scope="col" style="width:90px">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
     ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${films.length}">Load More <span class="load-more-count">(${films.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
   </main>
@@ -258,7 +304,7 @@ function generateIndexPage() {
     </div>
   </div>
 </section>
-<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><a href="#" class="footer-random" id="footer-random-link">🎲 Random</a><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
 <script>window.ALL_FILMS_DATA=${JSON.stringify(films.map(f => ({
   id: f.id,
   title: f.titleEnglish,
@@ -351,7 +397,7 @@ ${film.year ? `<meta property="video:release_date" content="${film.year}">` : ''
   </div>
   </article>
 </main>
-<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+${generateFooter('../')}
 </body></html>`;
 }
 
@@ -479,7 +525,32 @@ function generateCSS() {
 .decade-card-meta{display:flex;gap:24px;font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
 .decade-card-count{color:var(--accent);font-weight:600}
 .decade-card-country{color:var(--ink-light)}
-@media(max-width:900px){.decade-header{flex-direction:column;text-align:center}.decade-nav{text-align:center;margin-top:16px}.decade-card{grid-template-columns:80px 1fr}.decade-card-year{font-size:20px}}`;
+@media(max-width:900px){.decade-header{flex-direction:column;text-align:center}.decade-nav{text-align:center;margin-top:16px}.decade-card{grid-template-columns:80px 1fr}.decade-card-year{font-size:20px}}
+/* Random Button & Film of the Day */
+.search-actions{display:flex;gap:12px;align-items:center}
+.random-btn{background:var(--ink);color:var(--cream);border:none;padding:10px 16px;font-family:var(--mono);font-size:12px;font-weight:500;cursor:pointer;transition:background .2s;white-space:nowrap}
+.random-btn:hover,.random-btn:focus{background:var(--accent);outline:none}
+.film-of-day{background:var(--paper);border:2px solid var(--accent);border-left-width:4px;padding:20px 24px;margin:20px 32px;display:flex;justify-content:space-between;align-items:center;gap:24px}
+.film-of-day-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.film-of-day-label{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.film-of-day-date{font-family:var(--mono);font-size:10px;color:var(--ink-muted)}
+.film-of-day-content{display:flex;justify-content:space-between;align-items:center;gap:24px;flex:1}
+.film-of-day-info{flex:1}
+.film-of-day-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:500;text-decoration:none;color:var(--ink);display:block;margin-bottom:8px}
+.film-of-day-title:hover{color:var(--accent)}
+.film-of-day-meta{display:flex;gap:16px;font-family:var(--mono);font-size:12px;margin-bottom:8px}
+.film-of-day-year{color:var(--ink);font-weight:500}
+.film-of-day-country{color:var(--accent);font-weight:600}
+.film-of-day-technique{color:var(--ink-muted)}
+.film-of-day-synopsis{font-family:'Source Serif 4',serif;font-size:14px;color:var(--ink-light);margin:0;line-height:1.5}
+.film-of-day-actions{display:flex;gap:12px;flex-shrink:0}
+.film-of-day-details-btn{font-family:var(--mono);font-size:11px;padding:10px 16px;background:var(--cream);border:1px solid var(--rule);color:var(--ink);text-decoration:none;transition:border-color .2s}
+.film-of-day-details-btn:hover{border-color:var(--ink)}
+.film-of-day-watch-btn{font-family:var(--mono);font-size:11px;padding:10px 16px;background:var(--ink);color:var(--cream);text-decoration:none;transition:background .2s}
+.film-of-day-watch-btn:hover{background:var(--accent)}
+.footer-random{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.6);text-decoration:none;transition:color .2s}
+.footer-random:hover{color:var(--cream)}
+@media(max-width:900px){.search-actions{flex-direction:column;align-items:stretch;gap:8px}.search-box input{width:100%}.film-of-day{flex-direction:column;margin:20px 16px}.film-of-day-content{flex-direction:column;align-items:flex-start}.film-of-day-actions{width:100%;justify-content:flex-start}}`;
 }
 
 function generateJS() {
@@ -605,6 +676,22 @@ if(directorParam){
   activeFilters.director=directorParam;
   updateDisplay();
 }
+
+// Random film function - respects active filters
+function goToRandomFilm(){
+  const filtered=getFilteredFilms();
+  if(filtered.length===0)return;
+  const randomFilm=filtered[Math.floor(Math.random()*filtered.length)];
+  window.location.href='films/'+slugify(randomFilm.title)+'-'+randomFilm.id.slice(0,8)+'.html';
+}
+
+// Random film button in content header
+const randomBtn=document.getElementById('random-film-btn');
+if(randomBtn){randomBtn.addEventListener('click',goToRandomFilm);}
+
+// Footer random link
+const footerRandomLink=document.getElementById('footer-random-link');
+if(footerRandomLink){footerRandomLink.addEventListener('click',function(e){e.preventDefault();goToRandomFilm();});}
 });`;
 }
 
@@ -753,7 +840,7 @@ function generateCountryPage(country, countryFilms) {
     </div>
   </section>
 </main>
-<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+${generateFooter('../')}
 </body></html>`;
 }
 
@@ -842,7 +929,7 @@ function generateCountryIndexPage(countriesWithFilms) {
     }).join('\n    ')}
   </div>
 </main>
-<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+${generateFooter('../')}
 </body></html>`;
 }
 
@@ -1019,7 +1106,7 @@ function generateTechniquePage(technique, techniqueFilms) {
     </div>
   </section>
 </main>
-<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+${generateFooter('../')}
 </body></html>`;
 }
 
@@ -1115,7 +1202,7 @@ function generateTechniqueIndexPage(techniquesWithFilms) {
     }).join('\n    ')}
   </div>
 </main>
-<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+${generateFooter('../')}
 </body></html>`;
 }
 
@@ -1249,7 +1336,7 @@ function generateDirectorIndexPage(directorsData) {
     </section>`).join('\n    ')}
   </div>
 </main>
-<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+${generateFooter('../')}
 </body></html>`;
 }
 
@@ -1450,7 +1537,7 @@ function generateDecadePage(decade, decadeFilms) {
     </div>
   </section>
 </main>
-<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+${generateFooter('../')}
 </body></html>`;
 }
 
@@ -1539,7 +1626,7 @@ function generateDecadeIndexPage(decadesWithFilms) {
     }).join('\n    ')}
   </div>
 </main>
-<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+${generateFooter('../')}
 </body></html>`;
 }
 
