@@ -79,6 +79,24 @@ const techniqueDescriptions = {
   'Paper Cut': 'Animation using traditional paper cutting techniques',
   'Documentary': 'Animated documentary combining real events with animation'
 };
+
+// Decade descriptions for decade pages
+const decadeDescriptions = {
+  1900: 'The birth of animation — pioneers experiment with motion pictures',
+  1910: 'Early animation studios emerge, theatrical shorts gain popularity',
+  1920: 'Silent era golden age — Felix the Cat, Fleischer Studios rise',
+  1930: 'Sound transforms animation — Disney dominates, Snow White debuts',
+  1940: 'Wartime propaganda and postwar experimentation across the globe',
+  1950: 'Television reshapes the industry, UPA modernism, anime beginnings',
+  1960: 'Artistic renaissance — Zagreb School, NFB, auteur animation flourishes',
+  1970: 'Independent animation grows, Eastern European masters peak',
+  1980: 'Anime goes global, MTV generation, early CGI experiments',
+  1990: 'Digital revolution begins, Pixar emerges, anime mainstream breakthrough',
+  2000: '3D CGI dominates mainstream, indie animation thrives online',
+  2010: 'Streaming era, global co-productions, diverse voices emerge',
+  2020: 'Pandemic production shifts, AI tools debut, hybrid techniques'
+};
+
 function escapeHtml(str) { if (!str) return ''; return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function slugify(str) { return (str || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
 function getFilmUrl(film) { return `films/${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
@@ -112,6 +130,13 @@ function generateFilterItems(items, type) {
       return `
     <div class="filter-item" data-filter-type="${type}" data-filter-value="${value}">
       <a href="techniques/${slugify(item.name)}.html" class="filter-link"><span class="name">${displayName}</span></a><span class="count">${item.count}</span>
+    </div>`;
+    }
+    // Add link for decade filters
+    if (type === 'decade' && item.decade) {
+      return `
+    <div class="filter-item" data-filter-type="${type}" data-filter-value="${value}">
+      <a href="decades/${item.decade}s.html" class="filter-link"><span class="name">${displayName}</span></a><span class="count">${item.count}</span>
     </div>`;
     }
     return `
@@ -204,7 +229,7 @@ function generateIndexPage() {
   <div class="stat-block"><span class="stat-label">Techniques</span><span class="stat-value">${Object.keys(stats.techniques).length}</span></div>
   <div class="stat-block"><span class="stat-label">Watchable</span><span class="stat-value">${stats.watchable.toLocaleString()}</span></div>
 </div>
-<nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="directors/">Directors</a><a href="#about">About</a></nav>
+<nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="directors/">Directors</a><a href="decades/">Decades</a><a href="#about">About</a></nav>
 <div class="main-layout">
   <aside class="sidebar" role="complementary" aria-label="Filters">
     <div class="query-display" id="active-query" style="display:none;"><div class="query-label">Active Filters</div><div class="query-tags" id="query-tags"></div></div>
@@ -424,7 +449,37 @@ function generateCSS() {
 .director-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
 .director-count{font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:500}
 .director-countries{font-family:var(--mono);font-size:10px;color:var(--ink-muted);letter-spacing:.05em}
-@media(max-width:900px){.directors-stats{flex-direction:column;gap:16px}.directors-grid{grid-template-columns:1fr}}`;
+@media(max-width:900px){.directors-stats{flex-direction:column;gap:16px}.directors-grid{grid-template-columns:1fr}}
+/* Decade Pages */
+.decade-page{padding:48px 32px;max-width:1400px;margin:0 auto}
+.decade-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:40px}
+.decade-title-section h1.decade-name{font-family:'Playfair Display',serif;font-size:56px;font-weight:400;margin-bottom:4px}
+.decade-range{font-family:var(--mono);font-size:14px;color:var(--ink-muted);letter-spacing:.1em;margin-bottom:16px}
+.decade-description{font-family:'Source Serif 4',serif;font-size:18px;color:var(--ink-light);margin-bottom:8px;max-width:600px}
+.decade-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
+.decade-nav{text-align:right;padding-top:8px}
+.decade-back-link{font-family:var(--mono);font-size:12px;color:var(--ink-muted);text-decoration:none;letter-spacing:.05em}
+.decade-back-link:hover{color:var(--accent)}
+.decade-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:48px}
+.decade-stat-card{background:var(--paper);border:1px solid var(--rule);padding:24px}
+.decade-films-section{margin-top:40px}
+/* Decades Index */
+.decades-index{padding:48px 32px;max-width:1200px;margin:0 auto}
+.decades-header{text-align:center;margin-bottom:48px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
+.decades-header h1{font-family:'Playfair Display',serif;font-size:48px;font-weight:400;margin-bottom:12px}
+.decades-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
+.decades-timeline{display:flex;flex-direction:column;gap:16px}
+.decade-card{display:grid;grid-template-columns:120px 1fr;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s}
+.decade-card:hover{border-color:var(--ink);box-shadow:4px 4px 0 var(--rule)}
+.decade-card:focus{outline:2px solid var(--accent);outline-offset:2px}
+.decade-card-year{background:var(--ink);color:var(--cream);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:28px;font-weight:400}
+.decade-card-info{padding:24px}
+.decade-card-title{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--ink-muted);margin-bottom:8px}
+.decade-card-desc{font-family:'Source Serif 4',serif;font-size:16px;color:var(--ink);margin-bottom:12px;line-height:1.5}
+.decade-card-meta{display:flex;gap:24px;font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
+.decade-card-count{color:var(--accent);font-weight:600}
+.decade-card-country{color:var(--ink-light)}
+@media(max-width:900px){.decade-header{flex-direction:column;text-align:center}.decade-nav{text-align:center;margin-top:16px}.decade-card{grid-template-columns:80px 1fr}.decade-card-year{font-size:20px}}`;
 }
 
 function generateJS() {
@@ -1229,12 +1284,300 @@ function generateDirectorPages() {
   return { count: directorsData.length };
 }
 
-function generateSitemap(countriesWithFilms, techniquesWithFilms) {
+// JSON-LD for decade collection pages
+function generateDecadeJsonLd(decade, decadeFilms) {
+  const decadeLabel = `${decade}s`;
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": `${decadeLabel} Animation — Global Animation Archive`,
+    "description": `Explore ${decadeFilms.length} animated films from the ${decadeLabel}. ${decadeDescriptions[decade] || ''} Part of the Global Animation Archive.`,
+    "url": `${SITE_URL}/decades/${decade}s.html`,
+    "numberOfItems": decadeFilms.length,
+    "isPartOf": {
+      "@type": "WebSite",
+      "name": "Global Animation Archive",
+      "url": SITE_URL
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Global Animation Archive"
+    },
+    "dateModified": BUILD_TIMESTAMP
+  });
+}
+
+// Table rows for decade pages (shows country instead of year in first column)
+function generateDecadeTableRows(filmList) {
+  return filmList.map(film => `
+    <tr data-country="${escapeHtml(film.country || '')}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${film.watchLinks ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
+      <td><div class="table-year">${film.year || '—'}</div></td>
+      <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
+      <td class="table-meta">${film.director ? `<strong>${escapeHtml(film.director)}</strong><br>` : ''}${film.studio ? escapeHtml(film.studio) : ''}</td>
+      <td class="table-country-cell"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
+      <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
+      <td><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
+      <td class="watch-cell">${film.watchLinks ? `<a href="${escapeHtml(film.watchLinks)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
+    </tr>`).join('\n');
+}
+
+function generateDecadePage(decade, decadeFilms) {
+  // Sort by year ascending, then by title
+  decadeFilms.sort((a, b) => {
+    const yearDiff = (a.year || 0) - (b.year || 0);
+    if (yearDiff !== 0) return yearDiff;
+    return (a.titleEnglish || '').localeCompare(b.titleEnglish || '');
+  });
+
+  // Calculate stats
+  const countries = {};
+  const techniques = {};
+  const formats = {};
+  let watchable = 0;
+  let withSubs = 0;
+
+  for (const film of decadeFilms) {
+    if (film.country) {
+      countries[film.country] = (countries[film.country] || 0) + 1;
+    }
+    for (const t of film.technique || []) {
+      techniques[t] = (techniques[t] || 0) + 1;
+    }
+    if (film.format) {
+      formats[film.format] = (formats[film.format] || 0) + 1;
+    }
+    if (film.watchLinks) watchable++;
+    if (film.hasSubtitles) withSubs++;
+  }
+
+  const countriesSorted = Object.entries(countries).sort((a, b) => b[1] - a[1]);
+  const techniquesSorted = Object.entries(techniques).sort((a, b) => b[1] - a[1]);
+  const formatsSorted = Object.entries(formats).sort((a, b) => b[1] - a[1]);
+
+  const decadeLabel = `${decade}s`;
+  const decadeRange = `${decade}–${decade + 9}`;
+  const decadeDesc = decadeDescriptions[decade] || 'A decade in animation history';
+  const description = `Explore ${decadeFilms.length} animated films from the ${decadeLabel}. ${decadeDesc}`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${decadeLabel} Animation — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/decades/${decade}s.html">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="${decadeLabel} Animation — Global Animation Archive">
+<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:url" content="${SITE_URL}/decades/${decade}s.html">
+<meta property="og:site_name" content="Global Animation Archive">
+<meta property="og:locale" content="en_US">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="${decadeLabel} Animation">
+<meta name="twitter:description" content="${escapeHtml(description)}">
+
+<!-- JSON-LD Structured Data -->
+<script type="application/ld+json">${generateDecadeJsonLd(decade, decadeFilms)}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+<main class="decade-page" id="main-content">
+  <div class="decade-header">
+    <div class="decade-title-section">
+      <h1 class="decade-name">${decadeLabel}</h1>
+      <p class="decade-range">${decadeRange}</p>
+      <p class="decade-description">${escapeHtml(decadeDesc)}</p>
+      <p class="decade-subtitle">${decadeFilms.length} films in the archive</p>
+    </div>
+    <nav class="decade-nav" aria-label="Decade navigation">
+      <a href="index.html" class="decade-back-link">← All Decades</a>
+    </nav>
+  </div>
+
+  <div class="decade-stats-grid">
+    <div class="decade-stat-card">
+      <div class="stat-card-title">Total Films</div>
+      <div class="stat-card-value">${decadeFilms.length}</div>
+    </div>
+    <div class="decade-stat-card">
+      <div class="stat-card-title">Watchable</div>
+      <div class="stat-card-value">${watchable}</div>
+      <div class="stat-card-detail">${withSubs} with EN subs</div>
+    </div>
+    <div class="decade-stat-card">
+      <div class="stat-card-title">Top Countries</div>
+      <div class="stat-card-list">${countriesSorted.slice(0, 10).map(([c, n]) => `<span class="stat-tag">${escapeHtml(c)} <em>(${n})</em></span>`).join('')}</div>
+    </div>
+    <div class="decade-stat-card">
+      <div class="stat-card-title">Techniques</div>
+      <div class="stat-card-list">${techniquesSorted.slice(0, 8).map(([t, c]) => `<span class="stat-tag">${escapeHtml(t)} <em>(${c})</em></span>`).join('')}</div>
+    </div>
+    <div class="decade-stat-card">
+      <div class="stat-card-title">Formats</div>
+      <div class="stat-card-list">${formatsSorted.map(([f, c]) => `<span class="stat-tag">${escapeHtml(f)} <em>(${c})</em></span>`).join('')}</div>
+    </div>
+  </div>
+
+  <section class="decade-films-section">
+    <h2 class="section-title">All Films from the ${decadeLabel}</h2>
+    <div class="table-wrapper">
+      <table class="film-table" role="grid">
+        <thead>
+          <tr>
+            <th scope="col" style="width:70px">Year</th>
+            <th scope="col">Title</th>
+            <th scope="col">Director / Studio</th>
+            <th scope="col" style="width:100px">Country</th>
+            <th scope="col" style="width:100px">Technique</th>
+            <th scope="col" style="width:90px">Confidence</th>
+            <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+          </tr>
+        </thead>
+        <tbody>${generateDecadeTableRows(decadeFilms)}</tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+</body></html>`;
+}
+
+function generateDecadeIndexPage(decadesWithFilms) {
+  const sortedDecades = Object.entries(decadesWithFilms)
+    .sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+
+  const totalDecades = sortedDecades.length;
+  const totalFilms = sortedDecades.reduce((sum, [, films]) => sum + films.length, 0);
+  const description = `Explore ${totalFilms} animated films across ${totalDecades} decades of animation history, from the pioneering 1900s to today.`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decades — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/decades/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Decades — Global Animation Archive">
+<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:url" content="${SITE_URL}/decades/">
+<meta property="og:site_name" content="Global Animation Archive">
+<meta property="og:locale" content="en_US">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Decades — Global Animation Archive">
+<meta name="twitter:description" content="${escapeHtml(description)}">
+
+<!-- JSON-LD Structured Data -->
+<script type="application/ld+json">${JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Decades — Global Animation Archive",
+    "description": description,
+    "url": `${SITE_URL}/decades/`,
+    "numberOfItems": totalDecades,
+    "publisher": {
+      "@type": "Organization",
+      "name": "Global Animation Archive"
+    },
+    "dateModified": BUILD_TIMESTAMP
+  })}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+<main class="decades-index" id="main-content">
+  <div class="decades-header">
+    <h1>Decades</h1>
+    <p class="decades-subtitle">A timeline of animation history — ${totalDecades} decades, ${totalFilms} films</p>
+  </div>
+
+  <div class="decades-timeline">
+    ${sortedDecades.map(([decade, decadeFilms]) => {
+      const countries = {};
+      for (const film of decadeFilms) {
+        if (film.country) {
+          countries[film.country] = (countries[film.country] || 0) + 1;
+        }
+      }
+      const topCountry = Object.entries(countries).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Various';
+      const desc = decadeDescriptions[parseInt(decade)] || '';
+
+      return `<a href="${decade}s.html" class="decade-card">
+      <div class="decade-card-year">${decade}s</div>
+      <div class="decade-card-info">
+        <h2 class="decade-card-title">${decade}–${parseInt(decade) + 9}</h2>
+        <p class="decade-card-desc">${escapeHtml(desc)}</p>
+        <div class="decade-card-meta">
+          <span class="decade-card-count">${decadeFilms.length} films</span>
+          <span class="decade-card-country">Top: ${escapeHtml(topCountry)}</span>
+        </div>
+      </div>
+    </a>`;
+    }).join('\n    ')}
+  </div>
+</main>
+<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+</body></html>`;
+}
+
+function generateDecadePages() {
+  const decadesWithFilms = {};
+
+  // Group films by decade
+  for (const film of films) {
+    if (!film.year) continue;
+    const decade = Math.floor(film.year / 10) * 10;
+    if (!decadesWithFilms[decade]) {
+      decadesWithFilms[decade] = [];
+    }
+    decadesWithFilms[decade].push(film);
+  }
+
+  // Generate a page for each decade
+  mkdirSync('./dist/decades', { recursive: true });
+
+  let count = 0;
+  for (const [decade, decadeFilms] of Object.entries(decadesWithFilms)) {
+    writeFileSync(`./dist/decades/${decade}s.html`, generateDecadePage(parseInt(decade), [...decadeFilms]));
+    count++;
+  }
+
+  // Generate index page
+  writeFileSync('./dist/decades/index.html', generateDecadeIndexPage(decadesWithFilms));
+
+  return { count, decadesWithFilms };
+}
+
+function generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFilms) {
   const urls = [
     { loc: `${SITE_URL}/`, priority: '1.0', changefreq: 'daily' },
     { loc: `${SITE_URL}/countries/`, priority: '0.9', changefreq: 'weekly' },
     { loc: `${SITE_URL}/techniques/`, priority: '0.9', changefreq: 'weekly' },
-    { loc: `${SITE_URL}/directors/`, priority: '0.9', changefreq: 'weekly' }
+    { loc: `${SITE_URL}/directors/`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${SITE_URL}/decades/`, priority: '0.9', changefreq: 'weekly' }
   ];
 
   // Add country pages
@@ -1253,6 +1596,17 @@ function generateSitemap(countriesWithFilms, techniquesWithFilms) {
     for (const technique of Object.keys(techniquesWithFilms)) {
       urls.push({
         loc: `${SITE_URL}/techniques/${slugify(technique)}.html`,
+        priority: '0.8',
+        changefreq: 'weekly'
+      });
+    }
+  }
+
+  // Add decade pages
+  if (decadesWithFilms) {
+    for (const decade of Object.keys(decadesWithFilms)) {
+      urls.push({
+        loc: `${SITE_URL}/decades/${decade}s.html`,
         priority: '0.8',
         changefreq: 'weekly'
       });
@@ -1317,14 +1671,18 @@ function build() {
   const { count: directorCount } = generateDirectorPages();
   console.log(`  ✓ directors index (${directorCount} directors)`);
 
+  // Generate decade pages
+  const { count: decadeCount, decadesWithFilms } = generateDecadePages();
+  console.log(`  ✓ ${decadeCount} decade pages + index (with OG tags + JSON-LD)`);
+
   writeFileSync('./dist/styles.css', generateCSS());
-  console.log('  ✓ styles.css (with country + technique + directors page styles)');
+  console.log('  ✓ styles.css (with country + technique + directors + decade page styles)');
 
   writeFileSync('./dist/app.js', generateJS());
   console.log('  ✓ app.js (with pagination + keyboard nav)');
 
-  writeFileSync('./dist/sitemap.xml', generateSitemap(countriesWithFilms, techniquesWithFilms));
-  console.log('  ✓ sitemap.xml (' + (films.length + countryCount + techniqueCount + 4) + ' URLs)');
+  writeFileSync('./dist/sitemap.xml', generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFilms));
+  console.log('  ✓ sitemap.xml (' + (films.length + countryCount + techniqueCount + decadeCount + 5) + ' URLs)');
 
   writeFileSync('./dist/robots.txt', generateRobotsTxt());
   console.log('  ✓ robots.txt');
@@ -1335,6 +1693,7 @@ function build() {
   console.log(`   • Country pages: ${countryCount} countries with dedicated pages`);
   console.log(`   • Technique pages: ${techniqueCount} techniques with dedicated pages`);
   console.log(`   • Directors index: ${directorCount} directors with filter links`);
+  console.log(`   • Decade pages: ${decadeCount} decades with dedicated pages`);
   console.log(`   • SEO: sitemap.xml, robots.txt, OG tags, JSON-LD on all pages`);
   console.log(`   • Accessibility: Skip links, ARIA labels, keyboard navigation`);
 }
