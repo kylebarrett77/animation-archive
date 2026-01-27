@@ -146,6 +146,122 @@ function generateFilmOfTheDayCard(film) {
     </div>`;
 }
 
+// Hash string to number for deterministic shuffling
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash);
+}
+
+// Seeded shuffle for deterministic results
+function seededShuffle(array, seed) {
+  const result = [...array];
+  let currentSeed = seed;
+  for (let i = result.length - 1; i > 0; i--) {
+    currentSeed = (currentSeed * 1103515245 + 12345) & 0x7fffffff;
+    const j = currentSeed % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+// Get related films by category
+function getRelatedFilms(currentFilm, allFilms, category, value, count = 5) {
+  if (!value) return [];
+
+  let matches;
+  if (category === 'country') {
+    matches = allFilms.filter(f => f.id !== currentFilm.id && f.country === value);
+  } else if (category === 'decade') {
+    matches = allFilms.filter(f => f.id !== currentFilm.id && f.year && Math.floor(f.year / 10) * 10 === value);
+  } else if (category === 'technique') {
+    matches = allFilms.filter(f => f.id !== currentFilm.id && f.technique?.[0] === value);
+  } else {
+    return [];
+  }
+
+  // Skip if fewer than 2 matches
+  if (matches.length < 2) return [];
+
+  // Deterministic shuffle based on current film ID
+  const seed = hashString(currentFilm.id);
+  return seededShuffle(matches, seed).slice(0, count);
+}
+
+// Generate related films section for a film detail page
+function generateRelatedFilmsSection(film) {
+  const sections = [];
+
+  // More from Country
+  if (film.country) {
+    const countryFilms = getRelatedFilms(film, films, 'country', film.country, 5);
+    if (countryFilms.length >= 2) {
+      const totalCountry = films.filter(f => f.country === film.country).length;
+      sections.push({
+        title: `More from ${film.country}`,
+        link: `../countries/${slugify(film.country)}.html`,
+        count: totalCountry,
+        films: countryFilms
+      });
+    }
+  }
+
+  // More from Decade
+  if (film.year) {
+    const decade = Math.floor(film.year / 10) * 10;
+    const decadeFilms = getRelatedFilms(film, films, 'decade', decade, 5);
+    if (decadeFilms.length >= 2) {
+      const totalDecade = films.filter(f => f.year && Math.floor(f.year / 10) * 10 === decade).length;
+      sections.push({
+        title: `More from the ${decade}s`,
+        link: `../decades/${decade}s.html`,
+        count: totalDecade,
+        films: decadeFilms
+      });
+    }
+  }
+
+  // More Technique
+  const primaryTechnique = film.technique?.[0];
+  if (primaryTechnique) {
+    const techniqueFilms = getRelatedFilms(film, films, 'technique', primaryTechnique, 5);
+    if (techniqueFilms.length >= 2) {
+      const totalTechnique = films.filter(f => f.technique?.[0] === primaryTechnique).length;
+      sections.push({
+        title: `More ${primaryTechnique}`,
+        link: `../techniques/${slugify(primaryTechnique)}.html`,
+        count: totalTechnique,
+        films: techniqueFilms
+      });
+    }
+  }
+
+  if (sections.length === 0) return '';
+
+  return `
+  <section class="related-films">
+    ${sections.map(section => `
+    <div class="related-section">
+      <h3 class="related-header">
+        <a href="${section.link}">${escapeHtml(section.title)}</a>
+        <span class="related-count">${section.count} films →</span>
+      </h3>
+      <div class="related-grid">
+        ${section.films.map(f => `
+        <a href="../${getFilmUrl(f)}" class="related-card">
+          <span class="related-title">${escapeHtml(f.titleEnglish) || 'Untitled'}</span>
+          <span class="related-meta">${f.year || '?'}${f.director ? ` · ${escapeHtml(f.director.split(',')[0].trim())}` : ''}</span>
+          ${f.watchLinks ? '<span class="related-watch">▶</span>' : ''}
+        </a>`).join('')}
+      </div>
+    </div>`).join('')}
+  </section>`;
+}
+
 function generateTableRows(filmList) {
   return filmList.map(film => `
     <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${film.watchLinks ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}">
@@ -396,6 +512,7 @@ ${film.year ? `<meta property="video:release_date" content="${film.year}">` : ''
     </aside>
   </div>
   </article>
+  ${generateRelatedFilmsSection(film)}
 </main>
 ${generateFooter('../')}
 </body></html>`;
@@ -550,7 +667,23 @@ function generateCSS() {
 .film-of-day-watch-btn:hover{background:var(--accent)}
 .footer-random{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.6);text-decoration:none;transition:color .2s}
 .footer-random:hover{color:var(--cream)}
-@media(max-width:900px){.search-actions{flex-direction:column;align-items:stretch;gap:8px}.search-box input{width:100%}.film-of-day{flex-direction:column;margin:20px 16px}.film-of-day-content{flex-direction:column;align-items:flex-start}.film-of-day-actions{width:100%;justify-content:flex-start}}`;
+@media(max-width:900px){.search-actions{flex-direction:column;align-items:stretch;gap:8px}.search-box input{width:100%}.film-of-day{flex-direction:column;margin:20px 16px}.film-of-day-content{flex-direction:column;align-items:flex-start}.film-of-day-actions{width:100%;justify-content:flex-start}}
+/* Related Films */
+.related-films{padding:48px 32px;max-width:1200px;margin:0 auto;border-top:2px solid var(--rule)}
+.related-section{margin-bottom:40px}
+.related-section:last-child{margin-bottom:0}
+.related-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule)}
+.related-header a{font-family:'Playfair Display',serif;font-size:22px;font-weight:400;text-decoration:none;color:var(--ink)}
+.related-header a:hover{color:var(--accent)}
+.related-count{font-family:var(--mono);font-size:11px;color:var(--ink-muted);letter-spacing:.05em}
+.related-count:hover{color:var(--accent)}
+.related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.related-card{display:block;background:var(--paper);border:1px solid var(--rule);padding:16px;text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s;position:relative}
+.related-card:hover{border-color:var(--ink);box-shadow:3px 3px 0 var(--rule)}
+.related-title{display:block;font-family:'Playfair Display',serif;font-size:15px;font-weight:500;line-height:1.3;margin-bottom:8px;color:var(--ink)}
+.related-meta{display:block;font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
+.related-watch{position:absolute;top:12px;right:12px;font-size:12px;color:var(--accent)}
+@media(max-width:900px){.related-films{padding:32px 16px}.related-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.related-header{flex-direction:column;gap:8px}.related-header a{font-size:18px}}`;
 }
 
 function generateJS() {
