@@ -85,7 +85,7 @@ function getFilmUrl(film) { return `films/${slugify(film.titleEnglish)}-${film.i
 
 function generateTableRows(filmList) {
   return filmList.map(film => `
-    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${film.watchLinks ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
+    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${film.watchLinks ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}">
       <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
       <td><a href="${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
       <td class="table-meta">${film.director ? `<strong>${escapeHtml(film.director)}</strong><br>` : ''}${film.studio ? escapeHtml(film.studio) : ''}</td>
@@ -204,7 +204,7 @@ function generateIndexPage() {
   <div class="stat-block"><span class="stat-label">Techniques</span><span class="stat-value">${Object.keys(stats.techniques).length}</span></div>
   <div class="stat-block"><span class="stat-label">Watchable</span><span class="stat-value">${stats.watchable.toLocaleString()}</span></div>
 </div>
-<nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="#about">About</a></nav>
+<nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="directors/">Directors</a><a href="#about">About</a></nav>
 <div class="main-layout">
   <aside class="sidebar" role="complementary" aria-label="Filters">
     <div class="query-display" id="active-query" style="display:none;"><div class="query-label">Active Filters</div><div class="query-tags" id="query-tags"></div></div>
@@ -400,7 +400,31 @@ function generateCSS() {
 .technique-card-desc{font-family:'Source Serif 4',serif;font-size:14px;color:var(--ink-light);margin-bottom:12px;line-height:1.5}
 .technique-card-meta{display:flex;gap:16px;font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
 .technique-card-count{color:var(--ink);font-weight:500}
-@media(max-width:900px){.technique-header{flex-direction:column;text-align:center}.technique-nav{text-align:center;margin-top:16px}.techniques-grid{grid-template-columns:1fr}}`;
+@media(max-width:900px){.technique-header{flex-direction:column;text-align:center}.technique-nav{text-align:center;margin-top:16px}.techniques-grid{grid-template-columns:1fr}}
+/* Directors Index */
+.directors-index{padding:48px 32px;max-width:1400px;margin:0 auto}
+.directors-header{text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:2px solid var(--ink)}
+.directors-header h1{font-family:'Playfair Display',serif;font-size:48px;font-weight:400;margin-bottom:12px}
+.directors-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
+.directors-stats{display:flex;justify-content:center;gap:48px;margin-bottom:32px;padding:24px;background:var(--data-bg);border:1px solid var(--rule)}
+.directors-stat{text-align:center}
+.directors-stat .stat-value{display:block;font-family:'Playfair Display',serif;font-size:36px;font-weight:400;color:var(--ink)}
+.directors-stat .stat-label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted)}
+.directors-alphabet{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:40px;padding:16px;background:var(--paper);border:1px solid var(--rule)}
+.alphabet-link{font-family:var(--mono);font-size:14px;font-weight:600;padding:8px 12px;text-decoration:none;color:var(--ink-muted);transition:color .15s,background .15s}
+.alphabet-link:hover,.alphabet-link:focus{color:var(--accent);background:var(--cream)}
+.directors-list{display:flex;flex-direction:column;gap:40px}
+.directors-letter-section{scroll-margin-top:20px}
+.letter-heading{font-family:'Playfair Display',serif;font-size:32px;font-weight:400;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule);color:var(--accent)}
+.directors-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.director-card{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s}
+.director-card:hover{border-color:var(--ink);box-shadow:3px 3px 0 var(--rule)}
+.director-card:focus{outline:2px solid var(--accent);outline-offset:2px}
+.director-name{font-family:'Source Serif 4',serif;font-size:16px;color:var(--ink)}
+.director-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.director-count{font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:500}
+.director-countries{font-family:var(--mono);font-size:10px;color:var(--ink-muted);letter-spacing:.05em}
+@media(max-width:900px){.directors-stats{flex-direction:column;gap:16px}.directors-grid{grid-template-columns:1fr}}`;
 }
 
 function generateJS() {
@@ -425,7 +449,7 @@ function confPips(c){const l={'★':1,'★★':2,'★★★':3,'★★★★':4,
 
 function renderRow(f){
   const dec=f.year?Math.floor(f.year/10)*10:'';
-  return '<tr data-country="'+escHtml(f.country||'')+'" data-decade="'+dec+'" data-technique="'+escHtml((f.technique||[]).join(','))+'" data-watchable="'+(f.watchLinks?'true':'false')+'" data-subs="'+(f.hasSubtitles?'true':'false')+'">'+
+  return '<tr data-country="'+escHtml(f.country||'')+'" data-decade="'+dec+'" data-technique="'+escHtml((f.technique||[]).join(','))+'" data-watchable="'+(f.watchLinks?'true':'false')+'" data-subs="'+(f.hasSubtitles?'true':'false')+'" data-director="'+escHtml(f.director||'')+'">'+
     '<td><div class="table-year">'+(f.year||'—')+'</div><div class="table-country">'+getCC(f.country)+'</div></td>'+
     '<td><a href="films/'+slugify(f.title)+'-'+f.id.slice(0,8)+'.html" class="table-title">'+(escHtml(f.title)||'Untitled')+'</a>'+(f.original?'<div class="table-original">'+escHtml(f.original)+'</div>':'')+'</td>'+
     '<td class="table-meta">'+(f.director?'<strong>'+escHtml(f.director)+'</strong><br>':'')+(f.studio?escHtml(f.studio):'')+'</td>'+
@@ -449,6 +473,7 @@ function getFilteredFilms(){
     if(activeFilters.technique&&!(f.technique||[]).includes(activeFilters.technique))return false;
     if(activeFilters.watchable&&!f.watchLinks)return false;
     if(activeFilters.subtitles&&!f.hasSubtitles)return false;
+    if(activeFilters.director){const dirs=(f.director||'').split(',').map(d=>d.trim());if(!dirs.includes(activeFilters.director))return false;}
     return true;
   });
 }
@@ -516,6 +541,14 @@ if(loadMoreBtn){
     this.dataset.loaded=loadedCount;
     updateDisplay();
   });
+}
+
+// Check for ?director=X URL parameter and apply filter
+const urlParams=new URLSearchParams(window.location.search);
+const directorParam=urlParams.get('director');
+if(directorParam){
+  activeFilters.director=directorParam;
+  updateDisplay();
 }
 });`;
 }
@@ -1060,11 +1093,148 @@ function generateTechniquePages() {
   return { count, techniquesWithFilms };
 }
 
+// Director Index Page - groups directors alphabetically with film counts
+function generateDirectorIndexPage(directorsData) {
+  // directorsData is an array of { name, films: [...], countries: Set }
+  const sortedDirectors = [...directorsData].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+
+  // Group by first letter
+  const byLetter = {};
+  for (const director of sortedDirectors) {
+    const firstChar = director.name.charAt(0).toUpperCase();
+    const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+    if (!byLetter[letter]) byLetter[letter] = [];
+    byLetter[letter].push(director);
+  }
+
+  const letters = Object.keys(byLetter).sort((a, b) => a === '#' ? 1 : b === '#' ? -1 : a.localeCompare(b));
+  const totalDirectors = sortedDirectors.length;
+  const totalFilms = sortedDirectors.reduce((sum, d) => sum + d.films.length, 0);
+  const avgFilms = (totalFilms / totalDirectors).toFixed(1);
+
+  const description = `Browse ${totalDirectors} directors from the Global Animation Archive. Alphabetical listing with film counts and primary countries.`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Directors — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/directors/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Directors — Global Animation Archive">
+<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:url" content="${SITE_URL}/directors/">
+<meta property="og:site_name" content="Global Animation Archive">
+<meta property="og:locale" content="en_US">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Directors — Global Animation Archive">
+<meta name="twitter:description" content="${escapeHtml(description)}">
+
+<!-- JSON-LD Structured Data -->
+<script type="application/ld+json">${JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Directors — Global Animation Archive",
+    "description": description,
+    "url": `${SITE_URL}/directors/`,
+    "numberOfItems": totalDirectors,
+    "publisher": {
+      "@type": "Organization",
+      "name": "Global Animation Archive"
+    },
+    "dateModified": BUILD_TIMESTAMP
+  })}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+<main class="directors-index" id="main-content">
+  <div class="directors-header">
+    <h1>Directors</h1>
+    <p class="directors-subtitle">Browse ${totalDirectors} directors in the archive</p>
+  </div>
+
+  <div class="directors-stats">
+    <div class="directors-stat"><span class="stat-value">${totalDirectors}</span><span class="stat-label">Directors</span></div>
+    <div class="directors-stat"><span class="stat-value">${avgFilms}</span><span class="stat-label">Avg Films/Director</span></div>
+  </div>
+
+  <nav class="directors-alphabet" aria-label="Jump to letter">
+    ${letters.map(letter => `<a href="#letter-${letter}" class="alphabet-link">${letter}</a>`).join('')}
+  </nav>
+
+  <div class="directors-list">
+    ${letters.map(letter => `
+    <section class="directors-letter-section" id="letter-${letter}">
+      <h2 class="letter-heading">${letter}</h2>
+      <div class="directors-grid">
+        ${byLetter[letter].map(director => {
+          const countryCodes = [...director.countries].slice(0, 3).map(c => getCountryCode(c)).join(', ');
+          return `<a href="../index.html?director=${encodeURIComponent(director.name)}" class="director-card">
+          <span class="director-name">${escapeHtml(director.name)}</span>
+          <span class="director-meta">
+            <span class="director-count">${director.films.length} film${director.films.length !== 1 ? 's' : ''}</span>
+            <span class="director-countries">${countryCodes}</span>
+          </span>
+        </a>`;
+        }).join('\n        ')}
+      </div>
+    </section>`).join('\n    ')}
+  </div>
+</main>
+<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+</body></html>`;
+}
+
+function generateDirectorPages() {
+  // Parse directors: handle multiple directors (comma-separated), normalize names
+  const directorsMap = new Map(); // name -> { name, films: [], countries: Set }
+
+  for (const film of films) {
+    if (!film.director) continue;
+
+    // Split by comma and normalize each name
+    const directorNames = film.director.split(',').map(d => d.trim()).filter(d => d.length > 0);
+
+    for (const name of directorNames) {
+      if (!directorsMap.has(name)) {
+        directorsMap.set(name, { name, films: [], countries: new Set() });
+      }
+      const directorData = directorsMap.get(name);
+      directorData.films.push(film);
+      if (film.country) {
+        directorData.countries.add(film.country);
+      }
+    }
+  }
+
+  const directorsData = Array.from(directorsMap.values());
+
+  // Generate directory and index page
+  mkdirSync('./dist/directors', { recursive: true });
+  writeFileSync('./dist/directors/index.html', generateDirectorIndexPage(directorsData));
+
+  return { count: directorsData.length };
+}
+
 function generateSitemap(countriesWithFilms, techniquesWithFilms) {
   const urls = [
     { loc: `${SITE_URL}/`, priority: '1.0', changefreq: 'daily' },
     { loc: `${SITE_URL}/countries/`, priority: '0.9', changefreq: 'weekly' },
-    { loc: `${SITE_URL}/techniques/`, priority: '0.9', changefreq: 'weekly' }
+    { loc: `${SITE_URL}/techniques/`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${SITE_URL}/directors/`, priority: '0.9', changefreq: 'weekly' }
   ];
 
   // Add country pages
@@ -1143,14 +1313,18 @@ function build() {
   const { count: techniqueCount, techniquesWithFilms } = generateTechniquePages();
   console.log(`  ✓ ${techniqueCount} technique pages + index (with OG tags + JSON-LD)`);
 
+  // Generate director index
+  const { count: directorCount } = generateDirectorPages();
+  console.log(`  ✓ directors index (${directorCount} directors)`);
+
   writeFileSync('./dist/styles.css', generateCSS());
-  console.log('  ✓ styles.css (with country + technique page styles)');
+  console.log('  ✓ styles.css (with country + technique + directors page styles)');
 
   writeFileSync('./dist/app.js', generateJS());
   console.log('  ✓ app.js (with pagination + keyboard nav)');
 
   writeFileSync('./dist/sitemap.xml', generateSitemap(countriesWithFilms, techniquesWithFilms));
-  console.log('  ✓ sitemap.xml (' + (films.length + countryCount + techniqueCount + 3) + ' URLs)');
+  console.log('  ✓ sitemap.xml (' + (films.length + countryCount + techniqueCount + 4) + ' URLs)');
 
   writeFileSync('./dist/robots.txt', generateRobotsTxt());
   console.log('  ✓ robots.txt');
@@ -1160,6 +1334,7 @@ function build() {
   console.log(`   • Pagination: Initial load ${FILMS_PER_PAGE} films`);
   console.log(`   • Country pages: ${countryCount} countries with dedicated pages`);
   console.log(`   • Technique pages: ${techniqueCount} techniques with dedicated pages`);
+  console.log(`   • Directors index: ${directorCount} directors with filter links`);
   console.log(`   • SEO: sitemap.xml, robots.txt, OG tags, JSON-LD on all pages`);
   console.log(`   • Accessibility: Skip links, ARIA labels, keyboard navigation`);
 }
