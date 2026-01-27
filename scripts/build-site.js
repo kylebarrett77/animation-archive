@@ -6,6 +6,8 @@ const BUILD_DATE = new Date().toISOString().split('T')[0];
 const BUILD_TIMESTAMP = new Date().toISOString();
 const SITE_URL = 'https://animationarchive.netlify.app';
 const FILMS_PER_PAGE = 50;
+const FAVICON = `<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎞️</text></svg>">`;
+const OG_IMAGE = `${SITE_URL}/og-image.png`;
 
 function confidenceToPips(confidence) {
   const levels = { '★': 1, '★★': 2, '★★★': 3, '★★★★': 4, '★★★★★': 5 };
@@ -358,6 +360,7 @@ function generateIndexPage() {
 <meta name="description" content="Discover ${stats.total.toLocaleString()} animated films from ${Object.keys(stats.countries).length} countries. A comprehensive database documenting the art of animation from every corner of the world.">
 <meta name="keywords" content="animation, animated films, world cinema, film database, international animation, stop motion, hand-drawn animation">
 <link rel="canonical" href="${SITE_URL}/">
+${FAVICON}
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
@@ -366,11 +369,13 @@ function generateIndexPage() {
 <meta property="og:url" content="${SITE_URL}/">
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Global Animation Archive">
 <meta name="twitter:description" content="Discover ${stats.total.toLocaleString()} animated films from ${Object.keys(stats.countries).length} countries.">
+<meta name="twitter:image" content="${OG_IMAGE}">
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateCollectionJsonLd()}</script>
@@ -407,6 +412,7 @@ function generateIndexPage() {
     <div class="content-header"><div><h2 class="content-title">From the Collection</h2><span class="content-meta" id="results-count">${stats.total.toLocaleString()} films</span></div><div class="search-actions"><div class="search-box"><label for="search-input" class="visually-hidden">Search films</label><input type="text" id="search-input" placeholder="Search titles, directors..." aria-describedby="results-count" /></div><button id="random-film-btn" class="random-btn" aria-label="Go to random film">🎲 Random</button></div></div>
     ${generateFilmOfTheDayCard(getFilmOfTheDay(films))}
     <div class="table-wrapper"><table class="film-table" role="grid"><thead><tr><th scope="col" style="width:90px">Year</th><th scope="col">Title</th><th scope="col">Director / Studio</th><th scope="col" style="width:100px">Technique</th><th scope="col" style="width:70px">Runtime</th><th scope="col" style="width:90px">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
+    <div id="no-results" class="no-results" style="display:none"><h3 class="no-results-title">No films match your filters</h3><p class="no-results-message">Try adjusting your search or removing some filters.</p></div>
     ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${films.length}">Load More <span class="load-more-count">(${films.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
   </main>
 </div>
@@ -452,6 +458,7 @@ function generateFilmPage(film) {
 <title>${escapeHtml(film.titleEnglish || 'Untitled')} (${film.year || '?'}) — Global Animation Archive</title>
 <meta name="description" content="${escapeHtml(description.substring(0, 160))}">
 <link rel="canonical" href="${SITE_URL}/${getFilmUrl(film)}">
+${FAVICON}
 
 <!-- Open Graph -->
 <meta property="og:type" content="video.movie">
@@ -459,12 +466,14 @@ function generateFilmPage(film) {
 <meta property="og:description" content="${escapeHtml(description.substring(0, 200))}">
 <meta property="og:url" content="${SITE_URL}/${getFilmUrl(film)}">
 <meta property="og:site_name" content="Global Animation Archive">
+<meta property="og:image" content="${OG_IMAGE}">
 ${film.year ? `<meta property="video:release_date" content="${film.year}">` : ''}
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="${escapeHtml(film.titleEnglish || 'Untitled')} (${film.year || '?'})">
 <meta name="twitter:description" content="${escapeHtml(description.substring(0, 200))}">
+<meta name="twitter:image" content="${OG_IMAGE}">
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateFilmJsonLd(film)}</script>
@@ -684,7 +693,23 @@ function generateCSS() {
 .related-title{display:block;font-family:'Playfair Display',serif;font-size:15px;font-weight:500;line-height:1.3;margin-bottom:8px;color:var(--ink)}
 .related-meta{display:block;font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
 .related-watch{position:absolute;top:12px;right:12px;font-size:12px;color:var(--accent)}
-@media(max-width:900px){.related-films{padding:32px 16px}.related-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.related-header{flex-direction:column;gap:8px}.related-header a{font-size:18px}}`;
+@media(max-width:900px){.related-films{padding:32px 16px}.related-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.related-header{flex-direction:column;gap:8px}.related-header a{font-size:18px}}
+/* 404 Error Page */
+.error-page{display:flex;align-items:center;justify-content:center;min-height:60vh;padding:48px 32px}
+.error-content{text-align:center;max-width:500px}
+.error-code{font-family:var(--mono);font-size:120px;font-weight:600;color:var(--rule);line-height:1;margin-bottom:16px}
+.error-title{font-family:'Playfair Display',serif;font-size:36px;font-weight:400;margin-bottom:16px}
+.error-message{font-family:'Source Serif 4',serif;font-size:18px;color:var(--ink-muted);margin-bottom:32px}
+.error-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.error-btn{font-family:var(--mono);font-size:12px;font-weight:500;padding:14px 24px;text-decoration:none;transition:all .2s}
+.error-btn-primary{background:var(--ink);color:var(--cream)}
+.error-btn-primary:hover{background:var(--accent)}
+.error-btn-secondary{background:var(--paper);color:var(--ink);border:1px solid var(--rule)}
+.error-btn-secondary:hover{border-color:var(--ink)}
+/* Empty search state */
+.no-results{padding:48px 32px;text-align:center;background:var(--paper)}
+.no-results-title{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:12px}
+.no-results-message{font-family:'Source Serif 4',serif;color:var(--ink-muted);font-size:16px}`;
 }
 
 function generateJS() {
@@ -741,10 +766,18 @@ function getFilteredFilms(){
 function updateDisplay(){
   const filtered=getFilteredFilms();
   const isFiltered=searchInput.value||Object.keys(activeFilters).length>0;
+  const noResultsEl=document.getElementById('no-results');
   if(isFiltered){
-    tbody.innerHTML=filtered.map(renderRow).join('');
+    if(filtered.length===0){
+      tbody.innerHTML='';
+      if(noResultsEl)noResultsEl.style.display='block';
+    }else{
+      tbody.innerHTML=filtered.map(renderRow).join('');
+      if(noResultsEl)noResultsEl.style.display='none';
+    }
     if(loadMoreBtn)loadMoreBtn.style.display='none';
   }else{
+    if(noResultsEl)noResultsEl.style.display='none';
     const rows=tbody.querySelectorAll('tr');
     rows.forEach((row,i)=>{row.classList.toggle('hidden',i>=loadedCount);});
     if(loadMoreBtn){
@@ -891,6 +924,7 @@ function generateCountryPage(country, countryFilms) {
 <title>${escapeHtml(country)} Animation — Global Animation Archive</title>
 <meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${SITE_URL}/countries/${slugify(country)}.html">
+${FAVICON}
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
@@ -899,11 +933,13 @@ function generateCountryPage(country, countryFilms) {
 <meta property="og:url" content="${SITE_URL}/countries/${slugify(country)}.html">
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="${escapeHtml(country)} Animation">
 <meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:image" content="${OG_IMAGE}">
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateCountryJsonLd(country, countryFilms)}</script>
@@ -992,6 +1028,7 @@ function generateCountryIndexPage(countriesWithFilms) {
 <title>Countries — Global Animation Archive</title>
 <meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${SITE_URL}/countries/">
+${FAVICON}
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
@@ -1000,11 +1037,13 @@ function generateCountryIndexPage(countriesWithFilms) {
 <meta property="og:url" content="${SITE_URL}/countries/">
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Countries — Global Animation Archive">
 <meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:image" content="${OG_IMAGE}">
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${JSON.stringify({
@@ -1157,6 +1196,7 @@ function generateTechniquePage(technique, techniqueFilms) {
 <title>${escapeHtml(technique)} Animation — Global Animation Archive</title>
 <meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${SITE_URL}/techniques/${slugify(technique)}.html">
+${FAVICON}
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
@@ -1165,11 +1205,13 @@ function generateTechniquePage(technique, techniqueFilms) {
 <meta property="og:url" content="${SITE_URL}/techniques/${slugify(technique)}.html">
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="${escapeHtml(technique)} Animation">
 <meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:image" content="${OG_IMAGE}">
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateTechniqueJsonLd(technique, techniqueFilms)}</script>
@@ -1272,6 +1314,7 @@ function generateTechniqueIndexPage(techniquesWithFilms) {
 <title>Techniques — Global Animation Archive</title>
 <meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${SITE_URL}/techniques/">
+${FAVICON}
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
@@ -1280,11 +1323,13 @@ function generateTechniqueIndexPage(techniquesWithFilms) {
 <meta property="og:url" content="${SITE_URL}/techniques/">
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Techniques — Global Animation Archive">
 <meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:image" content="${OG_IMAGE}">
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${JSON.stringify({
@@ -1397,6 +1442,7 @@ function generateDirectorIndexPage(directorsData) {
 <title>Directors — Global Animation Archive</title>
 <meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${SITE_URL}/directors/">
+${FAVICON}
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
@@ -1405,11 +1451,13 @@ function generateDirectorIndexPage(directorsData) {
 <meta property="og:url" content="${SITE_URL}/directors/">
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Directors — Global Animation Archive">
 <meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:image" content="${OG_IMAGE}">
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${JSON.stringify({
@@ -1587,6 +1635,7 @@ function generateDecadePage(decade, decadeFilms) {
 <title>${decadeLabel} Animation — Global Animation Archive</title>
 <meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${SITE_URL}/decades/${decade}s.html">
+${FAVICON}
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
@@ -1595,11 +1644,13 @@ function generateDecadePage(decade, decadeFilms) {
 <meta property="og:url" content="${SITE_URL}/decades/${decade}s.html">
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="${decadeLabel} Animation">
 <meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:image" content="${OG_IMAGE}">
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateDecadeJsonLd(decade, decadeFilms)}</script>
@@ -1690,6 +1741,7 @@ function generateDecadeIndexPage(decadesWithFilms) {
 <title>Decades — Global Animation Archive</title>
 <meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${SITE_URL}/decades/">
+${FAVICON}
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
@@ -1698,11 +1750,13 @@ function generateDecadeIndexPage(decadesWithFilms) {
 <meta property="og:url" content="${SITE_URL}/decades/">
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Decades — Global Animation Archive">
 <meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:image" content="${OG_IMAGE}">
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${JSON.stringify({
@@ -1854,6 +1908,44 @@ ${urls.map(u => `  <url>
 </urlset>`;
 }
 
+function generate404Page() {
+  // Pick a random film for the footer
+  const randomFilm = films[Math.floor(Math.random() * films.length)];
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Film Not Found — Global Animation Archive</title>
+<meta name="description" content="The page you're looking for doesn't exist. Return to the Global Animation Archive collection.">
+${FAVICON}
+<meta name="robots" content="noindex">
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="/" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+<main class="error-page" id="main-content">
+  <div class="error-content">
+    <div class="error-code">404</div>
+    <h1 class="error-title">Film Not Found</h1>
+    <p class="error-message">This reel seems to be missing from the archive.</p>
+    <div class="error-actions">
+      <a href="/" class="error-btn error-btn-primary">Back to Collection</a>
+      <a href="/${getFilmUrl(randomFilm)}" class="error-btn error-btn-secondary">🎲 Random Film</a>
+    </div>
+  </div>
+</main>
+<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+</body></html>`;
+}
+
 function generateRobotsTxt() {
   return `# Global Animation Archive
 User-agent: *
@@ -1907,6 +1999,9 @@ function build() {
 
   writeFileSync('./dist/robots.txt', generateRobotsTxt());
   console.log('  ✓ robots.txt');
+
+  writeFileSync('./dist/404.html', generate404Page());
+  console.log('  ✓ 404.html');
 
   console.log(`\n✅ Build complete! Output in ./dist/`);
   console.log(`\n📊 Features:`);
