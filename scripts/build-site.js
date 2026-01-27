@@ -99,7 +99,8 @@ const decadeDescriptions = {
 
 function escapeHtml(str) { if (!str) return ''; return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function slugify(str) { return (str || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
-function getFilmUrl(film) { return `films/${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
+function getFilmUrl(film, basePath = '') { return `${basePath}films/${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
+function getFilmFilename(film) { return `${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
 
 /// Generate footer with random film link
 // pathPrefix: '' for root, '../' for sub-pages
@@ -252,7 +253,7 @@ function generateRelatedFilmsSection(film) {
       </h3>
       <div class="related-grid">
         ${section.films.map(f => `
-        <a href="../${getFilmUrl(f)}" class="related-card">
+        <a href="${getFilmFilename(f)}" class="related-card">
           <span class="related-title">${escapeHtml(f.titleEnglish) || 'Untitled'}</span>
           <span class="related-meta">${f.year || '?'}${f.director ? ` · ${escapeHtml(f.director.split(',')[0].trim())}` : ''}</span>
           ${f.watchLinks ? '<span class="related-watch">▶</span>' : ''}
@@ -262,11 +263,11 @@ function generateRelatedFilmsSection(film) {
   </section>`;
 }
 
-function generateTableRows(filmList) {
+function generateTableRows(filmList, basePath = '') {
   return filmList.map(film => `
     <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${film.watchLinks ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}">
       <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
-      <td><a href="${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
+      <td><a href="${getFilmUrl(film, basePath)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
       <td class="table-meta">${film.director ? `<strong>${escapeHtml(film.director)}</strong><br>` : ''}${film.studio ? escapeHtml(film.studio) : ''}</td>
       <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
       <td class="table-runtime">${escapeHtml(film.runtime) || '—'}</td>
@@ -968,7 +969,7 @@ function generateCountryPage(country, countryFilms) {
             <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
           </tr>
         </thead>
-        <tbody>${generateTableRows(countryFilms)}</tbody>
+        <tbody>${generateTableRows(countryFilms, '../')}</tbody>
       </table>
     </div>
   </section>
