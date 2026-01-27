@@ -411,7 +411,7 @@ ${FAVICON}
   <main class="content" id="main-content">
     <div class="content-header"><div><h2 class="content-title">From the Collection</h2><span class="content-meta" id="results-count">${stats.total.toLocaleString()} films</span></div><div class="search-actions"><div class="search-box"><label for="search-input" class="visually-hidden">Search films</label><input type="text" id="search-input" placeholder="Search titles, directors..." aria-describedby="results-count" /></div><button id="random-film-btn" class="random-btn" aria-label="Go to random film">🎲 Random</button></div></div>
     ${generateFilmOfTheDayCard(getFilmOfTheDay(films))}
-    <div class="table-wrapper"><table class="film-table" role="grid"><thead><tr><th scope="col" style="width:90px">Year</th><th scope="col">Title</th><th scope="col">Director / Studio</th><th scope="col" style="width:100px">Technique</th><th scope="col" style="width:70px">Runtime</th><th scope="col" style="width:90px">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
+    <div class="table-wrapper"><table class="film-table" role="grid"><thead><tr><th scope="col" style="width:90px" class="sortable active" data-sort="year">Year <span class="sort-indicator">▼</span></th><th scope="col" class="sortable" data-sort="title">Title <span class="sort-indicator"></span></th><th scope="col">Director / Studio</th><th scope="col" style="width:100px" class="sortable" data-sort="technique">Technique <span class="sort-indicator"></span></th><th scope="col" style="width:70px">Runtime</th><th scope="col" style="width:90px">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
     <div id="no-results" class="no-results" style="display:none"><h3 class="no-results-title">No films match your filters</h3><p class="no-results-message">Try adjusting your search or removing some filters.</p></div>
     ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${films.length}">Load More <span class="load-more-count">(${films.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
   </main>
@@ -709,7 +709,12 @@ function generateCSS() {
 /* Empty search state */
 .no-results{padding:48px 32px;text-align:center;background:var(--paper)}
 .no-results-title{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:12px}
-.no-results-message{font-family:'Source Serif 4',serif;color:var(--ink-muted);font-size:16px}`;
+.no-results-message{font-family:'Source Serif 4',serif;color:var(--ink-muted);font-size:16px}
+/* Sortable table headers */
+.sortable{cursor:pointer;user-select:none;transition:color .15s}
+.sortable:hover{color:var(--accent)}
+.sort-indicator{margin-left:4px;opacity:0.4;font-size:10px}
+.sortable.active .sort-indicator{opacity:1;color:var(--accent)}`;
 }
 
 function generateJS() {
@@ -725,12 +730,29 @@ const allFilms=window.ALL_FILMS_DATA||[];
 let activeFilters={};
 let loadedCount=parseInt(loadMoreBtn?.dataset.loaded||allFilms.length);
 const BATCH_SIZE=50;
+let currentSort={column:'year',direction:'desc'};
 
 const countryCodes={USSR:'USSR',Russia:'RUS',Czechoslovakia:'CSSR','Czech Republic':'CZE',Poland:'POL',Hungary:'HUN',Yugoslavia:'YUG',Croatia:'HRV',Serbia:'SRB',Romania:'ROU','East Germany':'DDR',Germany:'DEU',China:'CHN',Japan:'JPN',USA:'USA',France:'FRA',UK:'GBR',Canada:'CAN',Italy:'ITA',Australia:'AUS',India:'IND',Thailand:'THA',Vietnam:'VNM',UAE:'UAE',Cuba:'CUB',Brazil:'BRA',Belgium:'BEL',Philippines:'PHL',Malaysia:'MYS',Indonesia:'IDN','South Africa':'ZAF',Egypt:'EGY',Iran:'IRN',Argentina:'ARG',Mexico:'MEX','South Korea':'KOR',Taiwan:'TWN',Turkey:'TUR',Nigeria:'NGA',Kenya:'KEN',Zambia:'ZMB','Saudi Arabia':'SAU','North Korea':'PRK',Spain:'ESP',Netherlands:'NLD',Sweden:'SWE',Denmark:'DNK',Norway:'NOR',Switzerland:'CHE',Ireland:'IRL','New Zealand':'NZL',Singapore:'SGP',Israel:'ISR',Slovakia:'SVK',Bulgaria:'BGR',Ukraine:'UKR',Estonia:'EST',Latvia:'LVA',Lithuania:'LTU',Georgia:'GEO',Armenia:'ARM',Chile:'CHL',Other:'OTH'};
 function getCC(c){return countryCodes[c]||c?.substring(0,3).toUpperCase()||'???';}
 function escHtml(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function slugify(s){return(s||'untitled').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');}
 function confPips(c){const l={'★':1,'★★':2,'★★★':3,'★★★★':4,'★★★★★':5};const n=l[c]||0;return '<span class="filled">'+'■'.repeat(n)+'</span><span class="empty">'+'□'.repeat(5-n)+'</span>';}
+
+function sortFilms(films,column,direction){
+  return [...films].sort((a,b)=>{
+    let valA,valB;
+    switch(column){
+      case 'year':valA=a.year||0;valB=b.year||0;break;
+      case 'title':valA=(a.title||'').toLowerCase();valB=(b.title||'').toLowerCase();break;
+      case 'country':valA=(a.country||'zzz').toLowerCase();valB=(b.country||'zzz').toLowerCase();break;
+      case 'technique':valA=(a.technique&&a.technique[0]||'zzz').toLowerCase();valB=(b.technique&&b.technique[0]||'zzz').toLowerCase();break;
+      default:return 0;
+    }
+    if(valA<valB)return direction==='asc'?-1:1;
+    if(valA>valB)return direction==='asc'?1:-1;
+    return 0;
+  });
+}
 
 function renderRow(f){
   const dec=f.year?Math.floor(f.year/10)*10:'';
@@ -746,7 +768,7 @@ function renderRow(f){
 
 function getFilteredFilms(){
   const term=searchInput.value.toLowerCase();
-  return allFilms.filter(f=>{
+  const filtered=allFilms.filter(f=>{
     if(term){
       const t=(f.title||'').toLowerCase();
       const o=(f.original||'').toLowerCase();
@@ -761,32 +783,33 @@ function getFilteredFilms(){
     if(activeFilters.director){const dirs=(f.director||'').split(',').map(d=>d.trim());if(!dirs.includes(activeFilters.director))return false;}
     return true;
   });
+  return sortFilms(filtered,currentSort.column,currentSort.direction);
 }
 
-function updateDisplay(){
-  const filtered=getFilteredFilms();
+function updateDisplay(resetPagination){
+  const sorted=getFilteredFilms();
   const isFiltered=searchInput.value||Object.keys(activeFilters).length>0;
   const noResultsEl=document.getElementById('no-results');
+  if(resetPagination)loadedCount=BATCH_SIZE;
   if(isFiltered){
-    if(filtered.length===0){
+    if(sorted.length===0){
       tbody.innerHTML='';
       if(noResultsEl)noResultsEl.style.display='block';
     }else{
-      tbody.innerHTML=filtered.map(renderRow).join('');
+      tbody.innerHTML=sorted.map(renderRow).join('');
       if(noResultsEl)noResultsEl.style.display='none';
     }
     if(loadMoreBtn)loadMoreBtn.style.display='none';
   }else{
     if(noResultsEl)noResultsEl.style.display='none';
-    const rows=tbody.querySelectorAll('tr');
-    rows.forEach((row,i)=>{row.classList.toggle('hidden',i>=loadedCount);});
+    tbody.innerHTML=sorted.slice(0,loadedCount).map(renderRow).join('');
     if(loadMoreBtn){
-      loadMoreBtn.style.display=loadedCount>=allFilms.length?'none':'inline-block';
-      const rem=allFilms.length-loadedCount;
+      loadMoreBtn.style.display=loadedCount>=sorted.length?'none':'inline-block';
+      const rem=sorted.length-loadedCount;
       loadMoreBtn.querySelector('.load-more-count').textContent='('+rem+' remaining)';
     }
   }
-  resultsCount.textContent=filtered.length.toLocaleString()+' films';
+  resultsCount.textContent=sorted.length.toLocaleString()+' films';
   updateQueryDisplay();
 }
 
@@ -822,11 +845,12 @@ filterItems.forEach(item=>{
 
 if(loadMoreBtn){
   loadMoreBtn.addEventListener('click',function(){
-    const newCount=Math.min(loadedCount+BATCH_SIZE,allFilms.length);
+    const sorted=getFilteredFilms();
+    const newCount=Math.min(loadedCount+BATCH_SIZE,sorted.length);
     const fragment=document.createDocumentFragment();
     for(let i=loadedCount;i<newCount;i++){
       const temp=document.createElement('template');
-      temp.innerHTML=renderRow(allFilms[i]);
+      temp.innerHTML=renderRow(sorted[i]);
       fragment.appendChild(temp.content.firstChild);
     }
     tbody.appendChild(fragment);
@@ -855,6 +879,36 @@ function goToRandomFilm(){
 // Random film button in content header
 const randomBtn=document.getElementById('random-film-btn');
 if(randomBtn){randomBtn.addEventListener('click',goToRandomFilm);}
+
+// Sortable column headers
+const sortableHeaders=document.querySelectorAll('.sortable');
+function updateSortIndicators(){
+  sortableHeaders.forEach(th=>{
+    const col=th.dataset.sort;
+    const indicator=th.querySelector('.sort-indicator');
+    if(col===currentSort.column){
+      th.classList.add('active');
+      indicator.textContent=currentSort.direction==='asc'?'▲':'▼';
+    }else{
+      th.classList.remove('active');
+      indicator.textContent='';
+    }
+  });
+}
+sortableHeaders.forEach(th=>{
+  th.style.cursor='pointer';
+  th.addEventListener('click',function(){
+    const col=this.dataset.sort;
+    if(currentSort.column===col){
+      currentSort.direction=currentSort.direction==='asc'?'desc':'asc';
+    }else{
+      currentSort.column=col;
+      currentSort.direction=col==='year'?'desc':'asc';
+    }
+    updateSortIndicators();
+    updateDisplay(true);
+  });
+});
 
 // Footer random link
 const footerRandomLink=document.getElementById('footer-random-link');
