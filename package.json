@@ -7,7 +7,10 @@
     "fetch": "node scripts/fetch-notion.js",
     "build": "node scripts/build-site.js",
     "dev": "npm run fetch && npm run build && npx serve dist",
-    "deploy": "npm run fetch && npm run build"
+    "deploy": "npm run fetch && npm run build",
+    "audit": "node scripts/audit-data.js",
+    "validate": "node scripts/validate-links.js",
+    "data-check": "npm run audit && npm run validate"
   },
   "dependencies": {
     "@notionhq/client": "^2.2.14"
