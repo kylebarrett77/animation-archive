@@ -55,6 +55,30 @@ const countryCodes = {
 };
 
 function getCountryCode(country) { return countryCodes[country] || country?.substring(0, 3).toUpperCase() || '???'; }
+
+// Technique descriptions for technique pages
+const techniqueDescriptions = {
+  '2D Cel': 'Traditional cel animation drawn frame by frame on transparent sheets',
+  '2D Digital': 'Computer-generated 2D animation using digital drawing tools',
+  'Stop Motion': 'Frame-by-frame animation of physical objects or puppets',
+  'Cutout': 'Animation using flat characters and backgrounds cut from paper or card',
+  'Puppet': 'Three-dimensional puppet animation, often with armatures',
+  'Clay': 'Stop-motion using malleable clay or plasticine figures',
+  'Pixilation': 'Stop-motion technique using live actors as frame-by-frame subjects',
+  'Silhouette': 'Animation using backlit black shapes against bright backgrounds',
+  'Sand': 'Animation created by manipulating sand on a lightbox',
+  'Paint on Glass': 'Slow-drying oil paints manipulated on glass sheets',
+  'Pinscreen': 'Animation using thousands of pins pushed through a screen',
+  'Rotoscope': 'Animation traced over live-action footage',
+  'CGI': 'Three-dimensional computer-generated imagery',
+  'Mixed': 'Combination of multiple animation techniques',
+  'Experimental': 'Non-traditional or avant-garde animation approaches',
+  'Direct on Film': 'Animation drawn or scratched directly onto film stock',
+  'Collage': 'Animation using assembled found materials and images',
+  'Ink-Wash': 'Traditional East Asian ink wash painting animated frame by frame',
+  'Paper Cut': 'Animation using traditional paper cutting techniques',
+  'Documentary': 'Animated documentary combining real events with animation'
+};
 function escapeHtml(str) { if (!str) return ''; return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function slugify(str) { return (str || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
 function getFilmUrl(film) { return `films/${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
@@ -81,6 +105,13 @@ function generateFilterItems(items, type) {
       return `
     <div class="filter-item" data-filter-type="${type}" data-filter-value="${value}">
       <a href="countries/${slugify(item.name)}.html" class="filter-link"><span class="name">${displayName}</span></a><span class="count">${item.count}</span>
+    </div>`;
+    }
+    // Add link for technique filters
+    if (type === 'technique' && item.name) {
+      return `
+    <div class="filter-item" data-filter-type="${type}" data-filter-value="${value}">
+      <a href="techniques/${slugify(item.name)}.html" class="filter-link"><span class="name">${displayName}</span></a><span class="count">${item.count}</span>
     </div>`;
     }
     return `
@@ -173,7 +204,7 @@ function generateIndexPage() {
   <div class="stat-block"><span class="stat-label">Techniques</span><span class="stat-value">${Object.keys(stats.techniques).length}</span></div>
   <div class="stat-block"><span class="stat-label">Watchable</span><span class="stat-value">${stats.watchable.toLocaleString()}</span></div>
 </div>
-<nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="#about">About</a></nav>
+<nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="#about">About</a></nav>
 <div class="main-layout">
   <aside class="sidebar" role="complementary" aria-label="Filters">
     <div class="query-display" id="active-query" style="display:none;"><div class="query-label">Active Filters</div><div class="query-tags" id="query-tags"></div></div>
@@ -340,7 +371,36 @@ function generateCSS() {
 .filter-item .filter-link{text-decoration:none;color:inherit;display:block;flex:1}
 .filter-item .filter-link:hover .name{color:var(--accent)}
 .filter-item .filter-link .name{transition:color .15s}
-@media(max-width:900px){.country-header{grid-template-columns:1fr;text-align:center}.country-code-block{width:fit-content;margin:0 auto}.country-nav{text-align:center;margin-top:16px}.countries-grid{grid-template-columns:1fr}}`;
+@media(max-width:900px){.country-header{grid-template-columns:1fr;text-align:center}.country-code-block{width:fit-content;margin:0 auto}.country-nav{text-align:center;margin-top:16px}.countries-grid{grid-template-columns:1fr}}
+/* Technique Pages */
+.technique-page{padding:48px 32px;max-width:1400px;margin:0 auto}
+.technique-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:40px}
+.technique-title-section h1.technique-name{font-family:'Playfair Display',serif;font-size:42px;font-weight:400;margin-bottom:12px}
+.technique-description{font-family:'Source Serif 4',serif;font-size:18px;color:var(--ink-light);margin-bottom:8px;max-width:600px}
+.technique-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
+.technique-nav{text-align:right;padding-top:8px}
+.technique-back-link{font-family:var(--mono);font-size:12px;color:var(--ink-muted);text-decoration:none;letter-spacing:.05em}
+.technique-back-link:hover{color:var(--accent)}
+.technique-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:48px}
+.technique-stat-card{background:var(--paper);border:1px solid var(--rule);padding:24px}
+.technique-films-section{margin-top:40px}
+.table-country-cell{font-family:var(--mono);font-size:11px}
+.table-country-code{display:block;color:var(--accent);font-weight:600;letter-spacing:.05em}
+.table-country-name{display:block;color:var(--ink-muted);font-size:10px;margin-top:2px}
+/* Techniques Index */
+.techniques-index{padding:48px 32px;max-width:1400px;margin:0 auto}
+.techniques-header{text-align:center;margin-bottom:48px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
+.techniques-header h1{font-family:'Playfair Display',serif;font-size:48px;font-weight:400;margin-bottom:12px}
+.techniques-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
+.techniques-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.technique-card{display:block;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s;padding:24px}
+.technique-card:hover{border-color:var(--ink);box-shadow:4px 4px 0 var(--rule)}
+.technique-card:focus{outline:2px solid var(--accent);outline-offset:2px}
+.technique-card-name{font-family:'Playfair Display',serif;font-size:24px;font-weight:400;margin-bottom:8px}
+.technique-card-desc{font-family:'Source Serif 4',serif;font-size:14px;color:var(--ink-light);margin-bottom:12px;line-height:1.5}
+.technique-card-meta{display:flex;gap:16px;font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
+.technique-card-count{color:var(--ink);font-weight:500}
+@media(max-width:900px){.technique-header{flex-direction:column;text-align:center}.technique-nav{text-align:center;margin-top:16px}.techniques-grid{grid-template-columns:1fr}}`;
 }
 
 function generateJS() {
@@ -726,10 +786,285 @@ function generateCountryPages() {
   return { count, countriesWithFilms };
 }
 
-function generateSitemap(countriesWithFilms) {
+// JSON-LD for technique collection pages
+function generateTechniqueJsonLd(technique, techniqueFilms) {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": `${technique} Animation — Global Animation Archive`,
+    "description": `Explore ${techniqueFilms.length} ${technique.toLowerCase()} animated films. ${techniqueDescriptions[technique] || ''} Part of the Global Animation Archive.`,
+    "url": `${SITE_URL}/techniques/${slugify(technique)}.html`,
+    "numberOfItems": techniqueFilms.length,
+    "isPartOf": {
+      "@type": "WebSite",
+      "name": "Global Animation Archive",
+      "url": SITE_URL
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Global Animation Archive"
+    },
+    "dateModified": BUILD_TIMESTAMP
+  });
+}
+
+function generateTechniquePage(technique, techniqueFilms) {
+  // Sort by year descending
+  techniqueFilms.sort((a, b) => (b.year || 0) - (a.year || 0));
+
+  // Calculate stats
+  const countries = {};
+  const decades = {};
+  const formats = {};
+  let watchable = 0;
+  let withSubs = 0;
+
+  for (const film of techniqueFilms) {
+    if (film.country) {
+      countries[film.country] = (countries[film.country] || 0) + 1;
+    }
+    if (film.year) {
+      const dec = Math.floor(film.year / 10) * 10;
+      decades[dec] = (decades[dec] || 0) + 1;
+    }
+    if (film.format) {
+      formats[film.format] = (formats[film.format] || 0) + 1;
+    }
+    if (film.watchLinks) watchable++;
+    if (film.hasSubtitles) withSubs++;
+  }
+
+  const countriesSorted = Object.entries(countries).sort((a, b) => b[1] - a[1]);
+  const decadesSorted = Object.entries(decades).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+  const formatsSorted = Object.entries(formats).sort((a, b) => b[1] - a[1]);
+
+  const techniqueDesc = techniqueDescriptions[technique] || 'A distinctive animation technique';
+  const description = `Explore ${techniqueFilms.length} ${technique.toLowerCase()} animated films. ${techniqueDesc}`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(technique)} Animation — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/techniques/${slugify(technique)}.html">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="${escapeHtml(technique)} Animation — Global Animation Archive">
+<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:url" content="${SITE_URL}/techniques/${slugify(technique)}.html">
+<meta property="og:site_name" content="Global Animation Archive">
+<meta property="og:locale" content="en_US">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="${escapeHtml(technique)} Animation">
+<meta name="twitter:description" content="${escapeHtml(description)}">
+
+<!-- JSON-LD Structured Data -->
+<script type="application/ld+json">${generateTechniqueJsonLd(technique, techniqueFilms)}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+<main class="technique-page" id="main-content">
+  <div class="technique-header">
+    <div class="technique-title-section">
+      <h1 class="technique-name">${escapeHtml(technique)}</h1>
+      <p class="technique-description">${escapeHtml(techniqueDesc)}</p>
+      <p class="technique-subtitle">${techniqueFilms.length} films in the archive</p>
+    </div>
+    <nav class="technique-nav" aria-label="Technique navigation">
+      <a href="index.html" class="technique-back-link">← All Techniques</a>
+    </nav>
+  </div>
+
+  <div class="technique-stats-grid">
+    <div class="technique-stat-card">
+      <div class="stat-card-title">Total Films</div>
+      <div class="stat-card-value">${techniqueFilms.length}</div>
+    </div>
+    <div class="technique-stat-card">
+      <div class="stat-card-title">Watchable</div>
+      <div class="stat-card-value">${watchable}</div>
+      <div class="stat-card-detail">${withSubs} with EN subs</div>
+    </div>
+    <div class="technique-stat-card">
+      <div class="stat-card-title">Top Countries</div>
+      <div class="stat-card-list">${countriesSorted.slice(0, 10).map(([c, n]) => `<span class="stat-tag">${escapeHtml(c)} <em>(${n})</em></span>`).join('')}</div>
+    </div>
+    <div class="technique-stat-card">
+      <div class="stat-card-title">Decades</div>
+      <div class="stat-card-list">${decadesSorted.map(([d, c]) => `<span class="stat-tag">${d}s <em>(${c})</em></span>`).join('')}</div>
+    </div>
+    <div class="technique-stat-card">
+      <div class="stat-card-title">Formats</div>
+      <div class="stat-card-list">${formatsSorted.map(([f, c]) => `<span class="stat-tag">${escapeHtml(f)} <em>(${c})</em></span>`).join('')}</div>
+    </div>
+  </div>
+
+  <section class="technique-films-section">
+    <h2 class="section-title">All ${escapeHtml(technique)} Films</h2>
+    <div class="table-wrapper">
+      <table class="film-table" role="grid">
+        <thead>
+          <tr>
+            <th scope="col" style="width:90px">Year</th>
+            <th scope="col">Title</th>
+            <th scope="col">Director / Studio</th>
+            <th scope="col" style="width:100px">Country</th>
+            <th scope="col" style="width:70px">Runtime</th>
+            <th scope="col" style="width:90px">Confidence</th>
+            <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+          </tr>
+        </thead>
+        <tbody>${generateTechniqueTableRows(techniqueFilms)}</tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+</body></html>`;
+}
+
+// Table rows for technique pages (shows country instead of technique)
+function generateTechniqueTableRows(filmList) {
+  return filmList.map(film => `
+    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-watchable="${film.watchLinks ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
+      <td><div class="table-year">${film.year || '—'}</div></td>
+      <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
+      <td class="table-meta">${film.director ? `<strong>${escapeHtml(film.director)}</strong><br>` : ''}${film.studio ? escapeHtml(film.studio) : ''}</td>
+      <td class="table-country-cell"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
+      <td class="table-runtime">${escapeHtml(film.runtime) || '—'}</td>
+      <td><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
+      <td class="watch-cell">${film.watchLinks ? `<a href="${escapeHtml(film.watchLinks)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
+    </tr>`).join('\n');
+}
+
+function generateTechniqueIndexPage(techniquesWithFilms) {
+  const sortedTechniques = Object.entries(techniquesWithFilms)
+    .sort((a, b) => b[1].length - a[1].length);
+
+  const totalTechniques = sortedTechniques.length;
+  const description = `Explore ${totalTechniques} animation techniques from around the world. From traditional cel animation to experimental approaches.`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Techniques — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/techniques/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Techniques — Global Animation Archive">
+<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:url" content="${SITE_URL}/techniques/">
+<meta property="og:site_name" content="Global Animation Archive">
+<meta property="og:locale" content="en_US">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Techniques — Global Animation Archive">
+<meta name="twitter:description" content="${escapeHtml(description)}">
+
+<!-- JSON-LD Structured Data -->
+<script type="application/ld+json">${JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Techniques — Global Animation Archive",
+    "description": description,
+    "url": `${SITE_URL}/techniques/`,
+    "numberOfItems": totalTechniques,
+    "publisher": {
+      "@type": "Organization",
+      "name": "Global Animation Archive"
+    },
+    "dateModified": BUILD_TIMESTAMP
+  })}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+<main class="techniques-index" id="main-content">
+  <div class="techniques-header">
+    <h1>Techniques</h1>
+    <p class="techniques-subtitle">Explore ${totalTechniques} animation techniques from around the world</p>
+  </div>
+
+  <div class="techniques-grid">
+    ${sortedTechniques.map(([technique, techniqueFilms]) => {
+      const years = techniqueFilms.filter(f => f.year).map(f => f.year);
+      const yearRange = years.length ? `${Math.min(...years)}–${Math.max(...years)}` : '—';
+      const desc = techniqueDescriptions[technique] || 'A distinctive animation technique';
+
+      return `<a href="${slugify(technique)}.html" class="technique-card">
+      <div class="technique-card-info">
+        <h2 class="technique-card-name">${escapeHtml(technique)}</h2>
+        <p class="technique-card-desc">${escapeHtml(desc)}</p>
+        <div class="technique-card-meta">
+          <span class="technique-card-count">${techniqueFilms.length} films</span>
+          <span class="technique-card-years">${yearRange}</span>
+        </div>
+      </div>
+    </a>`;
+    }).join('\n    ')}
+  </div>
+</main>
+<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+</body></html>`;
+}
+
+function generateTechniquePages() {
+  const techniquesWithFilms = {};
+
+  // Group films by technique (a film can have multiple techniques)
+  for (const film of films) {
+    for (const technique of film.technique || []) {
+      if (!techniquesWithFilms[technique]) {
+        techniquesWithFilms[technique] = [];
+      }
+      techniquesWithFilms[technique].push(film);
+    }
+  }
+
+  // Generate a page for each technique
+  mkdirSync('./dist/techniques', { recursive: true });
+
+  let count = 0;
+  for (const [technique, techniqueFilms] of Object.entries(techniquesWithFilms)) {
+    const slug = slugify(technique);
+    writeFileSync(`./dist/techniques/${slug}.html`, generateTechniquePage(technique, [...techniqueFilms]));
+    count++;
+  }
+
+  // Generate index page
+  writeFileSync('./dist/techniques/index.html', generateTechniqueIndexPage(techniquesWithFilms));
+
+  return { count, techniquesWithFilms };
+}
+
+function generateSitemap(countriesWithFilms, techniquesWithFilms) {
   const urls = [
     { loc: `${SITE_URL}/`, priority: '1.0', changefreq: 'daily' },
-    { loc: `${SITE_URL}/countries/`, priority: '0.9', changefreq: 'weekly' }
+    { loc: `${SITE_URL}/countries/`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${SITE_URL}/techniques/`, priority: '0.9', changefreq: 'weekly' }
   ];
 
   // Add country pages
@@ -737,6 +1072,17 @@ function generateSitemap(countriesWithFilms) {
     for (const country of Object.keys(countriesWithFilms)) {
       urls.push({
         loc: `${SITE_URL}/countries/${slugify(country)}.html`,
+        priority: '0.8',
+        changefreq: 'weekly'
+      });
+    }
+  }
+
+  // Add technique pages
+  if (techniquesWithFilms) {
+    for (const technique of Object.keys(techniquesWithFilms)) {
+      urls.push({
+        loc: `${SITE_URL}/techniques/${slugify(technique)}.html`,
         priority: '0.8',
         changefreq: 'weekly'
       });
@@ -793,14 +1139,18 @@ function build() {
   const { count: countryCount, countriesWithFilms } = generateCountryPages();
   console.log(`  ✓ ${countryCount} country pages + index (with OG tags + JSON-LD)`);
 
+  // Generate technique pages
+  const { count: techniqueCount, techniquesWithFilms } = generateTechniquePages();
+  console.log(`  ✓ ${techniqueCount} technique pages + index (with OG tags + JSON-LD)`);
+
   writeFileSync('./dist/styles.css', generateCSS());
-  console.log('  ✓ styles.css (with country page styles)');
+  console.log('  ✓ styles.css (with country + technique page styles)');
 
   writeFileSync('./dist/app.js', generateJS());
   console.log('  ✓ app.js (with pagination + keyboard nav)');
 
-  writeFileSync('./dist/sitemap.xml', generateSitemap(countriesWithFilms));
-  console.log('  ✓ sitemap.xml (' + (films.length + countryCount + 2) + ' URLs)');
+  writeFileSync('./dist/sitemap.xml', generateSitemap(countriesWithFilms, techniquesWithFilms));
+  console.log('  ✓ sitemap.xml (' + (films.length + countryCount + techniqueCount + 3) + ' URLs)');
 
   writeFileSync('./dist/robots.txt', generateRobotsTxt());
   console.log('  ✓ robots.txt');
@@ -809,6 +1159,7 @@ function build() {
   console.log(`\n📊 Features:`);
   console.log(`   • Pagination: Initial load ${FILMS_PER_PAGE} films`);
   console.log(`   • Country pages: ${countryCount} countries with dedicated pages`);
+  console.log(`   • Technique pages: ${techniqueCount} techniques with dedicated pages`);
   console.log(`   • SEO: sitemap.xml, robots.txt, OG tags, JSON-LD on all pages`);
   console.log(`   • Accessibility: Skip links, ARIA labels, keyboard navigation`);
 }
