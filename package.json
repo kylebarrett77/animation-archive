@@ -1,0 +1,19 @@
+{
+  "name": "animation-archive",
+  "version": "1.0.0",
+  "description": "Static site generator for Global Animation Archive - pulls from Notion, builds HTML",
+  "type": "module",
+  "scripts": {
+    "fetch": "node scripts/fetch-notion.js",
+    "build": "node scripts/build-site.js",
+    "dev": "npm run fetch && npm run build && npx serve dist",
+    "deploy": "npm run fetch && npm run build"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.14"
+  },
+  "devDependencies": {
+    "dotenv": "^16.3.1",
+    "serve": "^14.2.1"
+  }
+}
