@@ -282,29 +282,8 @@ function generateFilterItems(items, type) {
   return items.slice(0, 25).map(item => {
     const value = escapeHtml(item.name || item.decade?.toString());
     const displayName = escapeHtml(item.name || `${item.decade}s`);
-    // Add link for country filters
-    if (type === 'country' && item.name) {
-      return `
-    <div class="filter-item" data-filter-type="${type}" data-filter-value="${value}">
-      <a href="countries/${slugify(item.name)}.html" class="filter-link"><span class="name">${displayName}</span></a><span class="count">${item.count}</span>
-    </div>`;
-    }
-    // Add link for technique filters
-    if (type === 'technique' && item.name) {
-      return `
-    <div class="filter-item" data-filter-type="${type}" data-filter-value="${value}">
-      <a href="techniques/${slugify(item.name)}.html" class="filter-link"><span class="name">${displayName}</span></a><span class="count">${item.count}</span>
-    </div>`;
-    }
-    // Add link for decade filters
-    if (type === 'decade' && item.decade) {
-      return `
-    <div class="filter-item" data-filter-type="${type}" data-filter-value="${value}">
-      <a href="decades/${item.decade}s.html" class="filter-link"><span class="name">${displayName}</span></a><span class="count">${item.count}</span>
-    </div>`;
-    }
     return `
-    <div class="filter-item" data-filter-type="${type}" data-filter-value="${value}">
+    <div class="filter-item" data-filter-type="${type}" data-filter-value="${value}" role="option">
       <span class="name">${displayName}</span><span class="count">${item.count}</span>
     </div>`;
   }).join('\n');
