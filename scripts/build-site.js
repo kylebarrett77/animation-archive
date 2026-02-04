@@ -1,7 +1,17 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 
 const films = JSON.parse(readFileSync('./data/films.json', 'utf-8'));
 const stats = JSON.parse(readFileSync('./data/stats.json', 'utf-8'));
+
+// Load related data files (may not exist yet)
+const studios = existsSync('./data/studios.json') ? JSON.parse(readFileSync('./data/studios.json', 'utf-8')) : [];
+const directorsData = existsSync('./data/directors.json') ? JSON.parse(readFileSync('./data/directors.json', 'utf-8')) : [];
+const seriesData = existsSync('./data/series.json') ? JSON.parse(readFileSync('./data/series.json', 'utf-8')) : [];
+
+// Create lookup maps for entities
+const studioMap = new Map(studios.map(s => [s.id, s]));
+const directorMap = new Map(directorsData.map(d => [d.id, d]));
+const seriesMap = new Map(seriesData.map(s => [s.id, s]));
 const BUILD_DATE = new Date().toISOString().split('T')[0];
 const BUILD_TIMESTAMP = new Date().toISOString();
 const SITE_URL = 'https://animationarchive.netlify.app';
@@ -99,10 +109,375 @@ const decadeDescriptions = {
   2020: 'Pandemic production shifts, AI tools debut, hybrid techniques'
 };
 
-function escapeHtml(str) { if (!str) return ''; return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function escapeHtml(str) { if (!str) return ''; if (Array.isArray(str)) str = str.join(', '); if (typeof str !== 'string') str = String(str); return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function slugify(str) { return (str || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+// Helper to filter out N/A values from URLs
+function getValidUrl(url) { return (url && url !== 'N/A' && url.toLowerCase() !== 'n/a' && url.startsWith('http')) ? url : null; }
 function getFilmUrl(film, basePath = '') { return `${basePath}films/${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
 function getFilmFilename(film) { return `${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
+function getStudioUrl(studio, basePath = '') { return `${basePath}studios/${slugify(studio.name)}-${studio.id.slice(0,8)}.html`; }
+function getDirectorUrl(director, basePath = '') { return `${basePath}directors/${slugify(director.name)}-${director.id.slice(0,8)}.html`; }
+function getSeriesUrl(series, basePath = '') { return `${basePath}series/${slugify(series.name)}-${series.id.slice(0,8)}.html`; }
+
+// Format watch order text into proper HTML list
+function formatWatchOrder(text) {
+  if (!text) return '';
+  const lines = text.split('\n').filter(l => l.trim());
+  const items = [];
+  let isNumbered = false;
+  let hasBullets = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Check for numbered items (1. or 1) format)
+    if (/^\d+[\.\)]\s/.test(trimmed)) {
+      isNumbered = true;
+      items.push({ type: 'item', text: trimmed.replace(/^\d+[\.\)]\s*/, '') });
+    }
+    // Check for bullet items (- or • format)
+    else if (/^[-•]\s/.test(trimmed)) {
+      hasBullets = true;
+      items.push({ type: 'item', text: trimmed.replace(/^[-•]\s*/, '') });
+    }
+    // Otherwise it's a header/note
+    else if (items.length === 0 || trimmed.endsWith(':')) {
+      items.push({ type: 'header', text: trimmed });
+    } else {
+      items.push({ type: 'text', text: trimmed });
+    }
+  }
+
+  // Build HTML
+  let html = '';
+  let inList = false;
+  const listTag = isNumbered ? 'ol' : 'ul';
+
+  for (const item of items) {
+    if (item.type === 'item') {
+      if (!inList) { html += `<${listTag} class="watch-order-list">`; inList = true; }
+      html += `<li>${escapeHtml(item.text)}</li>`;
+    } else {
+      if (inList) { html += `</${listTag}>`; inList = false; }
+      if (item.type === 'header') {
+        html += `<p class="watch-order-header">${escapeHtml(item.text)}</p>`;
+      } else {
+        html += `<p>${escapeHtml(item.text)}</p>`;
+      }
+    }
+  }
+  if (inList) html += `</${listTag}>`;
+
+  return html || escapeHtml(text).replace(/\n/g, '<br>');
+}
+
+// Breadcrumb generator
+function generateBreadcrumb(items, basePath = '../') {
+  // items: [{label, url}, {label, url}, {label}] - last item has no url (current page)
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": items.map((item, i) => ({
+      "@type": "ListItem",
+      "position": i + 1,
+      "name": item.label,
+      ...(item.url ? { "item": `${SITE_URL}/${item.url}` } : {})
+    }))
+  };
+
+  return `<nav class="breadcrumb" aria-label="Breadcrumb">
+    <ol class="breadcrumb-list">
+      ${items.map((item, i) => `<li class="breadcrumb-item">${item.url ? `<a href="${basePath}${item.url}">${escapeHtml(item.label)}</a>` : `<span aria-current="page">${escapeHtml(item.label)}</span>`}${i < items.length - 1 ? '<span class="breadcrumb-sep">›</span>' : ''}</li>`).join('')}
+    </ol>
+  </nav>
+  <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`;
+}
+
+// Create lookup maps by name for fallback matching
+const studiosByName = new Map();
+studios.forEach(s => {
+  if (s.name) studiosByName.set(s.name.toLowerCase().trim(), s);
+});
+const directorsByName = new Map();
+directorsData.forEach(d => {
+  if (d.name) directorsByName.set(d.name.toLowerCase().trim(), d);
+});
+
+// Helper to get linked studio HTML (uses entities, falls back to name matching, then plain text)
+function getStudioLink(film, basePath = '') {
+  // First try entity relations
+  if (film.studioEntities && film.studioEntities.length > 0) {
+    return film.studioEntities.map(s => {
+      const studio = studioMap.get(s.id);
+      if (studio) {
+        return `<a href="${basePath}${getStudioUrl(studio)}">${escapeHtml(s.name)}</a>`;
+      }
+      return escapeHtml(s.name);
+    }).join(', ');
+  }
+  // Fall back to text field with name matching
+  if (film.studio) {
+    const studioName = film.studio.trim();
+    const matchedStudio = studiosByName.get(studioName.toLowerCase());
+    if (matchedStudio) {
+      return `<a href="${basePath}${getStudioUrl(matchedStudio)}">${escapeHtml(studioName)}</a>`;
+    }
+    return escapeHtml(studioName);
+  }
+  return '';
+}
+
+// Helper to get linked director HTML (uses entities, falls back to name matching, then plain text)
+function getDirectorLink(film, basePath = '') {
+  // First try entity relations
+  if (film.directorEntities && film.directorEntities.length > 0) {
+    return film.directorEntities.map(d => {
+      const director = directorMap.get(d.id);
+      if (director) {
+        return `<a href="${basePath}${getDirectorUrl(director)}">${escapeHtml(d.name)}</a>`;
+      }
+      return escapeHtml(d.name);
+    }).join(', ');
+  }
+  // Fall back to text field with name matching (handle comma-separated directors)
+  if (film.director) {
+    const directorNames = film.director.split(',').map(d => d.trim()).filter(d => d.length > 0);
+    return directorNames.map(name => {
+      const matchedDirector = directorsByName.get(name.toLowerCase());
+      if (matchedDirector) {
+        return `<a href="${basePath}${getDirectorUrl(matchedDirector)}">${escapeHtml(name)}</a>`;
+      }
+      return escapeHtml(name);
+    }).join(', ');
+  }
+  return '';
+}
+
+// Generate sortable table headers and script for entity pages
+function generateEntityTableSort() {
+  return `<script>
+(function(){
+  const table=document.querySelector('.film-table');
+  if(!table)return;
+  const tbody=table.querySelector('tbody');
+  const headers=table.querySelectorAll('th.sortable');
+  let sortCol='year',sortDir='asc';
+
+  function getVal(row,col){
+    if(col==='year'){const t=row.querySelector('.table-year');return t?parseInt(t.textContent)||0:0;}
+    if(col==='title'){const t=row.querySelector('.table-title');return t?t.textContent.toLowerCase():'';}
+    return '';
+  }
+
+  function sortTable(){
+    const rows=[...tbody.querySelectorAll('tr')];
+    rows.sort((a,b)=>{
+      const av=getVal(a,sortCol),bv=getVal(b,sortCol);
+      let cmp=typeof av==='number'?av-bv:av.localeCompare(bv);
+      return sortDir==='desc'?-cmp:cmp;
+    });
+    rows.forEach(r=>tbody.appendChild(r));
+    headers.forEach(h=>{
+      const ind=h.querySelector('.sort-indicator');
+      if(h.dataset.col===sortCol){
+        h.classList.add('active');
+        if(ind)ind.textContent=sortDir==='asc'?'▲':'▼';
+      }else{
+        h.classList.remove('active');
+        if(ind)ind.textContent='⇅';
+      }
+    });
+  }
+
+  headers.forEach(h=>{
+    h.addEventListener('click',()=>{
+      const col=h.dataset.col;
+      if(sortCol===col){sortDir=sortDir==='asc'?'desc':'asc';}
+      else{sortCol=col;sortDir=col==='year'?'asc':'asc';}
+      sortTable();
+    });
+  });
+  sortTable();
+})();
+</script>`;
+}
+
+// Watch Links parsing
+const WATCH_LINK_TYPES = {
+  'FREE': { icon: '▶', label: 'Free', color: 'green', className: 'watch-free' },
+  'ADS': { icon: '📺', label: 'Free w/Ads', color: 'lime', className: 'watch-ads' },
+  'SUB': { icon: '🔐', label: 'Subscription', color: 'blue', className: 'watch-sub' },
+  'RENT': { icon: '💵', label: 'Rent', color: 'orange', className: 'watch-rent' },
+  'BUY': { icon: '🛒', label: 'Buy', color: 'purple', className: 'watch-buy' },
+  'DISC': { icon: '💿', label: 'Physical', color: 'gray', className: 'watch-disc' },
+  'REGION': { icon: '🌍', label: 'Region-locked', color: 'yellow', className: 'watch-region' },
+};
+
+function parseWatchLinks(watchLinksText) {
+  if (!watchLinksText) return [];
+
+  // If it's a simple URL (not structured format), return it as a FREE link
+  if (watchLinksText.startsWith('http') && !watchLinksText.includes('\n') && !watchLinksText.includes('[')) {
+    // Try to extract platform from URL
+    let platform = 'Watch';
+    if (watchLinksText.includes('youtube.com') || watchLinksText.includes('youtu.be')) platform = 'YouTube';
+    else if (watchLinksText.includes('vimeo.com')) platform = 'Vimeo';
+    else if (watchLinksText.includes('archive.org')) platform = 'Internet Archive';
+    else if (watchLinksText.includes('criterion')) platform = 'Criterion Channel';
+    else if (watchLinksText.includes('mubi.com')) platform = 'MUBI';
+    else if (watchLinksText.includes('netflix.com')) platform = 'Netflix';
+    else if (watchLinksText.includes('amazon')) platform = 'Amazon';
+    else if (watchLinksText.includes('hulu')) platform = 'Hulu';
+    else if (watchLinksText.includes('bilibili')) platform = 'Bilibili';
+    else if (watchLinksText.includes('nfb.ca')) platform = 'NFB';
+
+    return [{
+      type: 'FREE',
+      platform,
+      url: watchLinksText.trim(),
+      ...WATCH_LINK_TYPES['FREE']
+    }];
+  }
+
+  // Parse structured format: [TYPE] Platform: URL
+  const links = [];
+  const lines = watchLinksText.split('\n').filter(l => l.trim());
+  const regex = /\[([A-Z]+)\]\s*([^:]+):\s*(.+)/;
+
+  for (const line of lines) {
+    const match = line.match(regex);
+    if (match) {
+      const [, type, platform, url] = match;
+      const typeInfo = WATCH_LINK_TYPES[type] || WATCH_LINK_TYPES['FREE'];
+      links.push({
+        type,
+        platform: platform.trim(),
+        url: url.trim(),
+        ...typeInfo
+      });
+    }
+  }
+  return links;
+}
+
+// Extract just the URL from watch links (handles both simple URLs and structured format)
+function getWatchUrl(watchLinksText) {
+  if (!watchLinksText) return null;
+
+  // If it starts with http, it's already a plain URL
+  if (watchLinksText.startsWith('http')) {
+    return watchLinksText.trim();
+  }
+
+  // Try to parse structured format: [TYPE] Platform: URL
+  const match = watchLinksText.match(/\[[A-Z]+\]\s*[^:]+:\s*(.+)/);
+  if (match) {
+    return match[1].trim();
+  }
+
+  return null;
+}
+
+function generateWatchLinksSection(watchLinksText, hasSubtitles) {
+  const links = parseWatchLinks(watchLinksText);
+
+  if (links.length === 0) {
+    return `<div class="watch-links watch-links-empty">
+      <h3>Where to Watch</h3>
+      <p class="no-watch-links">No streaming links yet. Know one? <a href="#report-form" class="report-link" target="_blank">Report it</a></p>
+    </div>`;
+  }
+
+  return `<div class="watch-links">
+    <h3>Where to Watch</h3>
+    ${hasSubtitles ? '<p class="subs-available">🗣️ English subtitles available</p>' : ''}
+    <div class="watch-links-list">
+      ${links.map(link => `
+        <a href="${escapeHtml(link.url)}" class="watch-link ${link.className}" target="_blank" rel="noopener">
+          <span class="watch-badge">${link.icon} ${link.label}</span>
+          <span class="watch-platform">${escapeHtml(link.platform)}</span>
+        </a>
+      `).join('')}
+    </div>
+  </div>`;
+}
+
+// Keyword categories for grouping in sidebar
+const KEYWORD_CATEGORIES = {
+  'Entities': ['Robots', 'AI', 'Aliens', 'Cyborgs', 'Androids', 'Monsters', 'Ghosts', 'Vampires', 'Zombies', 'Dragons'],
+  'Settings': ['Space', 'Megacity', 'Dystopia', 'Utopia', 'Post-Apocalyptic', 'Underwater', 'Virtual Reality', 'Fantasy World'],
+  'Concepts': ['Time Travel', 'Memory', 'Dreams', 'Identity', 'Consciousness', 'Evolution', 'Immortality', 'Parallel Worlds'],
+  'Conflicts': ['War', 'Survival', 'Revolution', 'Invasion', 'Disaster', 'Pandemic', 'Class Struggle'],
+  'Themes': ['Surveillance', 'Freedom', 'Love', 'Death', 'Nature', 'Technology', 'Religion', 'Politics', 'Family'],
+  'Tone': ['Wordless', 'Surreal', 'Absurdist', 'Dark', 'Comedic', 'Philosophical', 'Experimental', 'Psychedelic'],
+};
+
+// Generate genre and keyword tags for film pages
+function generateFilmTags(film) {
+  const genres = film.genres || [];
+  const keywords = film.keywords || [];
+
+  if (genres.length === 0 && keywords.length === 0) return '';
+
+  return `<div class="film-tags">
+    ${genres.length > 0 ? `<div class="tag-section">
+      <span class="tag-label">Genres</span>
+      <div class="tag-list">
+        ${genres.map(g => `<a href="../genres/${slugify(g)}.html" class="tag genre-tag">${escapeHtml(g)}</a>`).join('')}
+      </div>
+    </div>` : ''}
+    ${keywords.length > 0 ? `<div class="tag-section">
+      <span class="tag-label">Keywords</span>
+      <div class="tag-list">
+        ${keywords.map(k => `<a href="../keywords/${slugify(k)}.html" class="tag keyword-tag">${escapeHtml(k)}</a>`).join('')}
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+
+// Generate linked entities section for film pages (Studio, Director, Series)
+function generateLinkedEntities(film) {
+  const parts = [];
+
+  // Studio link (from relation or text field)
+  if (film.studioEntities && film.studioEntities.length > 0) {
+    const studioLinks = film.studioEntities.map(s => {
+      const studio = studioMap.get(s.id);
+      if (studio) {
+        return `<a href="../${getStudioUrl(studio)}">${escapeHtml(s.name)}</a>`;
+      }
+      return escapeHtml(s.name);
+    }).join(', ');
+    parts.push(`<div class="meta-row"><span class="label">Studio:</span> ${studioLinks}</div>`);
+  } else if (film.studio) {
+    parts.push(`<div class="meta-row"><span class="label">Studio:</span> ${escapeHtml(film.studio)}</div>`);
+  }
+
+  // Director link (from relation or text field)
+  if (film.directorEntities && film.directorEntities.length > 0) {
+    const directorLinks = film.directorEntities.map(d => {
+      const director = directorMap.get(d.id);
+      if (director) {
+        return `<a href="../${getDirectorUrl(director)}">${escapeHtml(d.name)}</a>`;
+      }
+      return escapeHtml(d.name);
+    }).join(', ');
+    parts.push(`<div class="meta-row"><span class="label">Director:</span> ${directorLinks}</div>`);
+  }
+
+  // Series link
+  if (film.seriesEntities && film.seriesEntities.length > 0) {
+    const seriesLinks = film.seriesEntities.map(s => {
+      const series = seriesMap.get(s.id);
+      if (series) {
+        return `<a href="../${getSeriesUrl(series)}">${escapeHtml(s.name)}</a> <span class="series-type">(${escapeHtml(s.type || 'Series')})</span>`;
+      }
+      return escapeHtml(s.name);
+    }).join(', ');
+    parts.push(`<div class="meta-row"><span class="label">Part of:</span> ${seriesLinks}</div>`);
+  }
+
+  return parts.join('\n      ');
+}
 
 /// Generate footer with random film link
 // pathPrefix: '' for root, '../' for sub-pages
@@ -110,7 +485,7 @@ function generateFooter(pathPrefix = '') {
   // For static pages, pick a random film at build time (changes daily with rebuilds)
   const randomFilm = films[Math.floor(Math.random() * films.length)];
   const randomUrl = pathPrefix + getFilmUrl(randomFilm);
-  return `<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><a href="${randomUrl}" class="footer-random">🎲 Random Film</a><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer><button class="back-to-top" aria-label="Back to top">↑</button>`;
+  return `<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="${randomUrl}" class="footer-random">🎲 Random Film</a><a href="#report-form" target="_blank" class="footer-report">📝 Report broken link</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer><button class="back-to-top" aria-label="Back to top">↑</button>`;
 }
 
 // Film of the Day: deterministic selection based on date
@@ -183,6 +558,20 @@ function getRelatedFilms(currentFilm, allFilms, category, value, count = 5) {
     matches = allFilms.filter(f => f.id !== currentFilm.id && f.year && Math.floor(f.year / 10) * 10 === value);
   } else if (category === 'technique') {
     matches = allFilms.filter(f => f.id !== currentFilm.id && f.technique?.[0] === value);
+  } else if (category === 'director') {
+    // value is the director name (string)
+    const directorName = value.toLowerCase().trim();
+    matches = allFilms.filter(f => {
+      if (f.id === currentFilm.id) return false;
+      // Check directorEntities
+      if (f.directorEntities && f.directorEntities.some(d => d.name.toLowerCase().trim() === directorName)) return true;
+      // Check director text field (comma-separated)
+      if (f.director) {
+        const directors = f.director.split(',').map(d => d.trim().toLowerCase());
+        if (directors.includes(directorName)) return true;
+      }
+      return false;
+    });
   } else {
     return [];
   }
@@ -243,6 +632,52 @@ function generateRelatedFilmsSection(film) {
     }
   }
 
+  // More from Series/Universe (if film is part of one)
+  if (film.seriesEntities && film.seriesEntities.length > 0) {
+    const seriesEntity = film.seriesEntities[0];
+    const series = seriesMap.get(seriesEntity.id);
+    if (series) {
+      const seriesFilms = films.filter(f =>
+        f.id !== film.id &&
+        f.seriesEntities?.some(s => s.id === seriesEntity.id)
+      ).slice(0, 5);
+      if (seriesFilms.length >= 1) {
+        const totalSeries = films.filter(f => f.seriesEntities?.some(s => s.id === seriesEntity.id)).length;
+        sections.unshift({ // Add at beginning since it's most relevant
+          title: `More from ${seriesEntity.name}`,
+          link: `../${getSeriesUrl(series)}`,
+          count: totalSeries,
+          films: seriesFilms
+        });
+      }
+    }
+  }
+
+  // More by Director
+  const primaryDirector = film.directorEntities?.[0]?.name || (film.director ? film.director.split(',')[0].trim() : null);
+  if (primaryDirector) {
+    const directorFilms = getRelatedFilms(film, films, 'director', primaryDirector, 5);
+    if (directorFilms.length >= 2) {
+      // Get total films by this director
+      const directorNameLower = primaryDirector.toLowerCase();
+      const totalDirector = films.filter(f =>
+        (f.directorEntities && f.directorEntities.some(d => d.name.toLowerCase() === directorNameLower)) ||
+        (f.director && f.director.split(',').map(d => d.trim().toLowerCase()).includes(directorNameLower))
+      ).length;
+
+      // Try to get director entity for linking
+      const directorEntity = film.directorEntities?.[0] ? directorMap.get(film.directorEntities[0].id) : directorsByName.get(directorNameLower);
+      const directorLink = directorEntity ? `../${getDirectorUrl(directorEntity)}` : `../directors/index.html`;
+
+      sections.unshift({ // Add near beginning since it's highly relevant
+        title: `More by ${primaryDirector}`,
+        link: directorLink,
+        count: totalDirector,
+        films: directorFilms
+      });
+    }
+  }
+
   if (sections.length === 0) return '';
 
   return `
@@ -266,16 +701,21 @@ function generateRelatedFilmsSection(film) {
 }
 
 function generateTableRows(filmList, basePath = '') {
-  return filmList.map(film => `
-    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${film.watchLinks ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}">
+  return filmList.map(film => {
+    const watchUrl = getWatchUrl(film.watchLinks);
+    const directorHtml = getDirectorLink(film, basePath);
+    const studioHtml = getStudioLink(film, basePath);
+    return `
+    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${watchUrl ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}">
       <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
       <td><a href="${getFilmUrl(film, basePath)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
-      <td class="table-meta">${film.director ? `<strong>${escapeHtml(film.director)}</strong><br>` : ''}${film.studio ? escapeHtml(film.studio) : ''}</td>
+      <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
       <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
       <td class="table-runtime">${escapeHtml(film.runtime) || '—'}</td>
       <td><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
-      <td class="watch-cell">${film.watchLinks ? `<a href="${escapeHtml(film.watchLinks)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
-    </tr>`).join('\n');
+      <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
+    </tr>`;
+  }).join('\n');
 }
 
 function generateFilterItems(items, type) {
@@ -375,7 +815,7 @@ ${FAVICON}
   <div class="stat-block"><span class="stat-label">Techniques</span><span class="stat-value">${Object.keys(stats.techniques).length}</span></div>
   <div class="stat-block"><span class="stat-label">Watchable</span><span class="stat-value">${stats.watchable.toLocaleString()}</span></div>
 </div>
-<nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="directors/">Directors</a><a href="decades/">Decades</a><a href="#about">About</a></nav>
+<nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="studios/">Studios</a><a href="directors/">Directors</a><a href="series/">Series</a><a href="decades/">Decades</a><a href="#about">About</a></nav>
 <div class="main-layout">
   <aside class="sidebar" role="complementary" aria-label="Browse and filter">
     <div class="sidebar-group">
@@ -383,7 +823,9 @@ ${FAVICON}
       <nav class="browse-nav" aria-label="Browse sections">
         <a href="countries/" class="browse-link"><span class="browse-arrow">→</span> Countries <span class="count">${Object.keys(stats.countries).length}</span></a>
         <a href="techniques/" class="browse-link"><span class="browse-arrow">→</span> Techniques <span class="count">${Object.keys(stats.techniques).length}</span></a>
-        <a href="directors/" class="browse-link"><span class="browse-arrow">→</span> Directors <span class="count">547</span></a>
+        <a href="studios/" class="browse-link"><span class="browse-arrow">→</span> Studios <span class="count">${stats.studioCount || studios.length}</span></a>
+        <a href="directors/" class="browse-link"><span class="browse-arrow">→</span> Directors <span class="count">${stats.directorCount || directorsData.length || 547}</span></a>
+        <a href="series/" class="browse-link"><span class="browse-arrow">→</span> Series <span class="count">${stats.seriesCount || seriesData.length}</span></a>
         <a href="decades/" class="browse-link"><span class="browse-arrow">→</span> Decades <span class="count">${stats.decadesSorted.length}</span></a>
       </nav>
     </div>
@@ -402,13 +844,15 @@ ${FAVICON}
         <div class="filter-item" data-filter-type="watchable" data-filter-value="true" role="option"><span class="name">Has Watch Link</span><span class="count">${stats.watchable}</span></div>
         <div class="filter-item" data-filter-type="subtitles" data-filter-value="true" role="option"><span class="name">EN Subtitles</span><span class="count">${stats.withSubtitles}</span></div>
       </div></div>
+      ${stats.genresSorted && stats.genresSorted.length > 0 ? `<div class="sidebar-section collapsible"><div class="sidebar-header collapsible-header" data-collapsed="false">Genre <span class="count">${stats.genresSorted.length}</span> <span class="collapse-icon">▼</span></div><div class="filter-list collapsible-content" role="listbox" aria-label="Filter by genre">${generateFilterItems(stats.genresSorted, 'genre')}</div></div>` : ''}
+      ${stats.keywordsSorted && stats.keywordsSorted.length > 0 ? `<div class="sidebar-section collapsible"><div class="sidebar-header collapsible-header" data-collapsed="true">Keywords <span class="count">${stats.keywordsSorted.length}</span> <span class="collapse-icon">▶</span></div><div class="filter-list collapsible-content collapsed" role="listbox" aria-label="Filter by keyword">${generateFilterItems(stats.keywordsSorted.slice(0, 50), 'keyword')}</div></div>` : ''}
     </div>
   </aside>
   <main class="content" id="main-content">
     <div class="content-header"><div><h2 class="content-title">From the Collection</h2><span class="content-meta" id="results-count">${stats.total.toLocaleString()} films</span></div><div class="search-actions"><div class="search-box"><label for="search-input" class="visually-hidden">Search films</label><input type="text" id="search-input" placeholder="Search titles, directors..." aria-describedby="results-count" /></div><button id="random-film-btn" class="random-btn" aria-label="Go to random film">🎲 Random</button></div><div class="keyboard-hints"><kbd>/</kbd> search <kbd>r</kbd> random <kbd>esc</kbd> clear</div></div>
     ${generateFilmOfTheDayCard(getFilmOfTheDay(films))}
     <div class="table-wrapper"><table class="film-table" role="grid"><thead><tr><th scope="col" style="width:90px" class="sortable active" data-sort="year">Year <span class="sort-indicator">▼</span></th><th scope="col" class="sortable" data-sort="title">Title <span class="sort-indicator"></span></th><th scope="col">Director / Studio</th><th scope="col" style="width:100px" class="sortable" data-sort="technique">Technique <span class="sort-indicator"></span></th><th scope="col" style="width:70px">Runtime</th><th scope="col" style="width:90px">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
-    <div id="no-results" class="no-results" style="display:none"><h3 class="no-results-title">No films match your filters</h3><p class="no-results-message">Try adjusting your search or removing some filters.</p></div>
+    <div id="no-results" class="no-results" style="display:none"><h3 class="no-results-title">No films match your criteria</h3><p class="no-results-message" id="no-results-detail">Try adjusting your search or filters.</p><button id="clear-all-btn" class="clear-all-btn" style="display:none">Clear All Filters</button></div>
     ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${films.length}">Load More <span class="load-more-count">(${films.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
   </main>
 </div>
@@ -438,8 +882,14 @@ ${FAVICON}
   runtime: f.runtime,
   confidence: f.confidence,
   watchLinks: f.watchLinks,
-  hasSubtitles: f.hasSubtitles
-})))};</script>
+  hasSubtitles: f.hasSubtitles,
+  genres: f.genres || [],
+  keywords: f.keywords || [],
+  studioEntities: f.studioEntities || [],
+  directorEntities: f.directorEntities || []
+})))};
+window.STUDIOS_DATA=${JSON.stringify(studios.map(s => ({ id: s.id, name: s.name, slug: slugify(s.name) + '-' + s.id.slice(0,8) })))};
+window.DIRECTORS_DATA=${JSON.stringify(directorsData.map(d => ({ id: d.id, name: d.name, slug: slugify(d.name) + '-' + d.id.slice(0,8) })))};</script>
 <script src="app.js"></script>
 </body></html>`;
 }
@@ -486,6 +936,11 @@ ${film.year ? `<meta property="video:release_date" content="${film.year}">` : ''
   <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Films', url: 'index.html' },
+  { label: escapeHtml(film.titleEnglish || 'Untitled') }
+], '../')}
 <main class="detail-page" id="main-content">
   <article>
   <div class="detail-header">
@@ -494,9 +949,9 @@ ${film.year ? `<meta property="video:release_date" content="${film.year}">` : ''
       <div class="detail-technique">${escapeHtml(techniques.toUpperCase())}</div>
       <h1 class="detail-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</h1>
       ${film.originalTitle ? `<div class="detail-original" lang="und">${escapeHtml(film.originalTitle)}</div>` : ''}
-      <div class="detail-credits">${film.director ? `Directed by <strong>${escapeHtml(film.director)}</strong><br>` : ''}${film.studio ? `Produced by <strong>${escapeHtml(film.studio)}</strong>` : ''}${film.runtime ? ` · ${escapeHtml(film.runtime)}` : ''}</div>
+      <div class="detail-credits">${getDirectorLink(film, '../') ? `Directed by <strong>${getDirectorLink(film, '../')}</strong><br>` : ''}${getStudioLink(film, '../') ? `Produced by <strong>${getStudioLink(film, '../')}</strong>` : ''}${film.runtime ? ` · ${escapeHtml(film.runtime)}` : ''}</div>
     </div>
-    <div class="detail-actions">${film.watchLinks ? `<a href="${escapeHtml(film.watchLinks)}" class="detail-watch-btn" target="_blank" rel="noopener">▶ WATCH NOW</a>${film.hasSubtitles ? '<span class="detail-subs">EN SUBTITLES AVAILABLE</span>' : ''}` : '<span class="detail-subs">NO WATCH LINK AVAILABLE</span>'}</div>
+    <div class="detail-actions">${parseWatchLinks(film.watchLinks).length > 0 ? `<a href="${escapeHtml(parseWatchLinks(film.watchLinks)[0]?.url || '#')}" class="detail-watch-btn" target="_blank" rel="noopener">▶ WATCH NOW</a>${film.hasSubtitles ? '<span class="detail-subs">EN SUBTITLES AVAILABLE</span>' : ''}` : '<span class="detail-subs">NO WATCH LINK AVAILABLE</span>'}</div>
   </div>
   <div class="detail-body">
     <div class="detail-content">
@@ -504,19 +959,25 @@ ${film.year ? `<meta property="video:release_date" content="${film.year}">` : ''
       ${film.historicalContext ? `<h2>Historical Context</h2><p>${escapeHtml(film.historicalContext)}</p>` : ''}
       ${film.keyCredits ? `<h2>Key Credits</h2><p>${escapeHtml(film.keyCredits)}</p>` : ''}
       ${film.notes ? `<h2>Notes</h2><p>${escapeHtml(film.notes)}</p>` : ''}
+      ${film.researchSources ? `<div class="research-sources"><h2>Research Sources</h2><p class="sources-list">${escapeHtml(film.researchSources).split(',').map(s => s.trim()).filter(s => s).join(' · ')}</p></div>` : ''}
       ${!film.synopsis && !film.historicalContext && !film.keyCredits && !film.notes ? '<p class="no-content">No detailed information available yet.</p>' : ''}
+      ${generateWatchLinksSection(film.watchLinks, film.hasSubtitles)}
+      ${generateFilmTags(film)}
     </div>
     <aside class="detail-data-panel" aria-label="Film metadata">
       <div class="data-panel-title">Film Data</div>
       <dl class="data-list">
       <div class="data-row"><dt class="data-label">Technique</dt><dd class="data-value">${escapeHtml(techniques)}</dd></div>
       <div class="data-row"><dt class="data-label">Format</dt><dd class="data-value">${escapeHtml(specs) || '—'}</dd></div>
-      ${film.studio ? `<div class="data-row"><dt class="data-label">Studio</dt><dd class="data-value">${escapeHtml(film.studio)}</dd></div>` : ''}
+      ${film.studioEntities && film.studioEntities.length > 0 ? `<div class="data-row"><dt class="data-label">Studio</dt><dd class="data-value">${film.studioEntities.map(s => { const studio = studioMap.get(s.id); return studio ? `<a href="../${getStudioUrl(studio)}">${escapeHtml(s.name)}</a>` : escapeHtml(s.name); }).join(', ')}</dd></div>` : film.studio ? `<div class="data-row"><dt class="data-label">Studio</dt><dd class="data-value">${escapeHtml(film.studio)}</dd></div>` : ''}
+      ${film.directorEntities && film.directorEntities.length > 0 ? `<div class="data-row"><dt class="data-label">Director</dt><dd class="data-value">${film.directorEntities.map(d => { const director = directorMap.get(d.id); return director ? `<a href="../${getDirectorUrl(director)}">${escapeHtml(d.name)}</a>` : escapeHtml(d.name); }).join(', ')}</dd></div>` : ''}
+      ${film.seriesEntities && film.seriesEntities.length > 0 ? `<div class="data-row"><dt class="data-label">Part of</dt><dd class="data-value">${film.seriesEntities.map(s => { const series = seriesMap.get(s.id); return series ? `<a href="../${getSeriesUrl(series)}">${escapeHtml(s.name)}</a>` : escapeHtml(s.name); }).join(', ')}</dd></div>` : ''}
+      ${film.sourceMaterial ? `<div class="data-row"><dt class="data-label">Source</dt><dd class="data-value">${escapeHtml(film.sourceMaterial)}</dd></div>` : ''}
       ${film.runtime ? `<div class="data-row"><dt class="data-label">Runtime</dt><dd class="data-value">${escapeHtml(film.runtime)}</dd></div>` : ''}
       <div class="data-row"><dt class="data-label">Confidence</dt><dd class="data-value confidence-pips">${confidenceToPips(film.confidence)}</dd></div>
       <div class="data-row"><dt class="data-label">Updated</dt><dd class="data-value">${film.lastUpdated?.split('T')[0] || '—'}</dd></div>
       </dl>
-      ${(film.imdb || film.letterboxd || film.wikipedia) ? `<nav class="data-links" aria-label="External links">${film.imdb ? `<a href="${escapeHtml(film.imdb)}" class="data-link" target="_blank" rel="noopener">IMDb</a>` : ''}${film.letterboxd ? `<a href="${escapeHtml(film.letterboxd)}" class="data-link" target="_blank" rel="noopener">Letterboxd</a>` : ''}${film.wikipedia ? `<a href="${escapeHtml(film.wikipedia)}" class="data-link" target="_blank" rel="noopener">Wikipedia</a>` : ''}</nav>` : ''}
+      ${(() => { const imdb = getValidUrl(film.imdb); const letterboxd = getValidUrl(film.letterboxd); const wikipedia = getValidUrl(film.wikipedia); return (imdb || letterboxd || wikipedia) ? `<nav class="data-links" aria-label="External links">${imdb ? `<a href="${escapeHtml(imdb)}" class="data-link" target="_blank" rel="noopener">IMDb</a>` : ''}${letterboxd ? `<a href="${escapeHtml(letterboxd)}" class="data-link" target="_blank" rel="noopener">Letterboxd</a>` : ''}${wikipedia ? `<a href="${escapeHtml(wikipedia)}" class="data-link" target="_blank" rel="noopener">Wikipedia</a>` : ''}</nav>` : ''; })()}
     </aside>
   </div>
   </article>
@@ -707,12 +1168,142 @@ function generateCSS() {
 /* Empty search state */
 .no-results{padding:48px 32px;text-align:center;background:var(--paper)}
 .no-results-title{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:12px}
-.no-results-message{font-family:'Source Serif 4',serif;color:var(--ink-muted);font-size:16px}
+.no-results-message{font-family:'Source Serif 4',serif;color:var(--ink-muted);font-size:16px;margin-bottom:16px}
+.clear-all-btn{background:var(--ink);color:var(--cream);border:none;padding:12px 24px;font-family:var(--mono);font-size:12px;font-weight:500;cursor:pointer;transition:background .2s;margin-top:8px}
+.clear-all-btn:hover{background:var(--accent)}
 /* Sortable table headers */
 .sortable{cursor:pointer;user-select:none;transition:color .15s}
 .sortable:hover{color:var(--accent)}
 .sort-indicator{margin-left:4px;opacity:0.4;font-size:10px}
-.sortable.active .sort-indicator{opacity:1;color:var(--accent)}`;
+.sortable.active .sort-indicator{opacity:1;color:var(--accent)}
+/* Watch Links Section */
+.watch-links{margin-top:32px;padding:24px;background:var(--data-bg);border:1px solid var(--rule)}
+.watch-links h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:16px}
+.watch-links-list{display:flex;flex-direction:column;gap:8px}
+.watch-link{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:var(--ink);transition:border-color .2s,box-shadow .2s}
+.watch-link:hover{border-color:var(--ink);box-shadow:2px 2px 0 var(--rule)}
+.watch-badge{font-family:var(--mono);font-size:11px;padding:4px 8px;border-radius:3px;font-weight:500}
+.watch-free .watch-badge{background:#dcfce7;color:#166534}
+.watch-ads .watch-badge{background:#ecfccb;color:#3f6212}
+.watch-sub .watch-badge{background:#dbeafe;color:#1e40af}
+.watch-rent .watch-badge{background:#ffedd5;color:#9a3412}
+.watch-buy .watch-badge{background:#f3e8ff;color:#6b21a8}
+.watch-disc .watch-badge{background:#f3f4f6;color:#374151}
+.watch-region .watch-badge{background:#fef9c3;color:#854d0e}
+.watch-platform{font-family:'Source Serif 4',serif;font-size:15px}
+.no-watch-links{font-family:'Source Serif 4',serif;color:var(--ink-muted);font-style:italic}
+.subs-available{font-family:var(--mono);font-size:12px;color:var(--accent);margin-bottom:12px}
+.report-link{color:var(--accent);text-decoration:underline}
+/* Research Sources */
+.research-sources{margin-top:32px;padding:20px;background:var(--cream);border:1px solid var(--rule);border-left:3px solid var(--accent)}
+.research-sources h2{font-family:'Playfair Display',serif;font-size:16px;font-weight:400;margin-bottom:12px;color:var(--ink-muted)}
+.sources-list{font-family:var(--mono);font-size:12px;color:var(--ink-light);line-height:1.8}
+/* Film Tags */
+.film-tags{margin-top:32px}
+.tag-section{margin-bottom:16px}
+.tag-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);display:block;margin-bottom:8px}
+.tag-list{display:flex;flex-wrap:wrap;gap:8px}
+.tag{display:inline-block;padding:6px 12px;font-family:var(--mono);font-size:12px;text-decoration:none;border:1px solid var(--rule);transition:all .2s}
+.tag:hover{border-color:var(--ink);background:var(--cream)}
+.genre-tag{background:var(--paper);color:var(--ink)}
+.keyword-tag{background:var(--data-bg);color:var(--ink-light)}
+/* Entity Pages (Studios, Directors, Series) */
+.entity-page{padding:48px 32px;max-width:1200px;margin:0 auto}
+.entity-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:32px}
+.entity-title-section{flex:1}
+.entity-name{font-family:'Playfair Display',serif;font-size:42px;font-weight:400;margin-bottom:8px}
+.entity-native-name{font-family:'Source Serif 4',serif;font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:8px}
+.entity-subtitle{font-family:'Source Serif 4',serif;color:var(--ink-light);font-size:16px;margin-bottom:4px}
+.entity-dates{font-family:var(--mono);font-size:13px;color:var(--ink-muted)}
+.entity-type-badge{display:inline-block;font-family:var(--mono);font-size:11px;padding:4px 10px;background:var(--accent);color:var(--cream);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+.entity-type-badge.small{font-size:10px;padding:3px 8px;margin-bottom:8px}
+.entity-nav{text-align:right}
+.entity-back-link{font-family:var(--mono);font-size:12px;color:var(--ink-muted);text-decoration:none}
+.entity-back-link:hover{color:var(--accent)}
+.entity-description{margin-bottom:32px}
+.entity-description h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:12px}
+.entity-description p{font-family:'Source Serif 4',serif;font-size:16px;line-height:1.8;color:var(--ink-light)}
+.entity-meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:32px}
+.entity-meta-card{background:var(--paper);border:1px solid var(--rule);padding:20px}
+.meta-card-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin-bottom:8px}
+.meta-card-value{font-family:'Playfair Display',serif;font-size:28px;font-weight:400}
+.meta-card-detail{font-family:var(--mono);font-size:11px;color:var(--ink-muted);margin-top:4px}
+.meta-card-tags{display:flex;flex-wrap:wrap;gap:6px}
+.meta-tag{font-family:var(--mono);font-size:11px;padding:4px 8px;background:var(--data-bg);border:1px solid var(--rule)}
+.entity-links{margin-bottom:32px}
+.entity-links h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:12px}
+.entity-link{display:block;font-family:var(--mono);font-size:13px;color:var(--ink-light);text-decoration:none;padding:8px 0;border-bottom:1px solid var(--rule)}
+.entity-link:hover{color:var(--accent)}
+.entity-awards{margin-bottom:32px;padding:20px;background:var(--data-bg);border:1px solid var(--rule)}
+.entity-awards h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:12px}
+.entity-awards p{font-family:'Source Serif 4',serif;font-size:15px;color:var(--ink-light);line-height:1.7}
+.entity-collaborators{margin-bottom:32px}
+.entity-collaborators h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:12px}
+.collaborator-tags{display:flex;flex-wrap:wrap;gap:8px}
+.collaborator-tag{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:12px;padding:6px 12px;background:var(--paper);border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:border-color .2s,color .2s}
+.collaborator-tag:hover{border-color:var(--ink);color:var(--accent)}
+.collab-count{color:var(--ink-faint);font-size:11px}
+.entity-watch-order{margin-bottom:32px;padding:20px;background:var(--paper);border:1px solid var(--rule)}
+.entity-watch-order h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:12px}
+.watch-order-content{font-family:'Source Serif 4',serif;font-size:15px;color:var(--ink-light);line-height:1.8}
+.watch-order-list{margin:12px 0;padding-left:24px}
+.watch-order-list li{margin-bottom:8px;padding-left:8px}
+.watch-order-header{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin:16px 0 8px}
+ol.watch-order-list{list-style:decimal}
+ul.watch-order-list{list-style:disc}
+.entity-films-section{margin-top:40px}
+/* Entity Index Pages */
+.entity-index{padding:48px 32px;max-width:1400px;margin:0 auto}
+.entity-index-header{text-align:center;margin-bottom:48px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
+.entity-index-header h1{font-family:'Playfair Display',serif;font-size:48px;font-weight:400;margin-bottom:12px}
+.entity-index-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
+.entity-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.entity-card{display:block;background:var(--paper);border:1px solid var(--rule);padding:20px;text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s}
+.entity-card:hover{border-color:var(--ink);box-shadow:4px 4px 0 var(--rule)}
+.entity-card-name{font-family:'Playfair Display',serif;font-size:20px;font-weight:400;margin-bottom:8px;color:var(--ink)}
+.entity-card-meta{display:flex;gap:12px;font-family:var(--mono);font-size:11px;color:var(--ink-muted);margin-bottom:4px}
+.entity-card-country{color:var(--accent)}
+.entity-card-count{color:var(--ink)}
+.entity-card-dates{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+/* Tag Pages (Genres, Keywords) */
+.tag-page{padding:48px 32px;max-width:1200px;margin:0 auto}
+.tag-header{text-align:center;margin-bottom:40px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
+.tag-type{display:inline-block;font-family:var(--mono);font-size:11px;padding:4px 12px;background:var(--ink);color:var(--cream);text-transform:uppercase;letter-spacing:.15em;margin-bottom:12px}
+.tag-name{font-family:'Playfair Display',serif;font-size:48px;font-weight:400;margin-bottom:8px}
+.tag-count{font-family:var(--mono);font-size:14px;color:var(--ink-muted)}
+.tag-films-section{margin-top:24px}
+/* Tag Cloud */
+.tag-cloud{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;padding:24px}
+.tag-cloud-item{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:var(--ink);transition:all .2s;border-radius:4px}
+.tag-cloud-item:hover{border-color:var(--ink);box-shadow:3px 3px 0 var(--rule);transform:translateY(-1px)}
+.tag-cloud-item .tag-name{font-family:'Source Serif 4',serif}
+.tag-cloud-item .tag-count{font-family:var(--mono);font-size:11px;color:var(--ink-muted);background:var(--data-bg);padding:2px 6px;border-radius:3px}
+.tag-size-xs{font-size:13px;padding:6px 10px}
+.tag-size-xs .tag-count{font-size:10px}
+.tag-size-sm{font-size:14px;padding:8px 12px}
+.tag-size-md{font-size:16px;padding:10px 16px}
+.tag-size-lg{font-size:18px;padding:12px 18px;font-weight:500}
+.tag-size-xl{font-size:22px;padding:14px 22px;font-weight:500;background:var(--data-bg)}
+@media(max-width:900px){.tag-cloud{gap:8px;padding:16px}.tag-cloud-item{padding:8px 12px}}
+/* Collapsible Sidebar Sections */
+.collapsible-header{cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center}
+.collapse-icon{font-size:10px;color:var(--ink-faint);transition:transform .2s}
+.collapsible-content.collapsed{display:none}
+/* Footer Report Link */
+.footer-links{display:flex;gap:24px;align-items:center}
+.footer-report{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.5);text-decoration:none}
+.footer-report:hover{color:var(--cream)}
+/* Series type in film meta */
+.series-type{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
+/* Breadcrumb Navigation */
+.breadcrumb{padding:12px 32px;background:var(--paper);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:12px}
+.breadcrumb-list{display:flex;flex-wrap:wrap;align-items:center;list-style:none;gap:0}
+.breadcrumb-item{display:inline-flex;align-items:center}
+.breadcrumb-item a{color:var(--ink-muted);text-decoration:none;transition:color .15s}
+.breadcrumb-item a:hover{color:var(--accent)}
+.breadcrumb-item span[aria-current]{color:var(--ink);font-weight:500}
+.breadcrumb-sep{color:var(--ink-faint);margin:0 8px}
+@media(max-width:900px){.entity-header{flex-direction:column}.entity-nav{margin-top:16px}.entity-grid{grid-template-columns:1fr}.breadcrumb{padding:12px 16px;font-size:11px}.breadcrumb-sep{margin:0 6px}}`;
 }
 
 function generateJS() {
@@ -735,6 +1326,43 @@ function getCC(c){return countryCodes[c]||c?.substring(0,3).toUpperCase()||'???'
 function escHtml(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function slugify(s){return(s||'untitled').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');}
 function confPips(c){const l={'★':1,'★★':2,'★★★':3,'★★★★':4,'★★★★★':5};const n=l[c]||0;return '<span class="filled">'+'■'.repeat(n)+'</span><span class="empty">'+'□'.repeat(5-n)+'</span>';}
+function getWatchUrl(wl){if(!wl)return null;if(wl.startsWith('http'))return wl.trim();const m=wl.match(/\\[[A-Z]+\\]\\s*[^:]+:\\s*(.+)/);return m?m[1].trim():null;}
+
+// Build lookup maps for studios and directors
+const studioMap=new Map((window.STUDIOS_DATA||[]).map(s=>[s.id,s]));
+const directorMap=new Map((window.DIRECTORS_DATA||[]).map(d=>[d.id,d]));
+const studiosByName=new Map((window.STUDIOS_DATA||[]).map(s=>[s.name.toLowerCase().trim(),s]));
+const directorsByName=new Map((window.DIRECTORS_DATA||[]).map(d=>[d.name.toLowerCase().trim(),d]));
+
+function getDirectorLinks(f){
+  if(f.directorEntities&&f.directorEntities.length>0){
+    return f.directorEntities.map(d=>{
+      const dir=directorMap.get(d.id);
+      return dir?'<a href="directors/'+dir.slug+'.html">'+escHtml(d.name)+'</a>':escHtml(d.name);
+    }).join(', ');
+  }
+  if(f.director){
+    return f.director.split(',').map(n=>n.trim()).filter(n=>n).map(name=>{
+      const dir=directorsByName.get(name.toLowerCase());
+      return dir?'<a href="directors/'+dir.slug+'.html">'+escHtml(name)+'</a>':escHtml(name);
+    }).join(', ');
+  }
+  return '';
+}
+
+function getStudioLinks(f){
+  if(f.studioEntities&&f.studioEntities.length>0){
+    return f.studioEntities.map(s=>{
+      const stu=studioMap.get(s.id);
+      return stu?'<a href="studios/'+stu.slug+'.html">'+escHtml(s.name)+'</a>':escHtml(s.name);
+    }).join(', ');
+  }
+  if(f.studio){
+    const stu=studiosByName.get(f.studio.toLowerCase().trim());
+    return stu?'<a href="studios/'+stu.slug+'.html">'+escHtml(f.studio)+'</a>':escHtml(f.studio);
+  }
+  return '';
+}
 
 function sortFilms(films,column,direction){
   return [...films].sort((a,b)=>{
@@ -754,14 +1382,16 @@ function sortFilms(films,column,direction){
 
 function renderRow(f){
   const dec=f.year?Math.floor(f.year/10)*10:'';
+  const dirLinks=getDirectorLinks(f);
+  const stuLinks=getStudioLinks(f);
   return '<tr data-country="'+escHtml(f.country||'')+'" data-decade="'+dec+'" data-technique="'+escHtml((f.technique||[]).join(','))+'" data-watchable="'+(f.watchLinks?'true':'false')+'" data-subs="'+(f.hasSubtitles?'true':'false')+'" data-director="'+escHtml(f.director||'')+'">'+
     '<td><div class="table-year">'+(f.year||'—')+'</div><div class="table-country">'+getCC(f.country)+'</div></td>'+
     '<td><a href="films/'+slugify(f.title)+'-'+f.id.slice(0,8)+'.html" class="table-title">'+(escHtml(f.title)||'Untitled')+'</a>'+(f.original?'<div class="table-original">'+escHtml(f.original)+'</div>':'')+'</td>'+
-    '<td class="table-meta">'+(f.director?'<strong>'+escHtml(f.director)+'</strong><br>':'')+(f.studio?escHtml(f.studio):'')+'</td>'+
+    '<td class="table-meta">'+(dirLinks?'<strong>'+dirLinks+'</strong><br>':'')+stuLinks+'</td>'+
     '<td class="table-technique">'+((f.technique&&f.technique[0])?f.technique[0].toUpperCase():'—')+'</td>'+
     '<td class="table-runtime">'+(escHtml(f.runtime)||'—')+'</td>'+
     '<td><span class="confidence-pips">'+confPips(f.confidence)+'</span></td>'+
-    '<td class="watch-cell">'+(f.watchLinks?'<a href="'+escHtml(f.watchLinks)+'" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>'+(f.hasSubtitles?'<span class="subs-badge">EN subs</span>':''):'<span class="no-link">—</span>')+'</td></tr>';
+    '<td class="watch-cell">'+(f.watchLinks?(function(){const url=getWatchUrl(f.watchLinks);return url?'<a href="'+escHtml(url)+'" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>'+(f.hasSubtitles?'<span class="subs-badge">EN subs</span>':''):'<span class="no-link">—</span>';})():'<span class="no-link">—</span>')+'</td></tr>';
 }
 
 function getFilteredFilms(){
@@ -771,7 +1401,10 @@ function getFilteredFilms(){
       const t=(f.title||'').toLowerCase();
       const o=(f.original||'').toLowerCase();
       const d=(f.director||'').toLowerCase();
-      if(!t.includes(term)&&!o.includes(term)&&!d.includes(term))return false;
+      const s=(f.studio||'').toLowerCase();
+      const g=(f.genres||[]).join(' ').toLowerCase();
+      const k=(f.keywords||[]).join(' ').toLowerCase();
+      if(!t.includes(term)&&!o.includes(term)&&!d.includes(term)&&!s.includes(term)&&!g.includes(term)&&!k.includes(term))return false;
     }
     if(activeFilters.format&&f.format!==activeFilters.format)return false;
     if(activeFilters.country&&f.country!==activeFilters.country)return false;
@@ -780,6 +1413,8 @@ function getFilteredFilms(){
     if(activeFilters.watchable&&!f.watchLinks)return false;
     if(activeFilters.subtitles&&!f.hasSubtitles)return false;
     if(activeFilters.director){const dirs=(f.director||'').split(',').map(d=>d.trim());if(!dirs.includes(activeFilters.director))return false;}
+    if(activeFilters.genre&&!(f.genres||[]).includes(activeFilters.genre))return false;
+    if(activeFilters.keyword&&!(f.keywords||[]).includes(activeFilters.keyword))return false;
     return true;
   });
   return sortFilms(filtered,currentSort.column,currentSort.direction);
@@ -789,11 +1424,23 @@ function updateDisplay(resetPagination){
   const sorted=getFilteredFilms();
   const isFiltered=searchInput.value||Object.keys(activeFilters).length>0;
   const noResultsEl=document.getElementById('no-results');
+  const noResultsDetail=document.getElementById('no-results-detail');
+  const clearAllBtn=document.getElementById('clear-all-btn');
   if(resetPagination)loadedCount=BATCH_SIZE;
   if(isFiltered){
     if(sorted.length===0){
       tbody.innerHTML='';
-      if(noResultsEl)noResultsEl.style.display='block';
+      if(noResultsEl){
+        noResultsEl.style.display='block';
+        // Build detailed message about active filters
+        const parts=[];
+        if(searchInput.value)parts.push('search "'+searchInput.value+'"');
+        Object.entries(activeFilters).forEach(([type,val])=>parts.push(type+': '+val));
+        if(noResultsDetail){
+          noResultsDetail.textContent=parts.length>0?'No films match '+parts.join(' + ')+'. Try removing some filters or broadening your search.':'Try adjusting your search or filters.';
+        }
+        if(clearAllBtn)clearAllBtn.style.display='inline-block';
+      }
     }else{
       tbody.innerHTML=sorted.map(renderRow).join('');
       if(noResultsEl)noResultsEl.style.display='none';
@@ -856,6 +1503,18 @@ if(loadMoreBtn){
     loadedCount=newCount;
     this.dataset.loaded=loadedCount;
     updateDisplay();
+  });
+}
+
+// Clear all filters button
+const clearAllBtn=document.getElementById('clear-all-btn');
+if(clearAllBtn){
+  clearAllBtn.addEventListener('click',function(){
+    searchInput.value='';
+    activeFilters={};
+    filterItems.forEach(item=>{item.classList.remove('active');item.setAttribute('aria-selected','false');});
+    updateDisplay(true);
+    clearAllBtn.style.display='none';
   });
 }
 
@@ -943,6 +1602,17 @@ document.addEventListener('keydown',(e)=>{
       document.querySelectorAll('.filter-item.active').forEach(f=>f.click());
       break;
   }
+});
+
+// Collapsible sidebar sections
+document.querySelectorAll('.collapsible-header').forEach(header=>{
+  header.addEventListener('click',function(){
+    const content=this.nextElementSibling;
+    const icon=this.querySelector('.collapse-icon');
+    const isCollapsed=content.classList.toggle('collapsed');
+    this.dataset.collapsed=isCollapsed;
+    if(icon)icon.textContent=isCollapsed?'▶':'▼';
+  });
 });
 });`;
 }
@@ -1039,6 +1709,11 @@ ${FAVICON}
   <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Countries', url: 'countries/index.html' },
+  { label: escapeHtml(country) }
+], '../')}
 <main class="country-page" id="main-content">
   <div class="country-header">
     <div class="country-code-block"><span class="country-code-large">${countryCode}</span></div>
@@ -1311,6 +1986,11 @@ ${FAVICON}
   <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Techniques', url: 'techniques/index.html' },
+  { label: escapeHtml(technique) }
+], '../')}
 <main class="technique-page" id="main-content">
   <div class="technique-header">
     <div class="technique-title-section">
@@ -1373,16 +2053,21 @@ ${generateFooter('../')}
 
 // Table rows for technique pages (shows country instead of technique)
 function generateTechniqueTableRows(filmList) {
-  return filmList.map(film => `
-    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-watchable="${film.watchLinks ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
+  return filmList.map(film => {
+    const watchUrl = getWatchUrl(film.watchLinks);
+    const directorHtml = getDirectorLink(film, '../');
+    const studioHtml = getStudioLink(film, '../');
+    return `
+    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-watchable="${watchUrl ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
       <td><div class="table-year">${film.year || '—'}</div></td>
       <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
-      <td class="table-meta">${film.director ? `<strong>${escapeHtml(film.director)}</strong><br>` : ''}${film.studio ? escapeHtml(film.studio) : ''}</td>
+      <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
       <td class="table-country-cell"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
       <td class="table-runtime">${escapeHtml(film.runtime) || '—'}</td>
       <td><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
-      <td class="watch-cell">${film.watchLinks ? `<a href="${escapeHtml(film.watchLinks)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
-    </tr>`).join('\n');
+      <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
+    </tr>`;
+  }).join('\n');
 }
 
 function generateTechniqueIndexPage(techniquesWithFilms) {
@@ -1591,7 +2276,13 @@ ${FAVICON}
       <div class="directors-grid">
         ${byLetter[letter].map(director => {
           const countryCodes = [...director.countries].slice(0, 3).map(c => getCountryCode(c)).join(', ');
-          return `<a href="../index.html?director=${encodeURIComponent(director.name)}" class="director-card">
+          // Check if there's a director detail page for this name
+          const matchedDirector = directorsByName.get(director.name.toLowerCase().trim());
+          // Use just filename since we're already in /directors/
+          const href = matchedDirector
+            ? `${slugify(matchedDirector.name)}-${matchedDirector.id.slice(0,8)}.html`
+            : `../index.html?director=${encodeURIComponent(director.name)}`;
+          return `<a href="${href}" class="director-card">
           <span class="director-name">${escapeHtml(director.name)}</span>
           <span class="director-meta">
             <span class="director-count">${director.films.length} film${director.films.length !== 1 ? 's' : ''}</span>
@@ -1663,16 +2354,21 @@ function generateDecadeJsonLd(decade, decadeFilms) {
 
 // Table rows for decade pages (shows country instead of year in first column)
 function generateDecadeTableRows(filmList) {
-  return filmList.map(film => `
-    <tr data-country="${escapeHtml(film.country || '')}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${film.watchLinks ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
+  return filmList.map(film => {
+    const watchUrl = getWatchUrl(film.watchLinks);
+    const directorHtml = getDirectorLink(film, '../');
+    const studioHtml = getStudioLink(film, '../');
+    return `
+    <tr data-country="${escapeHtml(film.country || '')}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${watchUrl ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
       <td><div class="table-year">${film.year || '—'}</div></td>
       <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
-      <td class="table-meta">${film.director ? `<strong>${escapeHtml(film.director)}</strong><br>` : ''}${film.studio ? escapeHtml(film.studio) : ''}</td>
+      <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
       <td class="table-country-cell"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
       <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
       <td><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
-      <td class="watch-cell">${film.watchLinks ? `<a href="${escapeHtml(film.watchLinks)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
-    </tr>`).join('\n');
+      <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
+    </tr>`;
+  }).join('\n');
 }
 
 function generateDecadePage(decade, decadeFilms) {
@@ -1750,6 +2446,11 @@ ${FAVICON}
   <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Decades', url: 'decades/index.html' },
+  { label: decadeLabel }
+], '../')}
 <main class="decade-page" id="main-content">
   <div class="decade-header">
     <div class="decade-title-section">
@@ -1931,13 +2632,846 @@ function generateDecadePages() {
   return { count, decadesWithFilms };
 }
 
-function generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFilms) {
+// ===================== STUDIO PAGES =====================
+function generateStudioPage(studio) {
+  // Get films for this studio
+  const studioFilms = films.filter(f =>
+    (f.studioEntities && f.studioEntities.some(s => s.id === studio.id)) ||
+    (f.studio && f.studio.toLowerCase().includes(studio.name.toLowerCase()))
+  ).sort((a, b) => (a.year || 0) - (b.year || 0));
+
+  const filmCount = studioFilms.length;
+  const yearRange = studioFilms.length > 0 ?
+    `${Math.min(...studioFilms.filter(f => f.year).map(f => f.year))}–${Math.max(...studioFilms.filter(f => f.year).map(f => f.year))}` : '';
+
+  const statusText = studio.closed ? `${studio.founded || '?'} – ${studio.closed}` :
+    studio.active ? `${studio.founded || '?'} – Present (Active)` :
+    studio.founded ? `Founded ${studio.founded}` : '';
+
+  const description = `${studio.name} animation studio from ${studio.country || 'Unknown'}. ${filmCount} films in the archive.`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(studio.name)} — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/${getStudioUrl(studio)}">
+${FAVICON}
+<meta property="og:type" content="website">
+<meta property="og:title" content="${escapeHtml(studio.name)} — Global Animation Archive">
+<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:url" content="${SITE_URL}/${getStudioUrl(studio)}">
+<meta property="og:site_name" content="Global Animation Archive">
+<meta property="og:image" content="${OG_IMAGE}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Studios', url: 'studios/index.html' },
+  { label: escapeHtml(studio.name) }
+], '../')}
+<main class="entity-page studio-page" id="main-content">
+  <div class="entity-header">
+    <div class="entity-title-section">
+      <h1 class="entity-name">${escapeHtml(studio.name)}</h1>
+      ${studio.country ? `<p class="entity-subtitle">${escapeHtml(studio.country)}</p>` : ''}
+      ${statusText ? `<p class="entity-dates">${statusText}</p>` : ''}
+    </div>
+    <nav class="entity-nav">
+      <a href="index.html" class="entity-back-link">← All Studios</a>
+    </nav>
+  </div>
+
+  ${studio.significance ? `<div class="entity-description"><p>${escapeHtml(studio.significance)}</p></div>` : ''}
+
+  <div class="entity-meta-grid">
+    ${studio.notableTechniques && studio.notableTechniques.length > 0 ? `
+    <div class="entity-meta-card">
+      <div class="meta-card-title">Notable Techniques</div>
+      <div class="meta-card-tags">${studio.notableTechniques.map(t => `<span class="meta-tag">${escapeHtml(t)}</span>`).join('')}</div>
+    </div>` : ''}
+    <div class="entity-meta-card">
+      <div class="meta-card-title">Films in Archive</div>
+      <div class="meta-card-value">${filmCount}</div>
+      ${yearRange ? `<div class="meta-card-detail">${yearRange}</div>` : ''}
+    </div>
+  </div>
+
+  ${(() => {
+    // Get directors who've worked with this studio
+    const workedWithDirectors = new Map();
+    studioFilms.forEach(film => {
+      if (film.directorEntities) {
+        film.directorEntities.forEach(d => {
+          const director = directorMap.get(d.id);
+          if (director && !workedWithDirectors.has(d.id)) {
+            workedWithDirectors.set(d.id, { director, count: 0 });
+          }
+          if (workedWithDirectors.has(d.id)) {
+            workedWithDirectors.get(d.id).count++;
+          }
+        });
+      } else if (film.director) {
+        film.director.split(',').map(n => n.trim()).forEach(name => {
+          const matchedDirector = directorsByName.get(name.toLowerCase());
+          if (matchedDirector && !workedWithDirectors.has(matchedDirector.id)) {
+            workedWithDirectors.set(matchedDirector.id, { director: matchedDirector, count: 0 });
+          }
+          if (matchedDirector && workedWithDirectors.has(matchedDirector.id)) {
+            workedWithDirectors.get(matchedDirector.id).count++;
+          }
+        });
+      }
+    });
+    const directorsList = [...workedWithDirectors.values()].sort((a, b) => b.count - a.count);
+    if (directorsList.length === 0) return '';
+    return `
+  <div class="entity-collaborators">
+    <h3>Directors</h3>
+    <div class="collaborator-tags">
+      ${directorsList.map(({ director, count }) => `<a href="../${getDirectorUrl(director)}" class="collaborator-tag">${escapeHtml(director.name)} <span class="collab-count">(${count})</span></a>`).join('')}
+    </div>
+  </div>`;
+  })()}
+
+  ${(studio.wikipedia || studio.website) ? `
+  <div class="entity-links">
+    <h3>External Links</h3>
+    ${studio.wikipedia ? `<a href="${escapeHtml(studio.wikipedia)}" class="entity-link" target="_blank" rel="noopener">→ Wikipedia</a>` : ''}
+    ${studio.website ? `<a href="${escapeHtml(studio.website)}" class="entity-link" target="_blank" rel="noopener">→ Official Website</a>` : ''}
+  </div>` : ''}
+
+  ${studioFilms.length > 0 ? `
+  <section class="entity-films-section">
+    <h2 class="section-title">Filmography (${filmCount} films)</h2>
+    <div class="table-wrapper">
+      <table class="film-table" role="grid">
+        <thead><tr>
+          <th scope="col" style="width:90px" class="sortable active" data-col="year">Year <span class="sort-indicator">▲</span></th>
+          <th scope="col" class="sortable" data-col="title">Title <span class="sort-indicator">⇅</span></th>
+          <th scope="col">Director</th>
+          <th scope="col" style="width:100px">Technique</th>
+          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+        </tr></thead>
+        <tbody>${studioFilms.map(film => `
+          <tr>
+            <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
+            <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
+            <td class="table-meta">${getDirectorLink(film, '../') || '—'}</td>
+            <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
+            <td class="watch-cell">${(() => { const url = getWatchUrl(film.watchLinks); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  </section>` : ''}
+</main>
+${generateFooter('../')}
+${studioFilms.length > 0 ? generateEntityTableSort() : ''}
+</body></html>`;
+}
+
+function generateStudioIndexPage() {
+  const sortedStudios = [...studios].sort((a, b) => {
+    const aFilms = films.filter(f => f.studioEntities?.some(s => s.id === a.id)).length;
+    const bFilms = films.filter(f => f.studioEntities?.some(s => s.id === b.id)).length;
+    return bFilms - aFilms;
+  });
+
+  const description = `Browse ${studios.length} animation studios from around the world in the Global Animation Archive.`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studios — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/studios/">
+${FAVICON}
+<meta property="og:type" content="website">
+<meta property="og:title" content="Studios — Global Animation Archive">
+<meta property="og:description" content="${escapeHtml(description)}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+<main class="entity-index studios-index" id="main-content">
+  <div class="entity-index-header">
+    <h1>Studios</h1>
+    <p class="entity-index-subtitle">Browse ${studios.length} animation studios from around the world</p>
+  </div>
+  <div class="entity-grid">
+    ${sortedStudios.map(studio => {
+      const filmCount = films.filter(f => f.studioEntities?.some(s => s.id === studio.id)).length;
+      return `<a href="${slugify(studio.name)}-${studio.id.slice(0,8)}.html" class="entity-card">
+      <div class="entity-card-info">
+        <h2 class="entity-card-name">${escapeHtml(studio.name)}</h2>
+        <div class="entity-card-meta">
+          ${studio.country ? `<span class="entity-card-country">${escapeHtml(studio.country)}</span>` : ''}
+          <span class="entity-card-count">${filmCount} films</span>
+        </div>
+        ${studio.founded ? `<div class="entity-card-dates">${studio.founded}${studio.closed ? `–${studio.closed}` : studio.active ? '–Present' : ''}</div>` : ''}
+      </div>
+    </a>`;
+    }).join('\n    ')}
+  </div>
+</main>
+${generateFooter('../')}
+</body></html>`;
+}
+
+function generateStudioPages() {
+  if (studios.length === 0) {
+    console.log('  ⚠ No studios data, skipping studio pages');
+    return { count: 0 };
+  }
+
+  mkdirSync('./dist/studios', { recursive: true });
+
+  let count = 0;
+  for (const studio of studios) {
+    const filename = `${slugify(studio.name)}-${studio.id.slice(0,8)}.html`;
+    writeFileSync(`./dist/studios/${filename}`, generateStudioPage(studio));
+    count++;
+  }
+
+  writeFileSync('./dist/studios/index.html', generateStudioIndexPage());
+  return { count };
+}
+
+// ===================== DIRECTOR DETAIL PAGES =====================
+function generateDirectorDetailPage(director) {
+  // Get films for this director
+  const directorFilms = films.filter(f =>
+    (f.directorEntities && f.directorEntities.some(d => d.id === director.id)) ||
+    (f.director && f.director.toLowerCase().includes(director.name.toLowerCase()))
+  ).sort((a, b) => (a.year || 0) - (b.year || 0));
+
+  const filmCount = directorFilms.length;
+  const lifespan = director.birthYear ?
+    `${director.birthYear}${director.deathYear ? ` – ${director.deathYear}` : ' – Present'}` : '';
+
+  const nationalities = Array.isArray(director.nationality) ? director.nationality.join(', ') : (director.nationality || '');
+  const description = `${director.name}${director.nativeName ? ` (${director.nativeName})` : ''} — ${nationalities ? nationalities + ' ' : ''}animator and director. ${filmCount} films in the archive.`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(director.name)} — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/${getDirectorUrl(director)}">
+${FAVICON}
+<meta property="og:type" content="profile">
+<meta property="og:title" content="${escapeHtml(director.name)} — Global Animation Archive">
+<meta property="og:description" content="${escapeHtml(description)}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Directors', url: 'directors/index.html' },
+  { label: escapeHtml(director.name) }
+], '../')}
+<main class="entity-page director-page" id="main-content">
+  <div class="entity-header">
+    <div class="entity-title-section">
+      <h1 class="entity-name">${escapeHtml(director.name)}</h1>
+      ${director.nativeName ? `<p class="entity-native-name">${escapeHtml(director.nativeName)}</p>` : ''}
+      ${lifespan ? `<p class="entity-dates">${lifespan}</p>` : ''}
+      ${nationalities ? `<p class="entity-subtitle">Nationality: ${escapeHtml(nationalities)}</p>` : ''}
+    </div>
+    <nav class="entity-nav">
+      <a href="index.html" class="entity-back-link">← All Directors</a>
+    </nav>
+  </div>
+
+  ${director.bio ? `<div class="entity-description"><h3>Biography</h3><p>${escapeHtml(director.bio)}</p></div>` : ''}
+  ${director.significance ? `<div class="entity-description"><h3>Significance</h3><p>${escapeHtml(director.significance)}</p></div>` : ''}
+  ${director.signatureStyle ? `<div class="entity-description"><h3>Signature Style</h3><p>${escapeHtml(director.signatureStyle)}</p></div>` : ''}
+
+  <div class="entity-meta-grid">
+    ${director.primaryTechnique ? `
+    <div class="entity-meta-card">
+      <div class="meta-card-title">Primary Technique</div>
+      <div class="meta-card-value">${escapeHtml(director.primaryTechnique)}</div>
+    </div>` : ''}
+    <div class="entity-meta-card">
+      <div class="meta-card-title">Films in Archive</div>
+      <div class="meta-card-value">${filmCount}</div>
+    </div>
+  </div>
+
+  ${director.awards ? `<div class="entity-awards"><h3>Awards</h3><p>${escapeHtml(director.awards)}</p></div>` : ''}
+
+  ${(() => {
+    // Get studios this director has worked with
+    const workedWithStudios = new Map();
+    directorFilms.forEach(film => {
+      if (film.studioEntities) {
+        film.studioEntities.forEach(s => {
+          const studio = studioMap.get(s.id);
+          if (studio && !workedWithStudios.has(s.id)) {
+            workedWithStudios.set(s.id, { studio, count: 0 });
+          }
+          if (workedWithStudios.has(s.id)) {
+            workedWithStudios.get(s.id).count++;
+          }
+        });
+      } else if (film.studio) {
+        const matchedStudio = studiosByName.get(film.studio.toLowerCase().trim());
+        if (matchedStudio && !workedWithStudios.has(matchedStudio.id)) {
+          workedWithStudios.set(matchedStudio.id, { studio: matchedStudio, count: 0 });
+        }
+        if (matchedStudio && workedWithStudios.has(matchedStudio.id)) {
+          workedWithStudios.get(matchedStudio.id).count++;
+        }
+      }
+    });
+    const studiosList = [...workedWithStudios.values()].sort((a, b) => b.count - a.count);
+    if (studiosList.length === 0) return '';
+    return `
+  <div class="entity-collaborators">
+    <h3>Studios Collaborated With</h3>
+    <div class="collaborator-tags">
+      ${studiosList.map(({ studio, count }) => `<a href="../${getStudioUrl(studio)}" class="collaborator-tag">${escapeHtml(studio.name)} <span class="collab-count">(${count})</span></a>`).join('')}
+    </div>
+  </div>`;
+  })()}
+
+  ${(director.wikipedia || director.imdb) ? `
+  <div class="entity-links">
+    <h3>External Links</h3>
+    ${director.wikipedia ? `<a href="${escapeHtml(director.wikipedia)}" class="entity-link" target="_blank" rel="noopener">→ Wikipedia</a>` : ''}
+    ${director.imdb ? `<a href="${escapeHtml(director.imdb)}" class="entity-link" target="_blank" rel="noopener">→ IMDb</a>` : ''}
+  </div>` : ''}
+
+  ${directorFilms.length > 0 ? `
+  <section class="entity-films-section">
+    <h2 class="section-title">Filmography (${filmCount} films)</h2>
+    <div class="table-wrapper">
+      <table class="film-table" role="grid">
+        <thead><tr>
+          <th scope="col" style="width:90px" class="sortable active" data-col="year">Year <span class="sort-indicator">▲</span></th>
+          <th scope="col" class="sortable" data-col="title">Title <span class="sort-indicator">⇅</span></th>
+          <th scope="col">Studio</th>
+          <th scope="col" style="width:100px">Technique</th>
+          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+        </tr></thead>
+        <tbody>${directorFilms.map(film => `
+          <tr>
+            <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
+            <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
+            <td class="table-meta">${getStudioLink(film, '../') || '—'}</td>
+            <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
+            <td class="watch-cell">${(() => { const url = getWatchUrl(film.watchLinks); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  </section>` : ''}
+</main>
+${generateFooter('../')}
+${directorFilms.length > 0 ? generateEntityTableSort() : ''}
+</body></html>`;
+}
+
+function generateDirectorDetailPages() {
+  if (directorsData.length === 0) {
+    console.log('  ⚠ No directors data from Notion, using legacy director index only');
+    return { count: 0, legacyOnly: true };
+  }
+
+  // Note: We keep the existing director index (alphabetical list) but also generate detail pages
+  let count = 0;
+  for (const director of directorsData) {
+    const filename = `${slugify(director.name)}-${director.id.slice(0,8)}.html`;
+    writeFileSync(`./dist/directors/${filename}`, generateDirectorDetailPage(director));
+    count++;
+  }
+
+  return { count };
+}
+
+// ===================== SERIES PAGES =====================
+function generateSeriesPage(series) {
+  // Get films for this series
+  const seriesFilms = films.filter(f =>
+    f.seriesEntities && f.seriesEntities.some(s => s.id === series.id)
+  ).sort((a, b) => (a.year || 0) - (b.year || 0));
+
+  const filmCount = seriesFilms.length;
+  const typeLabel = series.type || 'Series';
+
+  // Get studio info
+  let studioInfo = '';
+  if (series.studioRelation && series.studioRelation.length > 0) {
+    const studio = studioMap.get(series.studioRelation[0]);
+    if (studio) {
+      studioInfo = `<a href="../${getStudioUrl(studio)}">${escapeHtml(studio.name)}</a>`;
+    }
+  }
+
+  const description = `${series.name} — ${typeLabel}. ${series.description ? series.description.substring(0, 150) : `${filmCount} films in the archive.`}`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(series.name)} — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/${getSeriesUrl(series)}">
+${FAVICON}
+<meta property="og:type" content="website">
+<meta property="og:title" content="${escapeHtml(series.name)} — Global Animation Archive">
+<meta property="og:description" content="${escapeHtml(description)}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Series', url: 'series/index.html' },
+  { label: escapeHtml(series.name) }
+], '../')}
+<main class="entity-page series-page" id="main-content">
+  <div class="entity-header">
+    <div class="entity-title-section">
+      <span class="entity-type-badge">${escapeHtml(typeLabel)}</span>
+      <h1 class="entity-name">${escapeHtml(series.name)}</h1>
+      ${series.country ? `<p class="entity-subtitle">${escapeHtml(series.country)}</p>` : ''}
+      ${series.yearsActive ? `<p class="entity-dates">Years Active: ${escapeHtml(series.yearsActive)}</p>` : ''}
+    </div>
+    <nav class="entity-nav">
+      <a href="index.html" class="entity-back-link">← All Series</a>
+    </nav>
+  </div>
+
+  ${series.description ? `<div class="entity-description"><p>${escapeHtml(series.description)}</p></div>` : ''}
+
+  <div class="entity-meta-grid">
+    ${studioInfo ? `
+    <div class="entity-meta-card">
+      <div class="meta-card-title">Studio</div>
+      <div class="meta-card-value">${studioInfo}</div>
+    </div>` : ''}
+    <div class="entity-meta-card">
+      <div class="meta-card-title">Total Entries</div>
+      <div class="meta-card-value">${series.totalEntries || filmCount}</div>
+    </div>
+    <div class="entity-meta-card">
+      <div class="meta-card-title">In Archive</div>
+      <div class="meta-card-value">${filmCount}</div>
+    </div>
+  </div>
+
+  ${series.watchOrder ? `
+  <div class="entity-watch-order">
+    <h3>Watch Order</h3>
+    <div class="watch-order-content">${formatWatchOrder(series.watchOrder)}</div>
+  </div>` : ''}
+
+  ${seriesFilms.length > 0 ? `
+  <section class="entity-films-section">
+    <h2 class="section-title">Films in this ${escapeHtml(typeLabel)} (${filmCount})</h2>
+    <div class="table-wrapper">
+      <table class="film-table" role="grid">
+        <thead><tr>
+          <th scope="col" style="width:90px" class="sortable active" data-col="year">Year <span class="sort-indicator">▲</span></th>
+          <th scope="col" class="sortable" data-col="title">Title <span class="sort-indicator">⇅</span></th>
+          <th scope="col">Director</th>
+          <th scope="col" style="width:100px">Technique</th>
+          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+        </tr></thead>
+        <tbody>${seriesFilms.map(film => `
+          <tr>
+            <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
+            <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
+            <td class="table-meta">${getDirectorLink(film, '../') || '—'}</td>
+            <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
+            <td class="watch-cell">${(() => { const url = getWatchUrl(film.watchLinks); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  </section>` : ''}
+</main>
+${generateFooter('../')}
+${seriesFilms.length > 0 ? generateEntityTableSort() : ''}
+</body></html>`;
+}
+
+function generateSeriesIndexPage() {
+  const sortedSeries = [...seriesData].sort((a, b) => a.name.localeCompare(b.name));
+  const description = `Browse ${seriesData.length} animation series, franchises, and shared universes in the Global Animation Archive.`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Series & Universes — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/series/">
+${FAVICON}
+<meta property="og:type" content="website">
+<meta property="og:title" content="Series & Universes — Global Animation Archive">
+<meta property="og:description" content="${escapeHtml(description)}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+<main class="entity-index series-index" id="main-content">
+  <div class="entity-index-header">
+    <h1>Series & Universes</h1>
+    <p class="entity-index-subtitle">Browse ${seriesData.length} animation series, franchises, and shared universes</p>
+  </div>
+  <div class="entity-grid">
+    ${sortedSeries.map(series => {
+      const filmCount = films.filter(f => f.seriesEntities?.some(s => s.id === series.id)).length;
+      return `<a href="${slugify(series.name)}-${series.id.slice(0,8)}.html" class="entity-card">
+      <div class="entity-card-info">
+        <span class="entity-type-badge small">${escapeHtml(series.type || 'Series')}</span>
+        <h2 class="entity-card-name">${escapeHtml(series.name)}</h2>
+        <div class="entity-card-meta">
+          ${series.country ? `<span class="entity-card-country">${escapeHtml(series.country)}</span>` : ''}
+          <span class="entity-card-count">${filmCount} films</span>
+        </div>
+      </div>
+    </a>`;
+    }).join('\n    ')}
+  </div>
+</main>
+${generateFooter('../')}
+</body></html>`;
+}
+
+function generateSeriesPages() {
+  if (seriesData.length === 0) {
+    console.log('  ⚠ No series data, skipping series pages');
+    return { count: 0 };
+  }
+
+  mkdirSync('./dist/series', { recursive: true });
+
+  let count = 0;
+  for (const series of seriesData) {
+    const filename = `${slugify(series.name)}-${series.id.slice(0,8)}.html`;
+    writeFileSync(`./dist/series/${filename}`, generateSeriesPage(series));
+    count++;
+  }
+
+  writeFileSync('./dist/series/index.html', generateSeriesIndexPage());
+  return { count };
+}
+
+// ===================== GENRE PAGES =====================
+function generateGenrePage(genre, genreFilms) {
+  genreFilms.sort((a, b) => (b.year || 0) - (a.year || 0));
+  const description = `Explore ${genreFilms.length} ${genre} animated films from around the world in the Global Animation Archive.`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(genre)} Films — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/genres/${slugify(genre)}.html">
+${FAVICON}
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Genres', url: 'genres/index.html' },
+  { label: escapeHtml(genre) }
+], '../')}
+<main class="tag-page genre-page" id="main-content">
+  <div class="tag-header">
+    <span class="tag-type">Genre</span>
+    <h1 class="tag-name">${escapeHtml(genre)}</h1>
+    <p class="tag-count">${genreFilms.length} films</p>
+  </div>
+  <section class="tag-films-section">
+    <div class="table-wrapper">
+      <table class="film-table" role="grid">
+        <thead><tr>
+          <th scope="col" style="width:90px">Year</th>
+          <th scope="col">Title</th>
+          <th scope="col">Director / Studio</th>
+          <th scope="col" style="width:100px">Technique</th>
+          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+        </tr></thead>
+        <tbody>${generateTableRows(genreFilms, '../')}</tbody>
+      </table>
+    </div>
+  </section>
+</main>
+${generateFooter('../')}
+</body></html>`;
+}
+
+function generateGenrePages() {
+  const genresWithFilms = {};
+  for (const film of films) {
+    for (const genre of film.genres || []) {
+      if (!genresWithFilms[genre]) genresWithFilms[genre] = [];
+      genresWithFilms[genre].push(film);
+    }
+  }
+
+  if (Object.keys(genresWithFilms).length === 0) {
+    console.log('  ⚠ No genre data, skipping genre pages');
+    return { count: 0 };
+  }
+
+  mkdirSync('./dist/genres', { recursive: true });
+
+  let count = 0;
+  for (const [genre, genreFilms] of Object.entries(genresWithFilms)) {
+    writeFileSync(`./dist/genres/${slugify(genre)}.html`, generateGenrePage(genre, [...genreFilms]));
+    count++;
+  }
+
+  // Generate index page
+  writeFileSync('./dist/genres/index.html', generateGenreIndexPage(genresWithFilms));
+
+  return { count, genresWithFilms };
+}
+
+function generateGenreIndexPage(genresWithFilms) {
+  const sortedGenres = Object.entries(genresWithFilms)
+    .map(([name, films]) => ({ name, count: films.length }))
+    .sort((a, b) => b.count - a.count);
+
+  const totalFilms = films.filter(f => f.genres && f.genres.length > 0).length;
+  const description = `Browse ${sortedGenres.length} animation genres from around the world. ${totalFilms} films categorized in the Global Animation Archive.`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Genres — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/genres/">
+${FAVICON}
+<meta property="og:type" content="website">
+<meta property="og:title" content="Genres — Global Animation Archive">
+<meta property="og:description" content="${escapeHtml(description)}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Genres' }
+], '../')}
+<main class="entity-index genres-index" id="main-content">
+  <div class="entity-index-header">
+    <h1>Genres</h1>
+    <p class="entity-index-subtitle">Browse ${sortedGenres.length} animation genres</p>
+  </div>
+  <div class="tag-cloud">
+    ${sortedGenres.map(({ name, count }) => {
+      const size = count > 100 ? 'xl' : count > 50 ? 'lg' : count > 20 ? 'md' : count > 10 ? 'sm' : 'xs';
+      return `<a href="${slugify(name)}.html" class="tag-cloud-item tag-size-${size}">
+        <span class="tag-name">${escapeHtml(name)}</span>
+        <span class="tag-count">${count}</span>
+      </a>`;
+    }).join('')}
+  </div>
+</main>
+${generateFooter('../')}
+</body></html>`;
+}
+
+// ===================== KEYWORD PAGES =====================
+function generateKeywordPage(keyword, keywordFilms) {
+  keywordFilms.sort((a, b) => (b.year || 0) - (a.year || 0));
+  const description = `Explore ${keywordFilms.length} animated films tagged with "${keyword}" in the Global Animation Archive.`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(keyword)} — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/keywords/${slugify(keyword)}.html">
+${FAVICON}
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Keywords', url: 'keywords/index.html' },
+  { label: escapeHtml(keyword) }
+], '../')}
+<main class="tag-page keyword-page" id="main-content">
+  <div class="tag-header">
+    <span class="tag-type">Keyword</span>
+    <h1 class="tag-name">${escapeHtml(keyword)}</h1>
+    <p class="tag-count">${keywordFilms.length} films</p>
+  </div>
+  <section class="tag-films-section">
+    <div class="table-wrapper">
+      <table class="film-table" role="grid">
+        <thead><tr>
+          <th scope="col" style="width:90px">Year</th>
+          <th scope="col">Title</th>
+          <th scope="col">Director / Studio</th>
+          <th scope="col" style="width:100px">Technique</th>
+          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+        </tr></thead>
+        <tbody>${generateTableRows(keywordFilms, '../')}</tbody>
+      </table>
+    </div>
+  </section>
+</main>
+${generateFooter('../')}
+</body></html>`;
+}
+
+function generateKeywordPages() {
+  const keywordsWithFilms = {};
+  for (const film of films) {
+    for (const keyword of film.keywords || []) {
+      if (!keywordsWithFilms[keyword]) keywordsWithFilms[keyword] = [];
+      keywordsWithFilms[keyword].push(film);
+    }
+  }
+
+  if (Object.keys(keywordsWithFilms).length === 0) {
+    console.log('  ⚠ No keyword data, skipping keyword pages');
+    return { count: 0 };
+  }
+
+  mkdirSync('./dist/keywords', { recursive: true });
+
+  let count = 0;
+  for (const [keyword, keywordFilms] of Object.entries(keywordsWithFilms)) {
+    writeFileSync(`./dist/keywords/${slugify(keyword)}.html`, generateKeywordPage(keyword, [...keywordFilms]));
+    count++;
+  }
+
+  // Generate index page
+  writeFileSync('./dist/keywords/index.html', generateKeywordIndexPage(keywordsWithFilms));
+
+  return { count, keywordsWithFilms };
+}
+
+function generateKeywordIndexPage(keywordsWithFilms) {
+  const sortedKeywords = Object.entries(keywordsWithFilms)
+    .map(([name, films]) => ({ name, count: films.length }))
+    .sort((a, b) => b.count - a.count);
+
+  const totalFilms = films.filter(f => f.keywords && f.keywords.length > 0).length;
+  const description = `Browse ${sortedKeywords.length} animation keywords and themes. ${totalFilms} films tagged in the Global Animation Archive.`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keywords — Global Animation Archive</title>
+<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${SITE_URL}/keywords/">
+${FAVICON}
+<meta property="og:type" content="website">
+<meta property="og:title" content="Keywords — Global Animation Archive">
+<meta property="og:description" content="${escapeHtml(description)}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+</header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Keywords' }
+], '../')}
+<main class="entity-index keywords-index" id="main-content">
+  <div class="entity-index-header">
+    <h1>Keywords & Themes</h1>
+    <p class="entity-index-subtitle">Browse ${sortedKeywords.length} keywords and themes</p>
+  </div>
+  <div class="tag-cloud">
+    ${sortedKeywords.map(({ name, count }) => {
+      const size = count > 50 ? 'xl' : count > 25 ? 'lg' : count > 10 ? 'md' : count > 5 ? 'sm' : 'xs';
+      return `<a href="${slugify(name)}.html" class="tag-cloud-item tag-size-${size}">
+        <span class="tag-name">${escapeHtml(name)}</span>
+        <span class="tag-count">${count}</span>
+      </a>`;
+    }).join('')}
+  </div>
+</main>
+${generateFooter('../')}
+</body></html>`;
+}
+
+function generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFilms, genresWithFilms, keywordsWithFilms) {
   const urls = [
     { loc: `${SITE_URL}/`, priority: '1.0', changefreq: 'daily' },
     { loc: `${SITE_URL}/countries/`, priority: '0.9', changefreq: 'weekly' },
     { loc: `${SITE_URL}/techniques/`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${SITE_URL}/studios/`, priority: '0.9', changefreq: 'weekly' },
     { loc: `${SITE_URL}/directors/`, priority: '0.9', changefreq: 'weekly' },
-    { loc: `${SITE_URL}/decades/`, priority: '0.9', changefreq: 'weekly' }
+    { loc: `${SITE_URL}/series/`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${SITE_URL}/decades/`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${SITE_URL}/genres/`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${SITE_URL}/keywords/`, priority: '0.9', changefreq: 'weekly' }
   ];
 
   // Add country pages
@@ -1968,6 +3502,55 @@ function generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFil
       urls.push({
         loc: `${SITE_URL}/decades/${decade}s.html`,
         priority: '0.8',
+        changefreq: 'weekly'
+      });
+    }
+  }
+
+  // Add studio pages
+  for (const studio of studios) {
+    urls.push({
+      loc: `${SITE_URL}/${getStudioUrl(studio)}`,
+      priority: '0.8',
+      changefreq: 'weekly'
+    });
+  }
+
+  // Add director detail pages
+  for (const director of directorsData) {
+    urls.push({
+      loc: `${SITE_URL}/${getDirectorUrl(director)}`,
+      priority: '0.8',
+      changefreq: 'weekly'
+    });
+  }
+
+  // Add series pages
+  for (const series of seriesData) {
+    urls.push({
+      loc: `${SITE_URL}/${getSeriesUrl(series)}`,
+      priority: '0.8',
+      changefreq: 'weekly'
+    });
+  }
+
+  // Add genre pages
+  if (genresWithFilms) {
+    for (const genre of Object.keys(genresWithFilms)) {
+      urls.push({
+        loc: `${SITE_URL}/genres/${slugify(genre)}.html`,
+        priority: '0.7',
+        changefreq: 'weekly'
+      });
+    }
+  }
+
+  // Add keyword pages
+  if (keywordsWithFilms) {
+    for (const keyword of Object.keys(keywordsWithFilms)) {
+      urls.push({
+        loc: `${SITE_URL}/keywords/${slugify(keyword)}.html`,
+        priority: '0.6',
         changefreq: 'weekly'
       });
     }
@@ -2065,22 +3648,53 @@ function build() {
   const { count: techniqueCount, techniquesWithFilms } = generateTechniquePages();
   console.log(`  ✓ ${techniqueCount} technique pages + index (with OG tags + JSON-LD)`);
 
-  // Generate director index
+  // Generate director index (legacy alphabetical index)
   const { count: directorCount } = generateDirectorPages();
   console.log(`  ✓ directors index (${directorCount} directors)`);
+
+  // Generate director detail pages (from Notion Directors database)
+  const { count: directorDetailCount } = generateDirectorDetailPages();
+  if (directorDetailCount > 0) {
+    console.log(`  ✓ ${directorDetailCount} director detail pages`);
+  }
 
   // Generate decade pages
   const { count: decadeCount, decadesWithFilms } = generateDecadePages();
   console.log(`  ✓ ${decadeCount} decade pages + index (with OG tags + JSON-LD)`);
 
+  // Generate studio pages
+  const { count: studioCount } = generateStudioPages();
+  if (studioCount > 0) {
+    console.log(`  ✓ ${studioCount} studio pages + index`);
+  }
+
+  // Generate series pages
+  const { count: seriesCount } = generateSeriesPages();
+  if (seriesCount > 0) {
+    console.log(`  ✓ ${seriesCount} series pages + index`);
+  }
+
+  // Generate genre pages
+  const { count: genreCount, genresWithFilms } = generateGenrePages();
+  if (genreCount > 0) {
+    console.log(`  ✓ ${genreCount} genre pages`);
+  }
+
+  // Generate keyword pages
+  const { count: keywordCount, keywordsWithFilms } = generateKeywordPages();
+  if (keywordCount > 0) {
+    console.log(`  ✓ ${keywordCount} keyword pages`);
+  }
+
   writeFileSync('./dist/styles.css', generateCSS());
-  console.log('  ✓ styles.css (with country + technique + directors + decade page styles)');
+  console.log('  ✓ styles.css (with all page styles)');
 
   writeFileSync('./dist/app.js', generateJS());
-  console.log('  ✓ app.js (with pagination + keyboard nav)');
+  console.log('  ✓ app.js (with pagination + keyboard nav + genre/keyword filters)');
 
-  writeFileSync('./dist/sitemap.xml', generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFilms));
-  console.log('  ✓ sitemap.xml (' + (films.length + countryCount + techniqueCount + decadeCount + 5) + ' URLs)');
+  writeFileSync('./dist/sitemap.xml', generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFilms, genresWithFilms, keywordsWithFilms));
+  const totalUrls = films.length + countryCount + techniqueCount + decadeCount + studioCount + directorDetailCount + seriesCount + genreCount + keywordCount + 7;
+  console.log(`  ✓ sitemap.xml (${totalUrls} URLs)`);
 
   writeFileSync('./dist/robots.txt', generateRobotsTxt());
   console.log('  ✓ robots.txt');
@@ -2093,8 +3707,12 @@ function build() {
   console.log(`   • Pagination: Initial load ${FILMS_PER_PAGE} films`);
   console.log(`   • Country pages: ${countryCount} countries with dedicated pages`);
   console.log(`   • Technique pages: ${techniqueCount} techniques with dedicated pages`);
-  console.log(`   • Directors index: ${directorCount} directors with filter links`);
+  console.log(`   • Studio pages: ${studioCount} studios with dedicated pages`);
+  console.log(`   • Director pages: ${directorCount} directors (index) + ${directorDetailCount} detail pages`);
+  console.log(`   • Series pages: ${seriesCount} series with dedicated pages`);
   console.log(`   • Decade pages: ${decadeCount} decades with dedicated pages`);
+  console.log(`   • Genre pages: ${genreCount} genres with dedicated pages`);
+  console.log(`   • Keyword pages: ${keywordCount} keywords with dedicated pages`);
   console.log(`   • SEO: sitemap.xml, robots.txt, OG tags, JSON-LD on all pages`);
   console.log(`   • Accessibility: Skip links, ARIA labels, keyboard navigation`);
 }
