@@ -3,6 +3,7 @@
  * Run: NOTION_TOKEN=xxx NOTION_DATABASE_ID=xxx node scripts/fetch-notion.js
  */
 
+import 'dotenv/config';
 import { Client } from '@notionhq/client';
 import { writeFileSync, mkdirSync } from 'fs';
 
@@ -52,11 +53,8 @@ function extractFilm(page) {
     historicalContext: extractors.rich_text(props['Historical Context']),
     sourceMaterial: extractors.rich_text(props['Source Material']),
     notes: extractors.rich_text(props['Notes']),
-    // Watch info - URL type in Notion (filter out "N/A" values)
-    watchLinks: (() => {
-      const val = extractors.url(props['Watch Links']);
-      return (val && val !== 'N/A' && val.toLowerCase() !== 'n/a') ? val : null;
-    })(),
+    // Watch info - linked Watch Links DB (two-way relation)
+    watchLinksRelation: extractors.relation(props['Watch Links (Linked)']),
     hasSubtitles: extractors.checkbox(props['Has Subtitles']),
     subtitleSource: extractors.rich_text(props['Subtitle Source']),
     watchStatus: extractors.select(props['Watch Status']),
@@ -291,8 +289,8 @@ function computeStats(films, studios, directors, series) {
       stats.keywords[keyword] = (stats.keywords[keyword] || 0) + 1;
     }
 
-    // Watchable (has watch link)
-    if (film.watchLinks) {
+    // Watchable (has linked watch links)
+    if (film.watchLinksRelation && film.watchLinksRelation.length > 0) {
       stats.watchable++;
     }
 

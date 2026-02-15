@@ -5,15 +5,18 @@
   "type": "module",
   "scripts": {
     "fetch": "node scripts/fetch-notion.js",
+    "fetch:links": "node scripts/fetch-watch-links.js",
+    "fetch:all": "npm run fetch && npm run fetch:links",
     "build": "node scripts/build-site.js",
-    "dev": "npm run fetch && npm run build && npx serve dist",
-    "deploy": "npm run fetch && npm run build",
+    "dev": "npm run fetch:all && npm run build && npx serve dist",
+    "deploy": "npm run fetch:all && npm run build",
+    "validate:links": "node scripts/validate-watch-links.js --report-only",
     "audit": "node scripts/audit-data.js",
     "validate": "node scripts/validate-links.js",
     "data-check": "npm run audit && npm run validate"
   },
   "dependencies": {
-    "@notionhq/client": "^2.2.14"
+    "@notionhq/client": "^2.3.0"
   },
   "devDependencies": {
     "dotenv": "^16.3.1",

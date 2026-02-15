@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { generateWatchLinksHTML, WATCH_LINKS_CSS } from './watch-links-renderer.js';
 
 const films = JSON.parse(readFileSync('./data/films.json', 'utf-8'));
 const stats = JSON.parse(readFileSync('./data/stats.json', 'utf-8'));
@@ -301,104 +302,36 @@ function generateEntityTableSort() {
 </script>`;
 }
 
-// Watch Links parsing
-const WATCH_LINK_TYPES = {
-  'FREE': { icon: '▶', label: 'Free', color: 'green', className: 'watch-free' },
-  'ADS': { icon: '📺', label: 'Free w/Ads', color: 'lime', className: 'watch-ads' },
-  'SUB': { icon: '🔐', label: 'Subscription', color: 'blue', className: 'watch-sub' },
-  'RENT': { icon: '💵', label: 'Rent', color: 'orange', className: 'watch-rent' },
-  'BUY': { icon: '🛒', label: 'Buy', color: 'purple', className: 'watch-buy' },
-  'DISC': { icon: '💿', label: 'Physical', color: 'gray', className: 'watch-disc' },
-  'REGION': { icon: '🌍', label: 'Region-locked', color: 'yellow', className: 'watch-region' },
-};
+// Watch Links — uses structured arrays from fetch-watch-links.js via Watch Links (Linked) relation
 
-function parseWatchLinks(watchLinksText) {
-  if (!watchLinksText) return [];
-
-  // If it's a simple URL (not structured format), return it as a FREE link
-  if (watchLinksText.startsWith('http') && !watchLinksText.includes('\n') && !watchLinksText.includes('[')) {
-    // Try to extract platform from URL
-    let platform = 'Watch';
-    if (watchLinksText.includes('youtube.com') || watchLinksText.includes('youtu.be')) platform = 'YouTube';
-    else if (watchLinksText.includes('vimeo.com')) platform = 'Vimeo';
-    else if (watchLinksText.includes('archive.org')) platform = 'Internet Archive';
-    else if (watchLinksText.includes('criterion')) platform = 'Criterion Channel';
-    else if (watchLinksText.includes('mubi.com')) platform = 'MUBI';
-    else if (watchLinksText.includes('netflix.com')) platform = 'Netflix';
-    else if (watchLinksText.includes('amazon')) platform = 'Amazon';
-    else if (watchLinksText.includes('hulu')) platform = 'Hulu';
-    else if (watchLinksText.includes('bilibili')) platform = 'Bilibili';
-    else if (watchLinksText.includes('nfb.ca')) platform = 'NFB';
-
-    return [{
-      type: 'FREE',
-      platform,
-      url: watchLinksText.trim(),
-      ...WATCH_LINK_TYPES['FREE']
-    }];
+/**
+ * Check if a film has active watch links
+ */
+function hasWatchLinks(film) {
+  if (Array.isArray(film.watchLinks) && film.watchLinks.length > 0) {
+    return film.watchLinks.some(l => l.url && l.status !== 'Dead');
   }
-
-  // Parse structured format: [TYPE] Platform: URL
-  const links = [];
-  const lines = watchLinksText.split('\n').filter(l => l.trim());
-  const regex = /\[([A-Z]+)\]\s*([^:]+):\s*(.+)/;
-
-  for (const line of lines) {
-    const match = line.match(regex);
-    if (match) {
-      const [, type, platform, url] = match;
-      const typeInfo = WATCH_LINK_TYPES[type] || WATCH_LINK_TYPES['FREE'];
-      links.push({
-        type,
-        platform: platform.trim(),
-        url: url.trim(),
-        ...typeInfo
-      });
-    }
-  }
-  return links;
+  return false;
 }
 
-// Extract just the URL from watch links (handles both simple URLs and structured format)
-function getWatchUrl(watchLinksText) {
-  if (!watchLinksText) return null;
-
-  // If it starts with http, it's already a plain URL
-  if (watchLinksText.startsWith('http')) {
-    return watchLinksText.trim();
+/**
+ * Get the best watch URL for a film (first verified link, or first with URL)
+ */
+function getWatchUrl(film) {
+  if (Array.isArray(film.watchLinks) && film.watchLinks.length > 0) {
+    const active = film.watchLinks.filter(l => l.url && l.status !== 'Dead');
+    if (active.length > 0) return active[0].url;
+    const any = film.watchLinks.find(l => l.url);
+    return any ? any.url : null;
   }
-
-  // Try to parse structured format: [TYPE] Platform: URL
-  const match = watchLinksText.match(/\[[A-Z]+\]\s*[^:]+:\s*(.+)/);
-  if (match) {
-    return match[1].trim();
-  }
-
   return null;
 }
 
-function generateWatchLinksSection(watchLinksText, hasSubtitles) {
-  const links = parseWatchLinks(watchLinksText);
-
-  if (links.length === 0) {
-    return `<div class="watch-links watch-links-empty">
-      <h3>Where to Watch</h3>
-      <p class="no-watch-links">No streaming links yet. Know one? <a href="#report-form" class="report-link" target="_blank">Report it</a></p>
-    </div>`;
-  }
-
-  return `<div class="watch-links">
-    <h3>Where to Watch</h3>
-    ${hasSubtitles ? '<p class="subs-available">🗣️ English subtitles available</p>' : ''}
-    <div class="watch-links-list">
-      ${links.map(link => `
-        <a href="${escapeHtml(link.url)}" class="watch-link ${link.className}" target="_blank" rel="noopener">
-          <span class="watch-badge">${link.icon} ${link.label}</span>
-          <span class="watch-platform">${escapeHtml(link.platform)}</span>
-        </a>
-      `).join('')}
-    </div>
-  </div>`;
+/**
+ * Generate the watch links section for a film detail page.
+ */
+function generateWatchLinksSection(film) {
+  return generateWatchLinksHTML(film.watchLinks);
 }
 
 // Keyword categories for grouping in sidebar
@@ -518,7 +451,7 @@ function generateFilmOfTheDayCard(film) {
         </div>
         <div class="film-of-day-actions">
           <a href="${getFilmUrl(film)}" class="film-of-day-details-btn">View Details</a>
-          ${film.watchLinks ? `<a href="${escapeHtml(film.watchLinks)}" class="film-of-day-watch-btn" target="_blank" rel="noopener">▶ Watch</a>` : ''}
+          ${hasWatchLinks(film) ? `<a href="${escapeHtml(getWatchUrl(film) || '#')}" class="film-of-day-watch-btn" target="_blank" rel="noopener">▶ Watch</a>` : ''}
         </div>
       </div>
     </div>`;
@@ -693,7 +626,7 @@ function generateRelatedFilmsSection(film) {
         <a href="${getFilmFilename(f)}" class="related-card">
           <span class="related-title">${escapeHtml(f.titleEnglish) || 'Untitled'}</span>
           <span class="related-meta">${f.year || '?'}${f.director ? ` · ${escapeHtml(f.director.split(',')[0].trim())}` : ''}</span>
-          ${f.watchLinks ? '<span class="related-watch">▶</span>' : ''}
+          ${hasWatchLinks(f) ? '<span class="related-watch">▶</span>' : ''}
         </a>`).join('')}
       </div>
     </div>`).join('')}
@@ -702,7 +635,7 @@ function generateRelatedFilmsSection(film) {
 
 function generateTableRows(filmList, basePath = '') {
   return filmList.map(film => {
-    const watchUrl = getWatchUrl(film.watchLinks);
+    const watchUrl = getWatchUrl(film);
     const directorHtml = getDirectorLink(film, basePath);
     const studioHtml = getStudioLink(film, basePath);
     return `
@@ -951,7 +884,7 @@ ${generateBreadcrumb([
       ${film.originalTitle ? `<div class="detail-original" lang="und">${escapeHtml(film.originalTitle)}</div>` : ''}
       <div class="detail-credits">${getDirectorLink(film, '../') ? `Directed by <strong>${getDirectorLink(film, '../')}</strong><br>` : ''}${getStudioLink(film, '../') ? `Produced by <strong>${getStudioLink(film, '../')}</strong>` : ''}${film.runtime ? ` · ${escapeHtml(film.runtime)}` : ''}</div>
     </div>
-    <div class="detail-actions">${parseWatchLinks(film.watchLinks).length > 0 ? `<a href="${escapeHtml(parseWatchLinks(film.watchLinks)[0]?.url || '#')}" class="detail-watch-btn" target="_blank" rel="noopener">▶ WATCH NOW</a>${film.hasSubtitles ? '<span class="detail-subs">EN SUBTITLES AVAILABLE</span>' : ''}` : '<span class="detail-subs">NO WATCH LINK AVAILABLE</span>'}</div>
+    <div class="detail-actions">${hasWatchLinks(film) ? `<a href="${escapeHtml(getWatchUrl(film) || '#')}" class="detail-watch-btn" target="_blank" rel="noopener">▶ WATCH NOW</a>${film.hasSubtitles ? '<span class="detail-subs">EN SUBTITLES AVAILABLE</span>' : ''}` : '<span class="detail-subs">NO WATCH LINK AVAILABLE</span>'}</div>
   </div>
   <div class="detail-body">
     <div class="detail-content">
@@ -961,7 +894,7 @@ ${generateBreadcrumb([
       ${film.notes ? `<h2>Notes</h2><p>${escapeHtml(film.notes)}</p>` : ''}
       ${film.researchSources ? `<div class="research-sources"><h2>Research Sources</h2><p class="sources-list">${escapeHtml(film.researchSources).split(',').map(s => s.trim()).filter(s => s).join(' · ')}</p></div>` : ''}
       ${!film.synopsis && !film.historicalContext && !film.keyCredits && !film.notes ? '<p class="no-content">No detailed information available yet.</p>' : ''}
-      ${generateWatchLinksSection(film.watchLinks, film.hasSubtitles)}
+      ${generateWatchLinksSection(film)}
       ${generateFilmTags(film)}
     </div>
     <aside class="detail-data-panel" aria-label="Film metadata">
@@ -1177,23 +1110,24 @@ function generateCSS() {
 .sort-indicator{margin-left:4px;opacity:0.4;font-size:10px}
 .sortable.active .sort-indicator{opacity:1;color:var(--accent)}
 /* Watch Links Section */
-.watch-links{margin-top:32px;padding:24px;background:var(--data-bg);border:1px solid var(--rule)}
-.watch-links h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:16px}
-.watch-links-list{display:flex;flex-direction:column;gap:8px}
-.watch-link{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:var(--ink);transition:border-color .2s,box-shadow .2s}
-.watch-link:hover{border-color:var(--ink);box-shadow:2px 2px 0 var(--rule)}
-.watch-badge{font-family:var(--mono);font-size:11px;padding:4px 8px;border-radius:3px;font-weight:500}
-.watch-free .watch-badge{background:#dcfce7;color:#166534}
-.watch-ads .watch-badge{background:#ecfccb;color:#3f6212}
-.watch-sub .watch-badge{background:#dbeafe;color:#1e40af}
-.watch-rent .watch-badge{background:#ffedd5;color:#9a3412}
-.watch-buy .watch-badge{background:#f3e8ff;color:#6b21a8}
-.watch-disc .watch-badge{background:#f3f4f6;color:#374151}
-.watch-region .watch-badge{background:#fef9c3;color:#854d0e}
-.watch-platform{font-family:'Source Serif 4',serif;font-size:15px}
-.no-watch-links{font-family:'Source Serif 4',serif;color:var(--ink-muted);font-style:italic}
-.subs-available{font-family:var(--mono);font-size:12px;color:var(--accent);margin-bottom:12px}
-.report-link{color:var(--accent);text-decoration:underline}
+.watch-links-section{margin-top:32px;padding:24px;background:var(--data-bg);border:1px solid var(--rule)}
+.watch-links-section h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:16px}
+.watch-links-grid{display:flex;flex-direction:column;gap:8px}
+.watch-link-group{display:flex;flex-direction:column;gap:8px}
+.group-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-muted);margin:8px 0 4px}
+.watch-link-card{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:var(--ink);transition:border-color .2s,box-shadow .2s}
+.watch-link-card:hover{border-color:var(--ink);box-shadow:2px 2px 0 var(--rule);transform:translateY(-1px)}
+.link-icon{font-size:1.3rem;flex-shrink:0;width:2rem;text-align:center}
+.link-info{display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex:1}
+.link-platform{font-family:'Source Serif 4',serif;font-size:15px;font-weight:600}
+.link-badge{display:inline-block;padding:3px 8px;border-radius:9999px;font-family:var(--mono);font-size:10px;font-weight:600;color:white;text-transform:uppercase;letter-spacing:.03em}
+.link-chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{display:inline-block;padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:10px;background:var(--data-bg);color:var(--ink-muted)}
+.link-notes{font-family:'Source Serif 4',serif;font-size:12px;color:var(--ink-muted);font-style:italic;width:100%}
+.verified-date,.status-icon{flex-shrink:0;font-size:14px}
+.no-links{font-family:'Source Serif 4',serif;color:var(--ink-muted);font-style:italic}
+.dead-links-notice{margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--ink-light)}
+@media(max-width:600px){.watch-link-card{padding:8px 12px}.link-chips{display:none}}
 /* Research Sources */
 .research-sources{margin-top:32px;padding:20px;background:var(--cream);border:1px solid var(--rule);border-left:3px solid var(--accent)}
 .research-sources h2{font-family:'Playfair Display',serif;font-size:16px;font-weight:400;margin-bottom:12px;color:var(--ink-muted)}
@@ -1326,7 +1260,8 @@ function getCC(c){return countryCodes[c]||c?.substring(0,3).toUpperCase()||'???'
 function escHtml(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function slugify(s){return(s||'untitled').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');}
 function confPips(c){const l={'★':1,'★★':2,'★★★':3,'★★★★':4,'★★★★★':5};const n=l[c]||0;return '<span class="filled">'+'■'.repeat(n)+'</span><span class="empty">'+'□'.repeat(5-n)+'</span>';}
-function getWatchUrl(wl){if(!wl)return null;if(wl.startsWith('http'))return wl.trim();const m=wl.match(/\\[[A-Z]+\\]\\s*[^:]+:\\s*(.+)/);return m?m[1].trim():null;}
+function getWatchUrl(wl){if(!wl||!Array.isArray(wl))return null;const a=wl.filter(l=>l.url&&l.status!=='Dead');return a.length>0?a[0].url:(wl.find(l=>l.url)||{}).url||null;}
+function hasWatchLinksClient(wl){return Array.isArray(wl)&&wl.some(l=>l.url&&l.status!=='Dead');}
 
 // Build lookup maps for studios and directors
 const studioMap=new Map((window.STUDIOS_DATA||[]).map(s=>[s.id,s]));
@@ -1384,14 +1319,14 @@ function renderRow(f){
   const dec=f.year?Math.floor(f.year/10)*10:'';
   const dirLinks=getDirectorLinks(f);
   const stuLinks=getStudioLinks(f);
-  return '<tr data-country="'+escHtml(f.country||'')+'" data-decade="'+dec+'" data-technique="'+escHtml((f.technique||[]).join(','))+'" data-watchable="'+(f.watchLinks?'true':'false')+'" data-subs="'+(f.hasSubtitles?'true':'false')+'" data-director="'+escHtml(f.director||'')+'">'+
+  return '<tr data-country="'+escHtml(f.country||'')+'" data-decade="'+dec+'" data-technique="'+escHtml((f.technique||[]).join(','))+'" data-watchable="'+(hasWatchLinksClient(f.watchLinks)?'true':'false')+'" data-subs="'+(f.hasSubtitles?'true':'false')+'" data-director="'+escHtml(f.director||'')+'">'+
     '<td><div class="table-year">'+(f.year||'—')+'</div><div class="table-country">'+getCC(f.country)+'</div></td>'+
     '<td><a href="films/'+slugify(f.title)+'-'+f.id.slice(0,8)+'.html" class="table-title">'+(escHtml(f.title)||'Untitled')+'</a>'+(f.original?'<div class="table-original">'+escHtml(f.original)+'</div>':'')+'</td>'+
     '<td class="table-meta">'+(dirLinks?'<strong>'+dirLinks+'</strong><br>':'')+stuLinks+'</td>'+
     '<td class="table-technique">'+((f.technique&&f.technique[0])?f.technique[0].toUpperCase():'—')+'</td>'+
     '<td class="table-runtime">'+(escHtml(f.runtime)||'—')+'</td>'+
     '<td><span class="confidence-pips">'+confPips(f.confidence)+'</span></td>'+
-    '<td class="watch-cell">'+(f.watchLinks?(function(){const url=getWatchUrl(f.watchLinks);return url?'<a href="'+escHtml(url)+'" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>'+(f.hasSubtitles?'<span class="subs-badge">EN subs</span>':''):'<span class="no-link">—</span>';})():'<span class="no-link">—</span>')+'</td></tr>';
+    '<td class="watch-cell">'+(hasWatchLinksClient(f.watchLinks)?(function(){const url=getWatchUrl(f.watchLinks);return url?'<a href="'+escHtml(url)+'" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>'+(f.hasSubtitles?'<span class="subs-badge">EN subs</span>':''):'<span class="no-link">—</span>';})():'<span class="no-link">—</span>')+'</td></tr>';
 }
 
 function getFilteredFilms(){
@@ -1410,7 +1345,7 @@ function getFilteredFilms(){
     if(activeFilters.country&&f.country!==activeFilters.country)return false;
     if(activeFilters.decade){const dec=f.year?Math.floor(f.year/10)*10:0;if(dec!=activeFilters.decade)return false;}
     if(activeFilters.technique&&!(f.technique||[]).includes(activeFilters.technique))return false;
-    if(activeFilters.watchable&&!f.watchLinks)return false;
+    if(activeFilters.watchable&&!hasWatchLinksClient(f.watchLinks))return false;
     if(activeFilters.subtitles&&!f.hasSubtitles)return false;
     if(activeFilters.director){const dirs=(f.director||'').split(',').map(d=>d.trim());if(!dirs.includes(activeFilters.director))return false;}
     if(activeFilters.genre&&!(f.genres||[]).includes(activeFilters.genre))return false;
@@ -1661,7 +1596,7 @@ function generateCountryPage(country, countryFilms) {
     if (film.format) {
       formats[film.format] = (formats[film.format] || 0) + 1;
     }
-    if (film.watchLinks) watchable++;
+    if (hasWatchLinks(film)) watchable++;
     if (film.hasSubtitles) withSubs++;
   }
 
@@ -1938,7 +1873,7 @@ function generateTechniquePage(technique, techniqueFilms) {
     if (film.format) {
       formats[film.format] = (formats[film.format] || 0) + 1;
     }
-    if (film.watchLinks) watchable++;
+    if (hasWatchLinks(film)) watchable++;
     if (film.hasSubtitles) withSubs++;
   }
 
@@ -2054,7 +1989,7 @@ ${generateFooter('../')}
 // Table rows for technique pages (shows country instead of technique)
 function generateTechniqueTableRows(filmList) {
   return filmList.map(film => {
-    const watchUrl = getWatchUrl(film.watchLinks);
+    const watchUrl = getWatchUrl(film);
     const directorHtml = getDirectorLink(film, '../');
     const studioHtml = getStudioLink(film, '../');
     return `
@@ -2355,7 +2290,7 @@ function generateDecadeJsonLd(decade, decadeFilms) {
 // Table rows for decade pages (shows country instead of year in first column)
 function generateDecadeTableRows(filmList) {
   return filmList.map(film => {
-    const watchUrl = getWatchUrl(film.watchLinks);
+    const watchUrl = getWatchUrl(film);
     const directorHtml = getDirectorLink(film, '../');
     const studioHtml = getStudioLink(film, '../');
     return `
@@ -2396,7 +2331,7 @@ function generateDecadePage(decade, decadeFilms) {
     if (film.format) {
       formats[film.format] = (formats[film.format] || 0) + 1;
     }
-    if (film.watchLinks) watchable++;
+    if (hasWatchLinks(film)) watchable++;
     if (film.hasSubtitles) withSubs++;
   }
 
@@ -2768,7 +2703,7 @@ ${generateBreadcrumb([
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getDirectorLink(film, '../') || '—'}</td>
             <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-            <td class="watch-cell">${(() => { const url = getWatchUrl(film.watchLinks); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
+            <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
           </tr>`).join('')}</tbody>
       </table>
     </div>
@@ -2985,7 +2920,7 @@ ${generateBreadcrumb([
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getStudioLink(film, '../') || '—'}</td>
             <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-            <td class="watch-cell">${(() => { const url = getWatchUrl(film.watchLinks); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
+            <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
           </tr>`).join('')}</tbody>
       </table>
     </div>
@@ -3115,7 +3050,7 @@ ${generateBreadcrumb([
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getDirectorLink(film, '../') || '—'}</td>
             <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-            <td class="watch-cell">${(() => { const url = getWatchUrl(film.watchLinks); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
+            <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
           </tr>`).join('')}</tbody>
       </table>
     </div>
