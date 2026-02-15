@@ -643,9 +643,9 @@ function generateTableRows(filmList, basePath = '') {
       <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
       <td><a href="${getFilmUrl(film, basePath)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
       <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
-      <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-      <td class="table-runtime">${escapeHtml(film.runtime) || '—'}</td>
-      <td><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
+      <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
+      <td class="table-runtime hide-mobile">${escapeHtml(film.runtime) || '—'}</td>
+      <td class="hide-mobile"><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
       <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
     </tr>`;
   }).join('\n');
@@ -784,7 +784,7 @@ ${FAVICON}
   <main class="content" id="main-content">
     <div class="content-header"><div><h2 class="content-title">From the Collection</h2><span class="content-meta" id="results-count">${stats.total.toLocaleString()} films</span></div><div class="search-actions"><div class="search-box"><label for="search-input" class="visually-hidden">Search films</label><input type="text" id="search-input" placeholder="Search titles, directors..." aria-describedby="results-count" /></div><button id="random-film-btn" class="random-btn" aria-label="Go to random film">🎲 Random</button></div><div class="keyboard-hints"><kbd>/</kbd> search <kbd>r</kbd> random <kbd>esc</kbd> clear</div></div>
     ${generateFilmOfTheDayCard(getFilmOfTheDay(films))}
-    <div class="table-wrapper"><table class="film-table" role="grid"><thead><tr><th scope="col" style="width:90px" class="sortable active" data-sort="year">Year <span class="sort-indicator">▼</span></th><th scope="col" class="sortable" data-sort="title">Title <span class="sort-indicator"></span></th><th scope="col">Director / Studio</th><th scope="col" style="width:100px" class="sortable" data-sort="technique">Technique <span class="sort-indicator"></span></th><th scope="col" style="width:70px">Runtime</th><th scope="col" style="width:90px">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
+    <div class="table-wrapper"><table class="film-table" role="grid"><thead><tr><th scope="col" style="width:90px" class="sortable active" data-sort="year">Year <span class="sort-indicator">▼</span></th><th scope="col" class="sortable" data-sort="title">Title <span class="sort-indicator"></span></th><th scope="col">Director / Studio</th><th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique">Technique <span class="sort-indicator"></span></th><th scope="col" style="width:70px" class="hide-mobile">Runtime</th><th scope="col" style="width:90px" class="hide-mobile">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
     <div id="no-results" class="no-results" style="display:none"><h3 class="no-results-title">No films match your criteria</h3><p class="no-results-message" id="no-results-detail">Try adjusting your search or filters.</p><button id="clear-all-btn" class="clear-all-btn" style="display:none">Clear All Filters</button></div>
     ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${films.length}">Load More <span class="load-more-count">(${films.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
   </main>
@@ -1237,7 +1237,78 @@ ul.watch-order-list{list-style:disc}
 .breadcrumb-item a:hover{color:var(--accent)}
 .breadcrumb-item span[aria-current]{color:var(--ink);font-weight:500}
 .breadcrumb-sep{color:var(--ink-faint);margin:0 8px}
-@media(max-width:900px){.entity-header{flex-direction:column}.entity-nav{margin-top:16px}.entity-grid{grid-template-columns:1fr}.breadcrumb{padding:12px 16px;font-size:11px}.breadcrumb-sep{margin:0 6px}}`;
+@media(max-width:900px){.entity-header{flex-direction:column}.entity-nav{margin-top:16px}.entity-grid{grid-template-columns:1fr}.breadcrumb{padding:12px 16px;font-size:11px}.breadcrumb-sep{margin:0 6px}.main-nav{gap:20px;padding:14px 16px;flex-wrap:wrap}}
+@media(max-width:480px){
+.main-nav{overflow-x:auto;flex-wrap:nowrap;gap:24px;padding:14px 16px;justify-content:flex-start;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none}
+.main-nav::-webkit-scrollbar{display:none}
+.main-nav a{white-space:nowrap;flex-shrink:0}
+.masthead-main{padding:20px 16px 16px}
+.masthead-title{font-size:24px}
+.masthead-top{padding:8px 16px;flex-wrap:wrap;justify-content:center;gap:4px}
+.masthead-top span:nth-child(2){display:none}
+.stat-block{flex:1 1 100%;padding:12px 16px}
+.content-header{padding:12px 16px;flex-direction:column;gap:8px;align-items:flex-start}
+.search-box input{width:100%}
+.keyboard-hints{display:none}
+.hide-mobile{display:none}
+.film-table th{padding:8px 10px;font-size:9px}
+.film-table td{padding:10px}
+.table-year{font-size:18px}
+.table-title{font-size:15px}
+.table-meta{font-size:11px}
+.table-original{font-size:11px}
+.watch-btn{padding:8px 12px;font-size:10px}
+.watch-cell{text-align:center}
+.detail-page{padding:24px 16px}
+.detail-header{gap:20px;padding-bottom:24px;margin-bottom:24px}
+.detail-year-block{padding:20px;display:flex;align-items:center;gap:16px}
+.detail-year{font-size:36px}
+.detail-country{margin-top:0}
+.detail-title{font-size:24px}
+.detail-original{font-size:16px}
+.detail-credits{font-size:14px}
+.detail-watch-btn{padding:14px 20px;width:100%;justify-content:center}
+.detail-actions{align-items:stretch}
+.detail-body{gap:24px}
+.detail-content h2{font-size:18px;margin-top:24px}
+.detail-content p{font-size:15px}
+.detail-data-panel{padding:16px}
+.about-section{padding:40px 16px}
+.about-text h2{font-size:24px}
+.about-inner{gap:32px}
+.about-data{padding:20px}
+.about-stat-value{font-size:20px}
+.country-page,.technique-page,.directors-index,.decades-index,.entity-page,.entity-index,.tag-page{padding:24px 16px}
+.country-name,.technique-name,.entity-name{font-size:28px}
+.entity-index-header h1,.tag-name{font-size:32px}
+.stat-card-value{font-size:36px}
+.decade-name{font-size:36px}
+.decade-description,.technique-description{font-size:16px}
+.section-title{font-size:20px}
+.meta-card-value{font-size:24px}
+.breadcrumb{padding:8px 12px;font-size:10px}
+.film-of-day{margin:12px 16px;padding:16px}
+.film-of-day-title{font-size:18px}
+.related-films{padding:24px 16px}
+.related-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.error-code{font-size:72px}
+.error-title{font-size:24px}
+.error-message{font-size:16px}
+.footer{padding:20px 16px}
+.footer-inner{flex-direction:column;gap:12px;text-align:center}
+.alphabet-link{min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}
+.tag-cloud-item{min-height:44px}
+.tag{min-height:44px;display:inline-flex;align-items:center}
+.load-more-btn{min-height:44px}
+.decade-card{grid-template-columns:60px 1fr}
+.decade-card-year{font-size:16px}
+.decade-card-info{padding:16px}
+.watch-links-section{padding:16px}
+.watch-link-card{padding:8px 12px}
+.link-chips{display:none}
+.no-results{padding:24px 16px}
+.no-results-title{font-size:20px}
+}`;
 }
 
 function generateJS() {
@@ -1323,9 +1394,9 @@ function renderRow(f){
     '<td><div class="table-year">'+(f.year||'—')+'</div><div class="table-country">'+getCC(f.country)+'</div></td>'+
     '<td><a href="films/'+slugify(f.title)+'-'+f.id.slice(0,8)+'.html" class="table-title">'+(escHtml(f.title)||'Untitled')+'</a>'+(f.original?'<div class="table-original">'+escHtml(f.original)+'</div>':'')+'</td>'+
     '<td class="table-meta">'+(dirLinks?'<strong>'+dirLinks+'</strong><br>':'')+stuLinks+'</td>'+
-    '<td class="table-technique">'+((f.technique&&f.technique[0])?f.technique[0].toUpperCase():'—')+'</td>'+
-    '<td class="table-runtime">'+(escHtml(f.runtime)||'—')+'</td>'+
-    '<td><span class="confidence-pips">'+confPips(f.confidence)+'</span></td>'+
+    '<td class="table-technique hide-mobile">'+((f.technique&&f.technique[0])?f.technique[0].toUpperCase():'—')+'</td>'+
+    '<td class="table-runtime hide-mobile">'+(escHtml(f.runtime)||'—')+'</td>'+
+    '<td class="hide-mobile"><span class="confidence-pips">'+confPips(f.confidence)+'</span></td>'+
     '<td class="watch-cell">'+(hasWatchLinksClient(f.watchLinks)?(function(){const url=getWatchUrl(f.watchLinks);return url?'<a href="'+escHtml(url)+'" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>'+(f.hasSubtitles?'<span class="subs-badge">EN subs</span>':''):'<span class="no-link">—</span>';})():'<span class="no-link">—</span>')+'</td></tr>';
 }
 
@@ -1694,9 +1765,9 @@ ${generateBreadcrumb([
             <th scope="col" style="width:90px">Year</th>
             <th scope="col">Title</th>
             <th scope="col">Director / Studio</th>
-            <th scope="col" style="width:100px">Technique</th>
-            <th scope="col" style="width:70px">Runtime</th>
-            <th scope="col" style="width:90px">Confidence</th>
+            <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
+            <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
+            <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
             <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
           </tr>
         </thead>
@@ -1971,9 +2042,9 @@ ${generateBreadcrumb([
             <th scope="col" style="width:90px">Year</th>
             <th scope="col">Title</th>
             <th scope="col">Director / Studio</th>
-            <th scope="col" style="width:100px">Country</th>
-            <th scope="col" style="width:70px">Runtime</th>
-            <th scope="col" style="width:90px">Confidence</th>
+            <th scope="col" style="width:100px" class="hide-mobile">Country</th>
+            <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
+            <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
             <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
           </tr>
         </thead>
@@ -1997,9 +2068,9 @@ function generateTechniqueTableRows(filmList) {
       <td><div class="table-year">${film.year || '—'}</div></td>
       <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
       <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
-      <td class="table-country-cell"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
-      <td class="table-runtime">${escapeHtml(film.runtime) || '—'}</td>
-      <td><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
+      <td class="table-country-cell hide-mobile"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
+      <td class="table-runtime hide-mobile">${escapeHtml(film.runtime) || '—'}</td>
+      <td class="hide-mobile"><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
       <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
     </tr>`;
   }).join('\n');
@@ -2298,9 +2369,9 @@ function generateDecadeTableRows(filmList) {
       <td><div class="table-year">${film.year || '—'}</div></td>
       <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
       <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
-      <td class="table-country-cell"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
-      <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-      <td><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
+      <td class="table-country-cell hide-mobile"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
+      <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
+      <td class="hide-mobile"><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
       <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
     </tr>`;
   }).join('\n');
@@ -2432,9 +2503,9 @@ ${generateBreadcrumb([
             <th scope="col" style="width:70px">Year</th>
             <th scope="col">Title</th>
             <th scope="col">Director / Studio</th>
-            <th scope="col" style="width:100px">Country</th>
-            <th scope="col" style="width:100px">Technique</th>
-            <th scope="col" style="width:90px">Confidence</th>
+            <th scope="col" style="width:100px" class="hide-mobile">Country</th>
+            <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
+            <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
             <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
           </tr>
         </thead>
@@ -2694,7 +2765,7 @@ ${generateBreadcrumb([
           <th scope="col" style="width:90px" class="sortable active" data-col="year">Year <span class="sort-indicator">▲</span></th>
           <th scope="col" class="sortable" data-col="title">Title <span class="sort-indicator">⇅</span></th>
           <th scope="col">Director</th>
-          <th scope="col" style="width:100px">Technique</th>
+          <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
           <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
         <tbody>${studioFilms.map(film => `
@@ -2702,7 +2773,7 @@ ${generateBreadcrumb([
             <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getDirectorLink(film, '../') || '—'}</td>
-            <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
+            <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
             <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
           </tr>`).join('')}</tbody>
       </table>
@@ -2911,7 +2982,7 @@ ${generateBreadcrumb([
           <th scope="col" style="width:90px" class="sortable active" data-col="year">Year <span class="sort-indicator">▲</span></th>
           <th scope="col" class="sortable" data-col="title">Title <span class="sort-indicator">⇅</span></th>
           <th scope="col">Studio</th>
-          <th scope="col" style="width:100px">Technique</th>
+          <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
           <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
         <tbody>${directorFilms.map(film => `
@@ -2919,7 +2990,7 @@ ${generateBreadcrumb([
             <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getStudioLink(film, '../') || '—'}</td>
-            <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
+            <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
             <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
           </tr>`).join('')}</tbody>
       </table>
@@ -3041,7 +3112,7 @@ ${generateBreadcrumb([
           <th scope="col" style="width:90px" class="sortable active" data-col="year">Year <span class="sort-indicator">▲</span></th>
           <th scope="col" class="sortable" data-col="title">Title <span class="sort-indicator">⇅</span></th>
           <th scope="col">Director</th>
-          <th scope="col" style="width:100px">Technique</th>
+          <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
           <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
         <tbody>${seriesFilms.map(film => `
@@ -3049,7 +3120,7 @@ ${generateBreadcrumb([
             <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getDirectorLink(film, '../') || '—'}</td>
-            <td class="table-technique">${film.technique?.[0]?.toUpperCase() || '—'}</td>
+            <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
             <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
           </tr>`).join('')}</tbody>
       </table>
@@ -3171,7 +3242,7 @@ ${generateBreadcrumb([
           <th scope="col" style="width:90px">Year</th>
           <th scope="col">Title</th>
           <th scope="col">Director / Studio</th>
-          <th scope="col" style="width:100px">Technique</th>
+          <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
           <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
         <tbody>${generateTableRows(genreFilms, '../')}</tbody>
@@ -3304,7 +3375,7 @@ ${generateBreadcrumb([
           <th scope="col" style="width:90px">Year</th>
           <th scope="col">Title</th>
           <th scope="col">Director / Studio</th>
-          <th scope="col" style="width:100px">Technique</th>
+          <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
           <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
         <tbody>${generateTableRows(keywordFilms, '../')}</tbody>
