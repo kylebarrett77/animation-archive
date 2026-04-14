@@ -1,0 +1,53 @@
+#############################################################
+# CI — PR validation
+#
+# Runs on every pull request and on pushes to non-main branches.
+# No secrets required: audits the committed data snapshot and
+# performs a smoke build to catch template/JS regressions before
+# merge. Data refresh lives in fetch-data.yml.
+#############################################################
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Audit + smoke build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit committed data
+        run: npm run audit
+
+      - name: Smoke build (static)
+        run: npm run build
+
+      - name: Upload dist artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+          retention-days: 7

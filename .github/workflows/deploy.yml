@@ -1,43 +1,56 @@
-name: Build and Deploy
+#############################################################
+# DEPRECATED — Legacy Vercel deploy workflow
+#
+# Superseded by:
+#   - .github/workflows/fetch-data.yml  (data refresh + commit)
+#   - netlify.toml                      (push-triggered rebuild)
+#
+# Netlify now hosts the site and rebuilds automatically on push
+# to main. The scheduled Notion fetch lives in fetch-data.yml,
+# which commits data/** and lets Netlify redeploy from the new
+# snapshot — no Vercel, no manual deploy step.
+#
+# Kept as a manual-only fallback in case we ever need to re-run
+# an emergency Vercel deploy. Do NOT re-enable the schedule or
+# push triggers without coordinating with Netlify hosting.
+#############################################################
+
+name: Legacy Vercel Deploy (manual only)
 
 on:
-  # Run daily at 6 AM UTC
-  schedule:
-    - cron: '0 6 * * *'
-  
-  # Allow manual trigger
   workflow_dispatch:
-  
-  # Run on push to main
-  push:
-    branches: [main]
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm legacy Vercel deploy'
+        required: true
+        default: 'no'
 
 jobs:
-  build:
+  deploy:
+    if: github.event.inputs.confirm == 'deploy'
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Fetch from Notion
-        run: npm run fetch
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-      
+        run: npm run fetch:all
+
       - name: Build site
         run: npm run build
-      
+
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         with:

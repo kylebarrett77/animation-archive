@@ -1,8 +1,67 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'fs';
+import { createHash } from 'crypto';
 import { generateWatchLinksHTML, WATCH_LINKS_CSS } from './watch-links-renderer.js';
+import { generateTagFacetPages } from './lib/facet-builder.js';
+
+/**
+ * Batch D2: content-hashed asset helpers.
+ *
+ * Hashes a string (sha256, 8 hex chars) for fingerprinting generated JS.
+ * The hash is embedded in the filename (e.g. films-index-a1b2c3d4.js) so
+ * we can serve those assets with `max-age=31536000, immutable` — the URL
+ * itself changes whenever the content changes, guaranteeing cache safety.
+ */
+function contentHash(str) {
+  return createHash('sha256').update(str).digest('hex').slice(0, 8);
+}
+
+/**
+ * Wipe stale hashed assets from a previous build matching `prefix-*.ext`.
+ * Prevents dist/ accumulating orphan files across rebuilds. Unhashed
+ * siblings (e.g. a legacy plain app.js) are left alone.
+ */
+function cleanHashedAssets(dir, prefix, ext) {
+  if (!existsSync(dir)) return;
+  const re = new RegExp('^' + prefix + '-[a-f0-9]{8}\\.' + ext + '$');
+  for (const name of readdirSync(dir)) {
+    if (re.test(name)) {
+      try { unlinkSync(`${dir}/${name}`); } catch {}
+    }
+  }
+  // Also sweep legacy unhashed sibling (e.g. pre-D2 plain app.js / films-index.js)
+  // left over from a previous build. Safe because the current build no longer
+  // emits the unhashed form.
+  const legacy = `${dir}/${prefix}.${ext}`;
+  if (existsSync(legacy)) {
+    try { unlinkSync(legacy); } catch {}
+  }
+}
 
 const films = JSON.parse(readFileSync('./data/films.json', 'utf-8'));
 const stats = JSON.parse(readFileSync('./data/stats.json', 'utf-8'));
+
+// ===== Derived stats computed at build time (not persisted to stats.json) =====
+// Platform stats: count of films reachable per streaming platform via their
+// embedded watchLinks array. Feeds the sidebar Platform filter + /platforms/ facet.
+// A film counts toward a platform if it has at least one non-Dead link with a URL.
+(function computePlatformStats() {
+  const counts = {};
+  for (const f of films) {
+    const links = Array.isArray(f.watchLinks) ? f.watchLinks : [];
+    const seen = new Set();
+    for (const l of links) {
+      if (!l || !l.platform || !l.url) continue;
+      if (l.status === 'Dead') continue;
+      if (seen.has(l.platform)) continue;
+      seen.add(l.platform);
+      counts[l.platform] = (counts[l.platform] || 0) + 1;
+    }
+  }
+  stats.platforms = counts;
+  stats.platformsSorted = Object.entries(counts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+})();
 
 // Load related data files (may not exist yet)
 const studios = existsSync('./data/studios.json') ? JSON.parse(readFileSync('./data/studios.json', 'utf-8')) : [];
@@ -282,19 +341,25 @@ function generateEntityTableSort() {
       if(h.dataset.col===sortCol){
         h.classList.add('active');
         if(ind)ind.textContent=sortDir==='asc'?'▲':'▼';
+        h.setAttribute('aria-sort',sortDir==='asc'?'ascending':'descending');
       }else{
         h.classList.remove('active');
         if(ind)ind.textContent='⇅';
+        h.setAttribute('aria-sort','none');
       }
     });
   }
 
   headers.forEach(h=>{
-    h.addEventListener('click',()=>{
+    const handle=()=>{
       const col=h.dataset.col;
       if(sortCol===col){sortDir=sortDir==='asc'?'desc':'asc';}
       else{sortCol=col;sortDir=col==='year'?'asc':'asc';}
       sortTable();
+    };
+    h.addEventListener('click',handle);
+    h.addEventListener('keydown',(e)=>{
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();handle();}
     });
   });
   sortTable();
@@ -451,7 +516,7 @@ function generateFilmOfTheDayCard(film) {
         </div>
         <div class="film-of-day-actions">
           <a href="${getFilmUrl(film)}" class="film-of-day-details-btn">View Details</a>
-          ${hasWatchLinks(film) ? `<a href="${escapeHtml(getWatchUrl(film) || '#')}" class="film-of-day-watch-btn" target="_blank" rel="noopener">▶ Watch</a>` : ''}
+          ${hasWatchLinks(film) ? `<a href="${escapeHtml(getWatchUrl(film) || '#')}" class="film-of-day-watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'Film of the Day')} (opens in new tab)">▶ Watch</a>` : ''}
         </div>
       </div>
     </div>`;
@@ -646,7 +711,7 @@ function generateTableRows(filmList, basePath = '') {
       <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
       <td class="table-runtime hide-mobile">${escapeHtml(film.runtime) || '—'}</td>
       <td class="hide-mobile"><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
-      <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
+      <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
     </tr>`;
   }).join('\n');
 }
@@ -756,7 +821,7 @@ ${FAVICON}
   <div class="stat-block"><span class="stat-label">Techniques</span><span class="stat-value">${Object.keys(stats.techniques).length}</span></div>
   <div class="stat-block"><span class="stat-label">Watchable</span><span class="stat-value">${stats.watchable.toLocaleString()}</span></div>
 </div>
-<nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="studios/">Studios</a><a href="directors/">Directors</a><a href="series/">Series</a><a href="decades/">Decades</a><a href="#about">About</a></nav>
+<nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="studios/">Studios</a><a href="directors/">Directors</a><a href="series/">Series</a><a href="decades/">Decades</a><a href="platforms/">Platforms</a><a href="#about">About</a></nav>
 <div class="main-layout">
   <aside class="sidebar" role="complementary" aria-label="Browse and filter">
     <button class="drawer-close-bar" id="drawer-close" aria-label="Close filters">DONE</button>
@@ -769,6 +834,7 @@ ${FAVICON}
         <a href="directors/" class="browse-link"><span class="browse-arrow">→</span> Directors <span class="count">${stats.directorCount || directorsData.length || 547}</span></a>
         <a href="series/" class="browse-link"><span class="browse-arrow">→</span> Series <span class="count">${stats.seriesCount || seriesData.length}</span></a>
         <a href="decades/" class="browse-link"><span class="browse-arrow">→</span> Decades <span class="count">${stats.decadesSorted.length}</span></a>
+        <a href="platforms/" class="browse-link"><span class="browse-arrow">→</span> Platforms <span class="count">${stats.platformsSorted.length}</span></a>
       </nav>
     </div>
     <div class="sidebar-group">
@@ -786,8 +852,9 @@ ${FAVICON}
         <div class="filter-item" data-filter-type="watchable" data-filter-value="true" role="option"><span class="name">Has Watch Link</span><span class="count">${stats.watchable}</span></div>
         <div class="filter-item" data-filter-type="subtitles" data-filter-value="true" role="option"><span class="name">EN Subtitles</span><span class="count">${stats.withSubtitles}</span></div>
       </div></div>
-      ${stats.genresSorted && stats.genresSorted.length > 0 ? `<div class="sidebar-section collapsible"><div class="sidebar-header collapsible-header" data-collapsed="false">Genre <span class="count">${stats.genresSorted.length}</span> <span class="collapse-icon">▼</span></div><div class="filter-list collapsible-content" role="listbox" aria-label="Filter by genre">${generateFilterItems(stats.genresSorted, 'genre')}</div></div>` : ''}
-      ${stats.keywordsSorted && stats.keywordsSorted.length > 0 ? `<div class="sidebar-section collapsible"><div class="sidebar-header collapsible-header" data-collapsed="true">Keywords <span class="count">${stats.keywordsSorted.length}</span> <span class="collapse-icon">▶</span></div><div class="filter-list collapsible-content collapsed" role="listbox" aria-label="Filter by keyword">${generateFilterItems(stats.keywordsSorted.slice(0, 50), 'keyword')}</div></div>` : ''}
+      ${stats.platformsSorted && stats.platformsSorted.length > 0 ? `<div class="sidebar-section collapsible"><div class="sidebar-header collapsible-header" data-collapsed="false" role="button" tabindex="0" aria-expanded="true" aria-controls="filter-platform-list">Platform <span class="count">${stats.platformsSorted.length}</span> <span class="collapse-icon" aria-hidden="true">▼</span></div><div id="filter-platform-list" class="filter-list collapsible-content" role="listbox" aria-label="Filter by streaming platform">${generateFilterItems(stats.platformsSorted, 'platform')}</div></div>` : ''}
+      ${stats.genresSorted && stats.genresSorted.length > 0 ? `<div class="sidebar-section collapsible"><div class="sidebar-header collapsible-header" data-collapsed="false" role="button" tabindex="0" aria-expanded="true" aria-controls="filter-genre-list">Genre <span class="count">${stats.genresSorted.length}</span> <span class="collapse-icon" aria-hidden="true">▼</span></div><div id="filter-genre-list" class="filter-list collapsible-content" role="listbox" aria-label="Filter by genre">${generateFilterItems(stats.genresSorted, 'genre')}</div></div>` : ''}
+      ${stats.keywordsSorted && stats.keywordsSorted.length > 0 ? `<div class="sidebar-section collapsible"><div class="sidebar-header collapsible-header" data-collapsed="true" role="button" tabindex="0" aria-expanded="false" aria-controls="filter-keyword-list">Keywords <span class="count">${stats.keywordsSorted.length}</span> <span class="collapse-icon" aria-hidden="true">▶</span></div><div id="filter-keyword-list" class="filter-list collapsible-content collapsed" role="listbox" aria-label="Filter by keyword">${generateFilterItems(stats.keywordsSorted.slice(0, 50), 'keyword')}</div></div>` : ''}
     </div>
   </aside>
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
@@ -795,7 +862,7 @@ ${FAVICON}
     <div class="content-header"><div><h2 class="content-title">From the Collection</h2><span class="content-meta" id="results-count">${stats.total.toLocaleString()} films</span></div><div class="search-actions"><div class="search-box"><label for="search-input" class="visually-hidden">Search films</label><input type="text" id="search-input" placeholder="Search titles, directors..." aria-describedby="results-count" /></div><button class="mobile-filter-toggle" id="mobile-filter-toggle" aria-label="Open filters">FILTERS</button><button id="random-film-btn" class="random-btn" aria-label="Go to random film">🎲 Random</button></div><div class="keyboard-hints"><kbd>/</kbd> search <kbd>r</kbd> random <kbd>esc</kbd> clear</div></div>
     <div class="active-filters-bar" id="active-filters-bar"><span class="active-filters-label">Filtered:</span></div>
     ${generateFilmOfTheDayCard(getFilmOfTheDay(films))}
-    <div class="table-wrapper"><table class="film-table" role="grid"><thead><tr><th scope="col" style="width:90px" class="sortable active" data-sort="year">Year <span class="sort-indicator">▼</span></th><th scope="col" class="sortable" data-sort="title">Title <span class="sort-indicator"></span></th><th scope="col">Director / Studio</th><th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique">Technique <span class="sort-indicator"></span></th><th scope="col" style="width:70px" class="hide-mobile">Runtime</th><th scope="col" style="width:90px" class="hide-mobile">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
+    <div class="table-wrapper"><table class="film-table"><thead><tr><th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th><th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col">Director / Studio</th><th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col" style="width:70px" class="hide-mobile">Runtime</th><th scope="col" style="width:90px" class="hide-mobile">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
     <div id="no-results" class="no-results" style="display:none"><h3 class="no-results-title">No films match your criteria</h3><p class="no-results-message" id="no-results-detail">Try adjusting your search or filters.</p><button id="clear-all-btn" class="clear-all-btn" style="display:none">Clear All Filters</button></div>
     ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${sortedFilms.length}">Load More <span class="load-more-count">(${sortedFilms.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
   </main>
@@ -813,29 +880,71 @@ ${FAVICON}
 </section>
 <footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><a href="#" class="footer-random" id="footer-random-link">🎲 Random</a><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
 <button class="back-to-top" aria-label="Back to top">↑</button>
-<script>window.ALL_FILMS_DATA=${JSON.stringify(sortedFilms.map(f => ({
-  id: f.id,
-  title: f.titleEnglish,
-  original: f.originalTitle,
-  year: f.year,
-  country: f.country,
-  director: f.director,
-  studio: f.studio,
-  technique: f.technique,
-  format: f.format,
-  runtime: f.runtime,
-  confidence: f.confidence,
-  watchLinks: f.watchLinks,
-  hasSubtitles: f.hasSubtitles,
-  genres: f.genres || [],
-  keywords: f.keywords || [],
-  studioEntities: f.studioEntities || [],
-  directorEntities: f.directorEntities || []
-})))};
-window.STUDIOS_DATA=${JSON.stringify(studios.map(s => ({ id: s.id, name: s.name, slug: slugify(s.name) + '-' + s.id.slice(0,8) })))};
-window.DIRECTORS_DATA=${JSON.stringify(directorsData.map(d => ({ id: d.id, name: d.name, slug: slugify(d.name) + '-' + d.id.slice(0,8) })))};</script>
-<script src="app.js"></script>
+<script src="${ASSET_URLS.filmsIndex}" defer></script>
+<script src="${ASSET_URLS.app}" defer></script>
 </body></html>`;
+}
+
+/**
+ * Batch D: Performance split.
+ *
+ * The film catalog used to ride inline inside index.html (~2.1MB of JSON
+ * bloating every HTML response with max-age=0). We now emit it as a
+ * standalone films-index.js that:
+ *
+ *   1. Is served with its own cache policy (1h must-revalidate), so repeat
+ *      visits revalidate fast without re-downloading the catalog on every
+ *      HTML response.
+ *   2. Ships a trimmed watchLinks schema (only url / platform / status —
+ *      the three fields app.js actually reads), cutting the payload ~31%.
+ *   3. Loads with `defer`, so the initial 50 server-rendered rows paint
+ *      before the script even parses.
+ *
+ * Kept as window globals so app.js needs no compat shim.
+ */
+function buildFilmsIndexJs(sortedFilms, studios, directorsData) {
+  const slimFilms = sortedFilms.map(f => ({
+    id: f.id,
+    title: f.titleEnglish,
+    original: f.originalTitle,
+    year: f.year,
+    country: f.country,
+    director: f.director,
+    studio: f.studio,
+    technique: f.technique,
+    format: f.format,
+    runtime: f.runtime,
+    confidence: f.confidence,
+    // Trim watchLinks to just the fields app.js reads. Preserves the
+    // {url, platform, status} shape so renderRow / platform filter /
+    // watchable filter / watch button all keep working unchanged.
+    watchLinks: Array.isArray(f.watchLinks)
+      ? f.watchLinks.map(l => ({ url: l.url, platform: l.platform, status: l.status }))
+      : [],
+    hasSubtitles: f.hasSubtitles,
+    genres: f.genres || [],
+    keywords: f.keywords || [],
+    studioEntities: f.studioEntities || [],
+    directorEntities: f.directorEntities || []
+  }));
+
+  const slimStudios = studios.map(s => ({
+    id: s.id,
+    name: s.name,
+    slug: slugify(s.name) + '-' + s.id.slice(0, 8)
+  }));
+
+  const slimDirectors = directorsData.map(d => ({
+    id: d.id,
+    name: d.name,
+    slug: slugify(d.name) + '-' + d.id.slice(0, 8)
+  }));
+
+  return `/* Global Animation Archive — client catalog. Generated ${BUILD_DATE}. */
+window.ALL_FILMS_DATA=${JSON.stringify(slimFilms)};
+window.STUDIOS_DATA=${JSON.stringify(slimStudios)};
+window.DIRECTORS_DATA=${JSON.stringify(slimDirectors)};
+`;
 }
 
 function generateFilmPage(film) {
@@ -895,7 +1004,7 @@ ${generateBreadcrumb([
       ${film.originalTitle ? `<div class="detail-original" lang="und">${escapeHtml(film.originalTitle)}</div>` : ''}
       <div class="detail-credits">${getDirectorLink(film, '../') ? `Directed by <strong>${getDirectorLink(film, '../')}</strong><br>` : ''}${getStudioLink(film, '../') ? `Produced by <strong>${getStudioLink(film, '../')}</strong>` : ''}${film.runtime ? ` · ${escapeHtml(film.runtime)}` : ''}</div>
     </div>
-    <div class="detail-actions">${hasWatchLinks(film) ? `<a href="${escapeHtml(getWatchUrl(film) || '#')}" class="detail-watch-btn" target="_blank" rel="noopener">▶ WATCH NOW</a>${film.hasSubtitles ? '<span class="detail-subs">EN SUBTITLES AVAILABLE</span>' : ''}` : '<span class="detail-subs">NO WATCH LINK AVAILABLE</span>'}</div>
+    <div class="detail-actions">${hasWatchLinks(film) ? `<a href="${escapeHtml(getWatchUrl(film) || '#')}" class="detail-watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶ WATCH NOW</a>${film.hasSubtitles ? '<span class="detail-subs">EN SUBTITLES AVAILABLE</span>' : ''}` : '<span class="detail-subs">NO WATCH LINK AVAILABLE</span>'}</div>
   </div>
   <div class="detail-body">
     <div class="detail-content">
@@ -932,7 +1041,7 @@ ${generateFooter('../')}
 }
 
 function generateCSS() {
-  return `*{margin:0;padding:0;box-sizing:border-box}:root{--cream:#f8f6f1;--cream-dark:#eae6dd;--paper:#fffef9;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#78716c;--ink-faint:#a8a29e;--rule:#d6d3d1;--rule-dark:#a8a29e;--accent:#9f1239;--data-bg:#f3f1ec;--mono:'JetBrains Mono',monospace}html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}a{color:inherit}.skip-link{position:absolute;top:-40px;left:0;background:var(--ink);color:var(--cream);padding:8px 16px;z-index:1000;font-family:var(--mono);font-size:12px;text-decoration:none}.skip-link:focus{top:0}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.masthead{background:var(--paper);border-bottom:1px solid var(--rule)}.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:10px 32px;border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.masthead-main{text-align:center;padding:28px 32px 24px}.masthead-title{font-family:'Playfair Display',serif;font-size:36px;font-weight:400;letter-spacing:.02em;margin-bottom:4px}.masthead-subtitle{font-family:'Source Serif 4',serif;font-size:13px;font-style:italic;color:var(--ink-muted)}.stats-bar{background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:12px;display:flex}.stat-block{flex:1;padding:16px 24px;border-right:1px solid rgba(255,255,255,.15);display:flex;justify-content:space-between;align-items:baseline}.stat-block:last-child{border-right:none}.stat-label{opacity:.6;text-transform:uppercase;letter-spacing:.1em;font-size:10px}.stat-value{font-size:18px;font-weight:600}.main-nav{display:flex;justify-content:center;gap:40px;padding:14px 32px;background:var(--cream);border-bottom:2px solid var(--ink)}.main-nav a{font-size:11px;letter-spacing:.15em;text-transform:uppercase;text-decoration:none;color:var(--ink-light);font-weight:500;transition:color .2s}.main-nav a:hover,.main-nav a.active{color:var(--accent)}.main-layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 200px)}.sidebar{background:var(--paper);border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px}.sidebar-group{border-bottom:1px solid var(--rule)}.sidebar-group-header{padding:12px 16px;background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:600}.browse-nav{display:flex;flex-direction:column}.browse-link{display:flex;align-items:center;padding:10px 16px;font-family:var(--mono);font-size:12px;color:var(--ink-light);text-decoration:none;border-bottom:1px solid var(--rule);transition:background .15s,color .15s}.browse-link:last-child{border-bottom:none}.browse-link:hover{background:var(--cream);color:var(--accent)}.browse-arrow{margin-right:8px;color:var(--ink-faint)}.browse-link:hover .browse-arrow{color:var(--accent)}.browse-link .count{margin-left:auto;color:var(--ink-faint);font-size:11px}.sidebar-section{border-bottom:1px solid var(--rule)}.sidebar-header{padding:12px 16px;background:var(--data-bg);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);display:flex;justify-content:space-between;border-bottom:1px solid var(--rule)}.query-display{padding:16px;background:var(--cream-dark);border-bottom:1px solid var(--rule)}.query-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;font-weight:600}.query-tags{display:flex;flex-wrap:wrap;gap:6px}.query-tag{background:var(--paper);border:1px solid var(--rule);padding:4px 10px;font-size:11px;display:flex;align-items:center;gap:8px}.query-tag .remove{color:var(--ink-faint);cursor:pointer;font-size:14px}.query-tag .remove:hover{color:var(--accent)}.filter-list{max-height:200px;overflow-y:auto}.filter-item{display:flex;justify-content:space-between;padding:10px 16px;cursor:pointer;transition:background .15s;border-left:3px solid transparent}.filter-item:hover{background:var(--cream);border-left-color:var(--rule-dark)}.filter-item:focus{outline:2px solid var(--accent);outline-offset:-2px}.filter-item.active{background:var(--cream);border-left-color:var(--accent)}.filter-item .name{color:var(--ink-light)}.filter-item.active .name{color:var(--ink);font-weight:500}.filter-item .count{color:var(--ink-faint)}.content{background:var(--cream)}.content-header{display:flex;justify-content:space-between;align-items:center;padding:16px 32px;border-bottom:1px solid var(--rule);background:var(--paper)}.content-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:400}.content-meta{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.search-box input{padding:10px 16px;border:1px solid var(--rule);background:var(--cream);font-family:var(--mono);font-size:12px;width:280px}.search-box input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}.table-wrapper{overflow-x:auto}.film-table{width:100%;border-collapse:collapse;font-size:13px}.film-table thead{position:sticky;top:0;z-index:10;transition:box-shadow .2s}.film-table thead.is-sticky{box-shadow:0 2px 8px rgba(0,0,0,.1)}.film-table th{background:var(--data-bg);padding:12px 16px;text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);border-bottom:2px solid var(--rule-dark);font-weight:600}.film-table td{padding:16px;border-bottom:1px solid var(--rule);vertical-align:top;background:var(--paper)}.film-table tr:hover td{background:var(--cream)}.film-table tr.hidden{display:none}.table-year{font-family:'Playfair Display',serif;font-size:24px;font-weight:500;color:var(--ink);line-height:1}.table-country{font-family:var(--mono);font-size:10px;color:var(--ink-muted);margin-top:4px;letter-spacing:.05em}.table-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:500;margin-bottom:4px;line-height:1.3;text-decoration:none;display:block}.table-title:hover{color:var(--accent)}.table-title:focus{outline:2px solid var(--accent);outline-offset:2px}.table-original{font-family:'Source Serif 4',serif;font-size:13px;font-style:italic;color:var(--ink-muted)}.table-meta{font-size:12px;color:var(--ink-light);line-height:1.7}.table-meta strong{font-weight:500;color:var(--ink)}.table-technique{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:500}.table-runtime{font-family:var(--mono);font-size:12px;color:var(--ink-light)}.confidence-pips{font-family:var(--mono);font-size:14px;letter-spacing:2px}.confidence-pips .filled{color:var(--accent)}.confidence-pips .empty{color:var(--rule)}.watch-cell{text-align:right}.watch-btn{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:var(--cream);padding:10px 18px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.05em;text-decoration:none;transition:background .2s}.watch-btn:hover,.watch-btn:focus{background:var(--accent)}.subs-badge{display:block;margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--ink-muted)}.no-link{font-family:var(--mono);font-size:12px;color:var(--ink-faint)}.load-more-container{padding:32px;text-align:center;background:var(--paper);border-top:1px solid var(--rule)}.load-more-btn{background:var(--ink);color:var(--cream);border:none;padding:16px 40px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.1em;cursor:pointer;transition:background .2s}.load-more-btn:hover,.load-more-btn:focus{background:var(--accent);outline:none}.load-more-btn:disabled{background:var(--ink-muted);cursor:not-allowed}.load-more-count{opacity:.6;font-weight:400}.detail-page{padding:48px 32px;max-width:1200px;margin:0 auto}.detail-header{display:grid;grid-template-columns:180px 1fr auto;gap:40px;padding-bottom:40px;border-bottom:2px solid var(--ink);margin-bottom:40px}.detail-year-block{background:var(--data-bg);padding:32px;text-align:center;border:1px solid var(--rule)}.detail-year{font-family:'Playfair Display',serif;font-size:56px;font-weight:400;line-height:1;color:var(--ink)}.detail-country{font-family:var(--mono);font-size:12px;letter-spacing:.15em;color:var(--ink-muted);margin-top:12px}.detail-title-section{display:flex;flex-direction:column;justify-content:center}.detail-technique{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--accent);font-weight:600;margin-bottom:12px}.detail-title{font-family:'Playfair Display',serif;font-size:38px;font-weight:400;line-height:1.15;margin-bottom:8px}.detail-original{font-family:'Source Serif 4',serif;font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:20px}.detail-credits{font-size:15px;color:var(--ink-light);line-height:1.8}.detail-credits strong{font-weight:500;color:var(--ink)}.detail-actions{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:12px}.detail-watch-btn{display:flex;align-items:center;gap:12px;background:var(--ink);color:var(--cream);padding:18px 32px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.1em;text-decoration:none;transition:background .2s}.detail-watch-btn:hover,.detail-watch-btn:focus{background:var(--accent)}.detail-subs{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.detail-body{display:grid;grid-template-columns:1fr 280px;gap:60px}.detail-content h2{font-family:'Playfair Display',serif;font-size:22px;font-weight:400;margin-bottom:16px;margin-top:36px}.detail-content h2:first-child{margin-top:0}.detail-content p{font-family:'Source Serif 4',serif;font-size:16px;line-height:1.9;color:var(--ink-light);margin-bottom:20px}.detail-content .no-content{font-style:italic;color:var(--ink-muted)}.detail-data-panel{background:var(--data-bg);border:1px solid var(--rule);padding:24px;font-family:var(--mono);font-size:12px;height:fit-content}.data-panel-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule)}.data-list{display:block}.data-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--rule)}.data-row:last-of-type{border-bottom:none}.data-label{color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;font-size:10px}.data-value{color:var(--ink);text-align:right;font-weight:500}.data-links{margin-top:24px;padding-top:24px;border-top:1px solid var(--rule)}.data-link{display:block;padding:8px 0;color:var(--ink-light);text-decoration:none;transition:color .15s;border-bottom:1px solid var(--rule)}.data-link:last-child{border-bottom:none}.data-link:hover,.data-link:focus{color:var(--accent)}.data-link::before{content:'→';margin-right:8px;color:var(--ink-faint)}.about-section{background:var(--paper);border-top:2px solid var(--ink);padding:80px 32px}.about-inner{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px}.about-text h2{font-family:'Playfair Display',serif;font-size:32px;font-weight:400;line-height:1.3;margin-bottom:24px}.about-text h2 em{font-style:italic}.about-text p{font-family:'Source Serif 4',serif;font-size:15px;line-height:1.9;color:var(--ink-light);margin-bottom:16px}.about-data{background:var(--data-bg);border:1px solid var(--rule);padding:32px;font-family:var(--mono)}.about-data-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:24px}.about-stat-row{display:flex;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--rule);align-items:baseline}.about-stat-row:last-child{border-bottom:none}.about-stat-label{font-size:12px;color:var(--ink-light)}.about-stat-value{font-size:24px;font-weight:600;color:var(--ink)}.footer{background:var(--ink);color:var(--cream);padding:32px}.footer-inner{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}.footer-logo{font-family:'Playfair Display',serif;font-size:18px}.footer-timestamp{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.4)}/* Mobile filter toggle */
+  return `*{margin:0;padding:0;box-sizing:border-box}:root{--cream:#f8f6f1;--cream-dark:#eae6dd;--paper:#fffef9;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#78716c;--ink-faint:#6b6660;--rule:#d6d3d1;--rule-dark:#a8a29e;--accent:#9f1239;--data-bg:#f3f1ec;--mono:'JetBrains Mono',monospace}html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}a{color:inherit}.skip-link{position:absolute;top:-40px;left:0;background:var(--ink);color:var(--cream);padding:8px 16px;z-index:1000;font-family:var(--mono);font-size:12px;text-decoration:none}.skip-link:focus{top:0}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.masthead{background:var(--paper);border-bottom:1px solid var(--rule)}.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:10px 32px;border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.masthead-main{text-align:center;padding:28px 32px 24px}.masthead-title{font-family:'Playfair Display',serif;font-size:36px;font-weight:400;letter-spacing:.02em;margin-bottom:4px}.masthead-subtitle{font-family:'Source Serif 4',serif;font-size:13px;font-style:italic;color:var(--ink-muted)}.stats-bar{background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:12px;display:flex}.stat-block{flex:1;padding:16px 24px;border-right:1px solid rgba(255,255,255,.15);display:flex;justify-content:space-between;align-items:baseline}.stat-block:last-child{border-right:none}.stat-label{opacity:.6;text-transform:uppercase;letter-spacing:.1em;font-size:10px}.stat-value{font-size:18px;font-weight:600}.main-nav{display:flex;justify-content:center;gap:40px;padding:14px 32px;background:var(--cream);border-bottom:2px solid var(--ink)}.main-nav a{font-size:11px;letter-spacing:.15em;text-transform:uppercase;text-decoration:none;color:var(--ink-light);font-weight:500;transition:color .2s}.main-nav a:hover,.main-nav a.active{color:var(--accent)}.main-layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 200px)}.sidebar{background:var(--paper);border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px}.sidebar-group{border-bottom:1px solid var(--rule)}.sidebar-group-header{padding:12px 16px;background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:600}.browse-nav{display:flex;flex-direction:column}.browse-link{display:flex;align-items:center;padding:10px 16px;font-family:var(--mono);font-size:12px;color:var(--ink-light);text-decoration:none;border-bottom:1px solid var(--rule);transition:background .15s,color .15s}.browse-link:last-child{border-bottom:none}.browse-link:hover{background:var(--cream);color:var(--accent)}.browse-arrow{margin-right:8px;color:var(--ink-faint)}.browse-link:hover .browse-arrow{color:var(--accent)}.browse-link .count{margin-left:auto;color:var(--ink-faint);font-size:11px}.sidebar-section{border-bottom:1px solid var(--rule)}.sidebar-header{padding:12px 16px;background:var(--data-bg);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);display:flex;justify-content:space-between;border-bottom:1px solid var(--rule)}.query-display{padding:16px;background:var(--cream-dark);border-bottom:1px solid var(--rule)}.query-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;font-weight:600}.query-tags{display:flex;flex-wrap:wrap;gap:6px}.query-tag{background:var(--paper);border:1px solid var(--rule);padding:4px 10px;font-size:11px;display:flex;align-items:center;gap:8px}.query-tag .remove{color:var(--ink-faint);cursor:pointer;font-size:14px}.query-tag .remove:hover{color:var(--accent)}.filter-list{max-height:200px;overflow-y:auto}.filter-item{display:flex;justify-content:space-between;align-items:center;min-height:44px;padding:10px 16px;cursor:pointer;transition:background .15s;border-left:3px solid transparent}.filter-item:hover{background:var(--cream);border-left-color:var(--rule-dark)}.filter-item:focus{outline:2px solid var(--accent);outline-offset:-2px}.filter-item.active{background:var(--cream);border-left-color:var(--accent)}.filter-item .name{color:var(--ink-light)}.filter-item.active .name{color:var(--ink);font-weight:500}.filter-item .count{color:var(--ink-faint)}.content{background:var(--cream)}.content-header{display:flex;justify-content:space-between;align-items:center;padding:16px 32px;border-bottom:1px solid var(--rule);background:var(--paper)}.content-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:400}.content-meta{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.search-box input{padding:10px 16px;border:1px solid var(--rule);background:var(--cream);font-family:var(--mono);font-size:12px;width:280px}.search-box input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}.table-wrapper{overflow-x:auto}.film-table{width:100%;border-collapse:collapse;font-size:13px}.film-table thead{position:sticky;top:0;z-index:10;transition:box-shadow .2s}.film-table thead.is-sticky{box-shadow:0 2px 8px rgba(0,0,0,.1)}.film-table th{background:var(--data-bg);padding:12px 16px;text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);border-bottom:2px solid var(--rule-dark);font-weight:600}.film-table td{padding:16px;border-bottom:1px solid var(--rule);vertical-align:top;background:var(--paper)}.film-table tr:hover td{background:var(--cream)}.film-table tr.hidden{display:none}.table-year{font-family:'Playfair Display',serif;font-size:24px;font-weight:500;color:var(--ink);line-height:1}.table-country{font-family:var(--mono);font-size:10px;color:var(--ink-muted);margin-top:4px;letter-spacing:.05em}.table-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:500;margin-bottom:4px;line-height:1.3;text-decoration:none;display:block}.table-title:hover{color:var(--accent)}.table-title:focus{outline:2px solid var(--accent);outline-offset:2px}.table-original{font-family:'Source Serif 4',serif;font-size:13px;font-style:italic;color:var(--ink-muted)}.table-meta{font-size:12px;color:var(--ink-light);line-height:1.7}.table-meta strong{font-weight:500;color:var(--ink)}.table-technique{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:500}.table-runtime{font-family:var(--mono);font-size:12px;color:var(--ink-light)}.confidence-pips{font-family:var(--mono);font-size:14px;letter-spacing:2px}.confidence-pips .filled{color:var(--accent)}.confidence-pips .empty{color:var(--rule)}.watch-cell{text-align:right}.watch-btn{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:var(--cream);padding:10px 18px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.05em;text-decoration:none;transition:background .2s}.watch-btn:hover,.watch-btn:focus{background:var(--accent)}.subs-badge{display:block;margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--ink-muted)}.no-link{font-family:var(--mono);font-size:12px;color:var(--ink-faint)}.load-more-container{padding:32px;text-align:center;background:var(--paper);border-top:1px solid var(--rule)}.load-more-btn{background:var(--ink);color:var(--cream);border:none;padding:16px 40px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.1em;cursor:pointer;transition:background .2s}.load-more-btn:hover,.load-more-btn:focus{background:var(--accent);outline:none}.load-more-btn:disabled{background:var(--ink-muted);cursor:not-allowed}.load-more-count{opacity:.6;font-weight:400}.detail-page{padding:48px 32px;max-width:1200px;margin:0 auto}.detail-header{display:grid;grid-template-columns:180px 1fr auto;gap:40px;padding-bottom:40px;border-bottom:2px solid var(--ink);margin-bottom:40px}.detail-year-block{background:var(--data-bg);padding:32px;text-align:center;border:1px solid var(--rule)}.detail-year{font-family:'Playfair Display',serif;font-size:56px;font-weight:400;line-height:1;color:var(--ink)}.detail-country{font-family:var(--mono);font-size:12px;letter-spacing:.15em;color:var(--ink-muted);margin-top:12px}.detail-title-section{display:flex;flex-direction:column;justify-content:center}.detail-technique{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--accent);font-weight:600;margin-bottom:12px}.detail-title{font-family:'Playfair Display',serif;font-size:38px;font-weight:400;line-height:1.15;margin-bottom:8px}.detail-original{font-family:'Source Serif 4',serif;font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:20px}.detail-credits{font-size:15px;color:var(--ink-light);line-height:1.8}.detail-credits strong{font-weight:500;color:var(--ink)}.detail-actions{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:12px}.detail-watch-btn{display:flex;align-items:center;gap:12px;background:var(--ink);color:var(--cream);padding:18px 32px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.1em;text-decoration:none;transition:background .2s}.detail-watch-btn:hover,.detail-watch-btn:focus{background:var(--accent)}.detail-subs{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.detail-body{display:grid;grid-template-columns:1fr 280px;gap:60px}.detail-content h2{font-family:'Playfair Display',serif;font-size:22px;font-weight:400;margin-bottom:16px;margin-top:36px}.detail-content h2:first-child{margin-top:0}.detail-content p{font-family:'Source Serif 4',serif;font-size:16px;line-height:1.9;color:var(--ink-light);margin-bottom:20px}.detail-content .no-content{font-style:italic;color:var(--ink-muted)}.detail-data-panel{background:var(--data-bg);border:1px solid var(--rule);padding:24px;font-family:var(--mono);font-size:12px;height:fit-content}.data-panel-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule)}.data-list{display:block}.data-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--rule)}.data-row:last-of-type{border-bottom:none}.data-label{color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;font-size:10px}.data-value{color:var(--ink);text-align:right;font-weight:500}.data-links{margin-top:24px;padding-top:24px;border-top:1px solid var(--rule)}.data-link{display:block;padding:8px 0;color:var(--ink-light);text-decoration:none;transition:color .15s;border-bottom:1px solid var(--rule)}.data-link:last-child{border-bottom:none}.data-link:hover,.data-link:focus{color:var(--accent)}.data-link::before{content:'→';margin-right:8px;color:var(--ink-faint)}.about-section{background:var(--paper);border-top:2px solid var(--ink);padding:80px 32px}.about-inner{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px}.about-text h2{font-family:'Playfair Display',serif;font-size:32px;font-weight:400;line-height:1.3;margin-bottom:24px}.about-text h2 em{font-style:italic}.about-text p{font-family:'Source Serif 4',serif;font-size:15px;line-height:1.9;color:var(--ink-light);margin-bottom:16px}.about-data{background:var(--data-bg);border:1px solid var(--rule);padding:32px;font-family:var(--mono)}.about-data-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:24px}.about-stat-row{display:flex;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--rule);align-items:baseline}.about-stat-row:last-child{border-bottom:none}.about-stat-label{font-size:12px;color:var(--ink-light)}.about-stat-value{font-size:24px;font-weight:600;color:var(--ink)}.footer{background:var(--ink);color:var(--cream);padding:32px}.footer-inner{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}.footer-logo{font-family:'Playfair Display',serif;font-size:18px}.footer-timestamp{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.7)}/* Mobile filter toggle */
 .mobile-filter-toggle{display:none;background:var(--ink);color:var(--cream);border:none;padding:10px 16px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .2s;white-space:nowrap}
 .mobile-filter-toggle:hover,.mobile-filter-toggle:focus{background:var(--accent)}
 .filter-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:var(--cream);border-radius:50%;width:18px;height:18px;font-size:10px;margin-left:6px}
@@ -944,7 +1053,7 @@ function generateCSS() {
 .active-filters-bar.has-filters{display:flex}
 .active-filters-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:600}
 .active-filter-tag{background:var(--paper);border:1px solid var(--rule);padding:4px 10px;font-family:var(--mono);font-size:11px;display:inline-flex;align-items:center;gap:8px}
-.active-filter-tag .remove{color:var(--ink-faint);cursor:pointer;font-size:14px;line-height:1}
+.active-filter-tag .remove{color:var(--ink-light);cursor:pointer;font-size:16px;line-height:1;min-width:24px;min-height:24px;display:inline-flex;align-items:center;justify-content:center;padding:4px}
 .active-filter-tag .remove:hover{color:var(--accent)}
 .clear-filters-btn{background:none;border:none;font-family:var(--mono);font-size:10px;color:var(--ink-muted);cursor:pointer;text-decoration:underline;margin-left:auto}
 .clear-filters-btn:hover{color:var(--accent)}
@@ -1443,7 +1552,7 @@ function renderRow(f){
     '<td class="table-technique hide-mobile">'+((f.technique&&f.technique[0])?f.technique[0].toUpperCase():'—')+'</td>'+
     '<td class="table-runtime hide-mobile">'+(escHtml(f.runtime)||'—')+'</td>'+
     '<td class="hide-mobile"><span class="confidence-pips">'+confPips(f.confidence)+'</span></td>'+
-    '<td class="watch-cell">'+(hasWatchLinksClient(f.watchLinks)?(function(){const url=getWatchUrl(f.watchLinks);return url?'<a href="'+escHtml(url)+'" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>'+(f.hasSubtitles?'<span class="subs-badge">EN subs</span>':''):'<span class="no-link">—</span>';})():'<span class="no-link">—</span>')+'</td></tr>';
+    '<td class="watch-cell">'+(hasWatchLinksClient(f.watchLinks)?(function(){const url=getWatchUrl(f.watchLinks);return url?'<a href="'+escHtml(url)+'" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch '+escHtml(f.titleEnglish||'this film')+' (opens in new tab)">▶ WATCH</a>'+(f.hasSubtitles?'<span class="subs-badge">EN subs</span>':''):'<span class="no-link">—</span>';})():'<span class="no-link">—</span>')+'</td></tr>';
 }
 
 function getFilteredFilms(){
@@ -1467,6 +1576,7 @@ function getFilteredFilms(){
     if(activeFilters.director){const dirs=(f.director||'').split(',').map(d=>d.trim());if(!dirs.includes(activeFilters.director))return false;}
     if(activeFilters.genre&&!(f.genres||[]).includes(activeFilters.genre))return false;
     if(activeFilters.keyword&&!(f.keywords||[]).includes(activeFilters.keyword))return false;
+    if(activeFilters.platform){var pf=activeFilters.platform;var wl=f.watchLinks||[];if(!wl.some(function(l){return l&&l.url&&l.platform===pf&&l.status!=='Dead';}))return false;}
     return true;
   });
   return sortFilms(filtered,currentSort.column,currentSort.direction);
@@ -1600,16 +1710,18 @@ function updateSortIndicators(){
     if(col===currentSort.column){
       th.classList.add('active');
       indicator.textContent=currentSort.direction==='asc'?'▲':'▼';
+      th.setAttribute('aria-sort',currentSort.direction==='asc'?'ascending':'descending');
     }else{
       th.classList.remove('active');
       indicator.textContent='';
+      th.setAttribute('aria-sort','none');
     }
   });
 }
 sortableHeaders.forEach(th=>{
   th.style.cursor='pointer';
-  th.addEventListener('click',function(){
-    const col=this.dataset.sort;
+  const handler=function(){
+    const col=th.dataset.sort;
     if(currentSort.column===col){
       currentSort.direction=currentSort.direction==='asc'?'desc':'asc';
     }else{
@@ -1618,6 +1730,10 @@ sortableHeaders.forEach(th=>{
     }
     updateSortIndicators();
     updateDisplay(true);
+  };
+  th.addEventListener('click',handler);
+  th.addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();handler();}
   });
 });
 
@@ -1659,12 +1775,17 @@ document.addEventListener('keydown',(e)=>{
 
 // Collapsible sidebar sections
 document.querySelectorAll('.collapsible-header').forEach(header=>{
-  header.addEventListener('click',function(){
-    const content=this.nextElementSibling;
-    const icon=this.querySelector('.collapse-icon');
+  const toggle=function(){
+    const content=header.nextElementSibling;
+    const icon=header.querySelector('.collapse-icon');
     const isCollapsed=content.classList.toggle('collapsed');
-    this.dataset.collapsed=isCollapsed;
+    header.dataset.collapsed=isCollapsed;
+    header.setAttribute('aria-expanded',String(!isCollapsed));
     if(icon)icon.textContent=isCollapsed?'▶':'▼';
+  };
+  header.addEventListener('click',toggle);
+  header.addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
   });
 });
 
@@ -1840,7 +1961,7 @@ ${generateBreadcrumb([
   <section class="country-films-section">
     <h2 class="section-title">All Films from ${escapeHtml(country)}</h2>
     <div class="table-wrapper">
-      <table class="film-table" role="grid">
+      <table class="film-table">
         <thead>
           <tr>
             <th scope="col" style="width:90px">Year</th>
@@ -2117,7 +2238,7 @@ ${generateBreadcrumb([
   <section class="technique-films-section">
     <h2 class="section-title">All ${escapeHtml(technique)} Films</h2>
     <div class="table-wrapper">
-      <table class="film-table" role="grid">
+      <table class="film-table">
         <thead>
           <tr>
             <th scope="col" style="width:90px">Year</th>
@@ -2152,7 +2273,7 @@ function generateTechniqueTableRows(filmList) {
       <td class="table-country-cell hide-mobile"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
       <td class="table-runtime hide-mobile">${escapeHtml(film.runtime) || '—'}</td>
       <td class="hide-mobile"><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
-      <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
+      <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
     </tr>`;
   }).join('\n');
 }
@@ -2453,7 +2574,7 @@ function generateDecadeTableRows(filmList) {
       <td class="table-country-cell hide-mobile"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
       <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
       <td class="hide-mobile"><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
-      <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
+      <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
     </tr>`;
   }).join('\n');
 }
@@ -2578,7 +2699,7 @@ ${generateBreadcrumb([
   <section class="decade-films-section">
     <h2 class="section-title">All Films from the ${decadeLabel}</h2>
     <div class="table-wrapper">
-      <table class="film-table" role="grid">
+      <table class="film-table">
         <thead>
           <tr>
             <th scope="col" style="width:70px">Year</th>
@@ -2841,10 +2962,10 @@ ${generateBreadcrumb([
   <section class="entity-films-section">
     <h2 class="section-title">Filmography (${filmCount} films)</h2>
     <div class="table-wrapper">
-      <table class="film-table" role="grid">
+      <table class="film-table">
         <thead><tr>
-          <th scope="col" style="width:90px" class="sortable active" data-col="year">Year <span class="sort-indicator">▲</span></th>
-          <th scope="col" class="sortable" data-col="title">Title <span class="sort-indicator">⇅</span></th>
+          <th scope="col" style="width:90px" class="sortable active" data-col="year" tabindex="0" aria-sort="ascending">Year <span class="sort-indicator" aria-hidden="true">▲</span></th>
+          <th scope="col" class="sortable" data-col="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true">⇅</span></th>
           <th scope="col">Director</th>
           <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
           <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
@@ -2855,7 +2976,7 @@ ${generateBreadcrumb([
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getDirectorLink(film, '../') || '—'}</td>
             <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-            <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
+            <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶</a>` : ''; })()}</td>
           </tr>`).join('')}</tbody>
       </table>
     </div>
@@ -3058,10 +3179,10 @@ ${generateBreadcrumb([
   <section class="entity-films-section">
     <h2 class="section-title">Filmography (${filmCount} films)</h2>
     <div class="table-wrapper">
-      <table class="film-table" role="grid">
+      <table class="film-table">
         <thead><tr>
-          <th scope="col" style="width:90px" class="sortable active" data-col="year">Year <span class="sort-indicator">▲</span></th>
-          <th scope="col" class="sortable" data-col="title">Title <span class="sort-indicator">⇅</span></th>
+          <th scope="col" style="width:90px" class="sortable active" data-col="year" tabindex="0" aria-sort="ascending">Year <span class="sort-indicator" aria-hidden="true">▲</span></th>
+          <th scope="col" class="sortable" data-col="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true">⇅</span></th>
           <th scope="col">Studio</th>
           <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
           <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
@@ -3072,7 +3193,7 @@ ${generateBreadcrumb([
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getStudioLink(film, '../') || '—'}</td>
             <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-            <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
+            <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶</a>` : ''; })()}</td>
           </tr>`).join('')}</tbody>
       </table>
     </div>
@@ -3188,10 +3309,10 @@ ${generateBreadcrumb([
   <section class="entity-films-section">
     <h2 class="section-title">Films in this ${escapeHtml(typeLabel)} (${filmCount})</h2>
     <div class="table-wrapper">
-      <table class="film-table" role="grid">
+      <table class="film-table">
         <thead><tr>
-          <th scope="col" style="width:90px" class="sortable active" data-col="year">Year <span class="sort-indicator">▲</span></th>
-          <th scope="col" class="sortable" data-col="title">Title <span class="sort-indicator">⇅</span></th>
+          <th scope="col" style="width:90px" class="sortable active" data-col="year" tabindex="0" aria-sort="ascending">Year <span class="sort-indicator" aria-hidden="true">▲</span></th>
+          <th scope="col" class="sortable" data-col="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true">⇅</span></th>
           <th scope="col">Director</th>
           <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
           <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
@@ -3202,7 +3323,7 @@ ${generateBreadcrumb([
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getDirectorLink(film, '../') || '—'}</td>
             <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-            <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener">▶</a>` : ''; })()}</td>
+            <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶</a>` : ''; })()}</td>
           </tr>`).join('')}</tbody>
       </table>
     </div>
@@ -3283,272 +3404,105 @@ function generateSeriesPages() {
 }
 
 // ===================== GENRE PAGES =====================
-function generateGenrePage(genre, genreFilms) {
-  genreFilms.sort((a, b) => (b.year || 0) - (a.year || 0));
-  const description = `Explore ${genreFilms.length} ${genre} animated films from around the world in the Global Animation Archive.`;
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeHtml(genre)} Films — Global Animation Archive</title>
-<meta name="description" content="${escapeHtml(description)}">
-<link rel="canonical" href="${SITE_URL}/genres/${slugify(genre)}.html">
-${FAVICON}
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../styles.css">
-</head>
-<body>
-<a href="#main-content" class="skip-link">Skip to main content</a>
-<header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
-  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
-</header>
-${generateBreadcrumb([
-  { label: 'Home', url: 'index.html' },
-  { label: 'Genres', url: 'genres/index.html' },
-  { label: escapeHtml(genre) }
-], '../')}
-<main class="tag-page genre-page" id="main-content">
-  <div class="tag-header">
-    <span class="tag-type">Genre</span>
-    <h1 class="tag-name">${escapeHtml(genre)}</h1>
-    <p class="tag-count">${genreFilms.length} films</p>
-  </div>
-  <section class="tag-films-section">
-    <div class="table-wrapper">
-      <table class="film-table" role="grid">
-        <thead><tr>
-          <th scope="col" style="width:90px">Year</th>
-          <th scope="col">Title</th>
-          <th scope="col">Director / Studio</th>
-          <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
-          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
-        </tr></thead>
-        <tbody>${generateTableRows(genreFilms, '../')}</tbody>
-      </table>
-    </div>
-  </section>
-</main>
-${generateFooter('../')}
-</body></html>`;
-}
-
+// Migrated to generic facet builder (scripts/lib/facet-builder.js) in Batch C.
 function generateGenrePages() {
-  const genresWithFilms = {};
-  for (const film of films) {
-    for (const genre of film.genres || []) {
-      if (!genresWithFilms[genre]) genresWithFilms[genre] = [];
-      genresWithFilms[genre].push(film);
-    }
-  }
-
-  if (Object.keys(genresWithFilms).length === 0) {
-    console.log('  ⚠ No genre data, skipping genre pages');
-    return { count: 0 };
-  }
-
-  mkdirSync('./dist/genres', { recursive: true });
-
-  let count = 0;
-  for (const [genre, genreFilms] of Object.entries(genresWithFilms)) {
-    writeFileSync(`./dist/genres/${slugify(genre)}.html`, generateGenrePage(genre, [...genreFilms]));
-    count++;
-  }
-
-  // Generate index page
-  writeFileSync('./dist/genres/index.html', generateGenreIndexPage(genresWithFilms));
-
-  return { count, genresWithFilms };
-}
-
-function generateGenreIndexPage(genresWithFilms) {
-  const sortedGenres = Object.entries(genresWithFilms)
-    .map(([name, films]) => ({ name, count: films.length }))
-    .sort((a, b) => b.count - a.count);
-
-  const totalFilms = films.filter(f => f.genres && f.genres.length > 0).length;
-  const description = `Browse ${sortedGenres.length} animation genres from around the world. ${totalFilms} films categorized in the Global Animation Archive.`;
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Genres — Global Animation Archive</title>
-<meta name="description" content="${escapeHtml(description)}">
-<link rel="canonical" href="${SITE_URL}/genres/">
-${FAVICON}
-<meta property="og:type" content="website">
-<meta property="og:title" content="Genres — Global Animation Archive">
-<meta property="og:description" content="${escapeHtml(description)}">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../styles.css">
-</head>
-<body>
-<a href="#main-content" class="skip-link">Skip to main content</a>
-<header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
-  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
-</header>
-${generateBreadcrumb([
-  { label: 'Home', url: 'index.html' },
-  { label: 'Genres' }
-], '../')}
-<main class="entity-index genres-index" id="main-content">
-  <div class="entity-index-header">
-    <h1>Genres</h1>
-    <p class="entity-index-subtitle">Browse ${sortedGenres.length} animation genres</p>
-  </div>
-  <div class="tag-cloud">
-    ${sortedGenres.map(({ name, count }) => {
-      const size = count > 100 ? 'xl' : count > 50 ? 'lg' : count > 20 ? 'md' : count > 10 ? 'sm' : 'xs';
-      return `<a href="${slugify(name)}.html" class="tag-cloud-item tag-size-${size}">
-        <span class="tag-name">${escapeHtml(name)}</span>
-        <span class="tag-count">${count}</span>
-      </a>`;
-    }).join('')}
-  </div>
-</main>
-${generateFooter('../')}
-</body></html>`;
+  const { count, valuesWithFilms } = generateTagFacetPages({
+    name: 'Genre',
+    slug: 'genres',
+    label: 'Genres',
+    extract: (film) => film.genres || [],
+    films,
+    // Preserve pre-refactor wording exactly
+    detailTitle: (value) => `${value} Films — Global Animation Archive`,
+    indexSubtitle: (sorted) => `Browse ${sorted.length} animation genres`,
+    describeIndex: (sorted, total) =>
+      `Browse ${sorted.length} animation genres from around the world. ${total} films categorized in the Global Animation Archive.`,
+    deps: {
+      slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
+      SITE_URL, FAVICON, BUILD_DATE,
+      writeFileSync, mkdirSync,
+    },
+  });
+  return { count, genresWithFilms: valuesWithFilms };
 }
 
 // ===================== KEYWORD PAGES =====================
-function generateKeywordPage(keyword, keywordFilms) {
-  keywordFilms.sort((a, b) => (b.year || 0) - (a.year || 0));
-  const description = `Explore ${keywordFilms.length} animated films tagged with "${keyword}" in the Global Animation Archive.`;
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeHtml(keyword)} — Global Animation Archive</title>
-<meta name="description" content="${escapeHtml(description)}">
-<link rel="canonical" href="${SITE_URL}/keywords/${slugify(keyword)}.html">
-${FAVICON}
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../styles.css">
-</head>
-<body>
-<a href="#main-content" class="skip-link">Skip to main content</a>
-<header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
-  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
-</header>
-${generateBreadcrumb([
-  { label: 'Home', url: 'index.html' },
-  { label: 'Keywords', url: 'keywords/index.html' },
-  { label: escapeHtml(keyword) }
-], '../')}
-<main class="tag-page keyword-page" id="main-content">
-  <div class="tag-header">
-    <span class="tag-type">Keyword</span>
-    <h1 class="tag-name">${escapeHtml(keyword)}</h1>
-    <p class="tag-count">${keywordFilms.length} films</p>
-  </div>
-  <section class="tag-films-section">
-    <div class="table-wrapper">
-      <table class="film-table" role="grid">
-        <thead><tr>
-          <th scope="col" style="width:90px">Year</th>
-          <th scope="col">Title</th>
-          <th scope="col">Director / Studio</th>
-          <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
-          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
-        </tr></thead>
-        <tbody>${generateTableRows(keywordFilms, '../')}</tbody>
-      </table>
-    </div>
-  </section>
-</main>
-${generateFooter('../')}
-</body></html>`;
-}
-
+// Migrated to generic facet builder (scripts/lib/facet-builder.js) in Batch C.
+// Keyword distributions are flatter than Genre, so uses tighter size thresholds.
 function generateKeywordPages() {
-  const keywordsWithFilms = {};
-  for (const film of films) {
-    for (const keyword of film.keywords || []) {
-      if (!keywordsWithFilms[keyword]) keywordsWithFilms[keyword] = [];
-      keywordsWithFilms[keyword].push(film);
-    }
-  }
-
-  if (Object.keys(keywordsWithFilms).length === 0) {
-    console.log('  ⚠ No keyword data, skipping keyword pages');
-    return { count: 0 };
-  }
-
-  mkdirSync('./dist/keywords', { recursive: true });
-
-  let count = 0;
-  for (const [keyword, keywordFilms] of Object.entries(keywordsWithFilms)) {
-    writeFileSync(`./dist/keywords/${slugify(keyword)}.html`, generateKeywordPage(keyword, [...keywordFilms]));
-    count++;
-  }
-
-  // Generate index page
-  writeFileSync('./dist/keywords/index.html', generateKeywordIndexPage(keywordsWithFilms));
-
-  return { count, keywordsWithFilms };
+  const { count, valuesWithFilms } = generateTagFacetPages({
+    name: 'Keyword',
+    slug: 'keywords',
+    label: 'Keywords',
+    extract: (film) => film.keywords || [],
+    films,
+    sizeThresholds: [
+      { min: 51, size: 'xl' },
+      { min: 26, size: 'lg' },
+      { min: 11, size: 'md' },
+      { min: 6,  size: 'sm' },
+      { min: 0,  size: 'xs' },
+    ],
+    indexHeading: 'Keywords & Themes',
+    indexSubtitle: (sorted) => `Browse ${sorted.length} keywords and themes`,
+    describe: (value, sorted) =>
+      `Explore ${sorted.length} animated films tagged with "${value}" in the Global Animation Archive.`,
+    describeIndex: (sorted, total) =>
+      `Browse ${sorted.length} animation keywords and themes. ${total} films tagged in the Global Animation Archive.`,
+    deps: {
+      slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
+      SITE_URL, FAVICON, BUILD_DATE,
+      writeFileSync, mkdirSync,
+    },
+  });
+  return { count, keywordsWithFilms: valuesWithFilms };
 }
 
-function generateKeywordIndexPage(keywordsWithFilms) {
-  const sortedKeywords = Object.entries(keywordsWithFilms)
-    .map(([name, films]) => ({ name, count: films.length }))
-    .sort((a, b) => b.count - a.count);
-
-  const totalFilms = films.filter(f => f.keywords && f.keywords.length > 0).length;
-  const description = `Browse ${sortedKeywords.length} animation keywords and themes. ${totalFilms} films tagged in the Global Animation Archive.`;
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Keywords — Global Animation Archive</title>
-<meta name="description" content="${escapeHtml(description)}">
-<link rel="canonical" href="${SITE_URL}/keywords/">
-${FAVICON}
-<meta property="og:type" content="website">
-<meta property="og:title" content="Keywords — Global Animation Archive">
-<meta property="og:description" content="${escapeHtml(description)}">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../styles.css">
-</head>
-<body>
-<a href="#main-content" class="skip-link">Skip to main content</a>
-<header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
-  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
-</header>
-${generateBreadcrumb([
-  { label: 'Home', url: 'index.html' },
-  { label: 'Keywords' }
-], '../')}
-<main class="entity-index keywords-index" id="main-content">
-  <div class="entity-index-header">
-    <h1>Keywords & Themes</h1>
-    <p class="entity-index-subtitle">Browse ${sortedKeywords.length} keywords and themes</p>
-  </div>
-  <div class="tag-cloud">
-    ${sortedKeywords.map(({ name, count }) => {
-      const size = count > 50 ? 'xl' : count > 25 ? 'lg' : count > 10 ? 'md' : count > 5 ? 'sm' : 'xs';
-      return `<a href="${slugify(name)}.html" class="tag-cloud-item tag-size-${size}">
-        <span class="tag-name">${escapeHtml(name)}</span>
-        <span class="tag-count">${count}</span>
-      </a>`;
-    }).join('')}
-  </div>
-</main>
-${generateFooter('../')}
-</body></html>`;
+// ===================== PLATFORM PAGES =====================
+// Batch B: watch-link platform facet — enables "What can I watch on Netflix?"
+// filtering. Extracts unique, reachable platforms from each film's embedded
+// watchLinks (skipping Dead entries and entries with empty URLs).
+function generatePlatformPages() {
+  const { count, valuesWithFilms } = generateTagFacetPages({
+    name: 'Platform',
+    slug: 'platforms',
+    label: 'Streaming Platforms',
+    extract: (film) => {
+      const links = Array.isArray(film.watchLinks) ? film.watchLinks : [];
+      const set = new Set();
+      for (const l of links) {
+        if (!l || !l.platform || !l.url) continue;
+        if (l.status === 'Dead') continue;
+        set.add(l.platform);
+      }
+      return [...set];
+    },
+    films,
+    // Platform distribution is skewed — YouTube dominates, long tail of niche sources.
+    sizeThresholds: [
+      { min: 300, size: 'xl' },
+      { min: 100, size: 'lg' },
+      { min: 40,  size: 'md' },
+      { min: 15,  size: 'sm' },
+      { min: 0,   size: 'xs' },
+    ],
+    detailTitle: (value) => `Animated films on ${value} — Global Animation Archive`,
+    describe: (value, sorted) =>
+      `${sorted.length} animated films available to watch on ${value}, curated by the Global Animation Archive.`,
+    indexHeading: 'Streaming Platforms',
+    indexSubtitle: (sorted) => `Browse ${sorted.length} platforms where you can watch world animation`,
+    describeIndex: (sorted, total) =>
+      `Browse ${sorted.length} streaming platforms. ${total} animated films with verified watch links in the Global Animation Archive.`,
+    deps: {
+      slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
+      SITE_URL, FAVICON, BUILD_DATE,
+      writeFileSync, mkdirSync,
+    },
+  });
+  return { count, platformsWithFilms: valuesWithFilms };
 }
 
-function generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFilms, genresWithFilms, keywordsWithFilms) {
+function generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFilms, genresWithFilms, keywordsWithFilms, platformsWithFilms) {
   const urls = [
     { loc: `${SITE_URL}/`, priority: '1.0', changefreq: 'daily' },
     { loc: `${SITE_URL}/countries/`, priority: '0.9', changefreq: 'weekly' },
@@ -3558,7 +3512,8 @@ function generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFil
     { loc: `${SITE_URL}/series/`, priority: '0.9', changefreq: 'weekly' },
     { loc: `${SITE_URL}/decades/`, priority: '0.9', changefreq: 'weekly' },
     { loc: `${SITE_URL}/genres/`, priority: '0.9', changefreq: 'weekly' },
-    { loc: `${SITE_URL}/keywords/`, priority: '0.9', changefreq: 'weekly' }
+    { loc: `${SITE_URL}/keywords/`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${SITE_URL}/platforms/`, priority: '0.9', changefreq: 'daily' }
   ];
 
   // Add country pages
@@ -3643,6 +3598,17 @@ function generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFil
     }
   }
 
+  // Add platform pages (Batch B)
+  if (platformsWithFilms) {
+    for (const platform of Object.keys(platformsWithFilms)) {
+      urls.push({
+        loc: `${SITE_URL}/platforms/${slugify(platform)}.html`,
+        priority: '0.8',
+        changefreq: 'daily'
+      });
+    }
+  }
+
   // Add film pages
   for (const film of films) {
     urls.push({
@@ -3710,10 +3676,42 @@ Sitemap: ${SITE_URL}/sitemap.xml
 `;
 }
 
+// Batch D2: module-level holder populated at the top of build() before
+// generateIndexPage() runs. index.html reads these as content-hashed
+// script URLs so we can serve the JS with immutable cache headers.
+const ASSET_URLS = { filmsIndex: 'films-index.js', app: 'app.js' };
+
 function build() {
   console.log('🔨 Building static site...');
   mkdirSync('./dist', { recursive: true });
   mkdirSync('./dist/films', { recursive: true });
+
+  // ----- Batch D2: hash + emit JS assets BEFORE index.html -----
+  // We need hashed filenames baked into the <script src> tags, so build
+  // the catalog + app bundle strings first, hash them, write hashed
+  // filenames, and stash the URLs in ASSET_URLS for generateIndexPage().
+  cleanHashedAssets('./dist', 'films-index', 'js');
+  cleanHashedAssets('./dist', 'app', 'js');
+
+  const currentYear = new Date().getFullYear();
+  const sortedFilmsForIndex = [...films].sort((a, b) => {
+    const aFuture = (a.year || 0) > currentYear ? 1 : 0;
+    const bFuture = (b.year || 0) > currentYear ? 1 : 0;
+    if (aFuture !== bFuture) return aFuture - bFuture;
+    return (b.year || 0) - (a.year || 0);
+  });
+  const filmsIndexSource = buildFilmsIndexJs(sortedFilmsForIndex, studios, directorsData);
+  const appJsSource      = generateJS();
+
+  const filmsIndexHash = contentHash(filmsIndexSource);
+  const appJsHash      = contentHash(appJsSource);
+  ASSET_URLS.filmsIndex = `films-index-${filmsIndexHash}.js`;
+  ASSET_URLS.app        = `app-${appJsHash}.js`;
+
+  writeFileSync(`./dist/${ASSET_URLS.filmsIndex}`, filmsIndexSource);
+  writeFileSync(`./dist/${ASSET_URLS.app}`, appJsSource);
+  console.log(`  ✓ ${ASSET_URLS.filmsIndex} (immutable, external catalog)`);
+  console.log(`  ✓ ${ASSET_URLS.app} (immutable)`);
 
   writeFileSync('./dist/index.html', generateIndexPage());
   console.log('  ✓ index.html (paginated, first ' + FILMS_PER_PAGE + ' films)');
@@ -3773,14 +3771,20 @@ function build() {
     console.log(`  ✓ ${keywordCount} keyword pages`);
   }
 
+  // Generate platform pages (Batch B: streaming source facet)
+  const { count: platformCount, platformsWithFilms } = generatePlatformPages();
+  if (platformCount > 0) {
+    console.log(`  ✓ ${platformCount} platform pages`);
+  }
+
   writeFileSync('./dist/styles.css', generateCSS());
   console.log('  ✓ styles.css (with all page styles)');
 
-  writeFileSync('./dist/app.js', generateJS());
-  console.log('  ✓ app.js (with pagination + keyboard nav + genre/keyword filters)');
+  // Note: app.js is now emitted at the top of build() as a content-hashed
+  // asset (see ASSET_URLS) so index.html can reference the immutable URL.
 
-  writeFileSync('./dist/sitemap.xml', generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFilms, genresWithFilms, keywordsWithFilms));
-  const totalUrls = films.length + countryCount + techniqueCount + decadeCount + studioCount + directorDetailCount + seriesCount + genreCount + keywordCount + 7;
+  writeFileSync('./dist/sitemap.xml', generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFilms, genresWithFilms, keywordsWithFilms, platformsWithFilms));
+  const totalUrls = films.length + countryCount + techniqueCount + decadeCount + studioCount + directorDetailCount + seriesCount + genreCount + keywordCount + platformCount + 8;
   console.log(`  ✓ sitemap.xml (${totalUrls} URLs)`);
 
   writeFileSync('./dist/robots.txt', generateRobotsTxt());
@@ -3800,6 +3804,7 @@ function build() {
   console.log(`   • Decade pages: ${decadeCount} decades with dedicated pages`);
   console.log(`   • Genre pages: ${genreCount} genres with dedicated pages`);
   console.log(`   • Keyword pages: ${keywordCount} keywords with dedicated pages`);
+  console.log(`   • Platform pages: ${platformCount} streaming platforms (Batch B)`);
   console.log(`   • SEO: sitemap.xml, robots.txt, OG tags, JSON-LD on all pages`);
   console.log(`   • Accessibility: Skip links, ARIA labels, keyboard navigation`);
 }

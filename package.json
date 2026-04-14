@@ -13,7 +13,9 @@
     "validate:links": "node scripts/validate-watch-links.js --report-only",
     "audit": "node scripts/audit-data.js",
     "validate": "node scripts/validate-links.js",
-    "data-check": "npm run audit && npm run validate"
+    "audit:a11y": "node scripts/audit-a11y.js",
+    "data-check": "npm run audit && npm run validate",
+    "ci": "npm run audit && npm run build && npm run audit:a11y"
   },
   "dependencies": {
     "@notionhq/client": "^2.3.0"

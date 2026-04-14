@@ -1,7 +1,109 @@
+#############################################################
+# Global Animation Archive — Netlify configuration
+#
+# Build strategy:
+#   - Data (films.json, watch-links.json, etc.) is refreshed by a
+#     GitHub Actions cron (.github/workflows/fetch-data.yml) that
+#     commits data/** back to main. Netlify then rebuilds on push.
+#   - Netlify itself never calls the Notion API, so NOTION_TOKEN is
+#     NOT required in the Netlify UI.
+#   - Netlify just runs `npm run build` against committed data.
+#
+# Preview builds are enabled for all branches and PRs (deploy-preview
+# context). Previews use the same data snapshot as main.
+#############################################################
+
 [build]
-  command = "npm run deploy"
+  command = "npm run build"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "20"
-  # NOTION_TOKEN and NOTION_DATABASE_ID set in Netlify UI
+  NPM_VERSION  = "10"
+  NETLIFY_USE_YARN = "false"
+
+#############################################################
+# Deploy contexts: every non-production deploy uses the same build.
+#############################################################
+
+[context.production]
+  command = "npm run build"
+
+[context.deploy-preview]
+  command = "npm run build"
+
+[context.branch-deploy]
+  command = "npm run build"
+
+#############################################################
+# Security headers (applied to every response)
+#
+# CSP is intentionally permissive for inline styles/scripts because
+# build-site.js embeds JSON-LD and a small inline script block with
+# window.ALL_FILMS_DATA. Tighten to nonce-based CSP in a later pass
+# after app.js is split from inline bootstrap.
+#############################################################
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+    X-XSS-Protection = "1; mode=block"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+
+#############################################################
+# Cache policy
+#############################################################
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, must-revalidate"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, must-revalidate"
+
+# Content-hashed JS bundles (Batch D2): the hash is part of the URL, so the
+# file is truly immutable — any content change produces a new URL. Safe to
+# cache for a year. These patterns are listed AFTER the generic /*.js rule
+# so they override it for matching filenames.
+[[headers]]
+  for = "/films-index-*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/app-*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/sitemap.xml"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+    Content-Type = "application/xml; charset=utf-8"
+
+[[headers]]
+  for = "/robots.txt"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+#############################################################
+# Custom 404 for unknown routes
+#############################################################
+
+[[redirects]]
+  from = "/*"
+  to = "/404.html"
+  status = 404

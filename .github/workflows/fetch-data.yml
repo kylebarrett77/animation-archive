@@ -1,0 +1,78 @@
+#############################################################
+# Scheduled data refresh
+#
+# Pulls the latest films + watch-links from Notion, audits the
+# snapshot, and commits data/** back to main. The push triggers
+# a Netlify rebuild automatically — Netlify never calls Notion
+# itself, so NOTION_TOKEN only lives in GitHub secrets.
+#
+# Cadence:
+#   - Daily cron at 06:00 UTC
+#   - Manual dispatch via Actions UI
+#############################################################
+
+name: Fetch Notion data
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      skip_commit:
+        description: 'Run fetch + audit but do not commit (dry run)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: fetch-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    name: Refresh films + watch-links
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch films + watch-links
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: npm run fetch:all
+
+      - name: Audit snapshot
+        run: npm run audit
+
+      - name: Smoke build
+        run: npm run build
+
+      - name: Commit refreshed data
+        if: github.event.inputs.skip_commit != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "No data changes — nothing to commit."
+            exit 0
+          fi
+          STAMP=$(date -u +'%Y-%m-%d')
+          git commit -m "chore(data): refresh Notion snapshot ${STAMP}"
+          git push origin HEAD:main
