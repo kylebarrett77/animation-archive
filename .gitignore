@@ -1,6 +1,12 @@
 node_modules/
 dist/
-data/
 .env
 .vercel/
 .netlify/
+
+# data/ is committed by .github/workflows/fetch-data.yml so Netlify can
+# build without calling Notion. Local developers are encouraged not to
+# stage data/* manually — let the cron own that file. The pre-batch-*
+# snapshots created by audit-data.js stay local.
+data/.*
+

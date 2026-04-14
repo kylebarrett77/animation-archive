@@ -2,19 +2,19 @@
 # Global Animation Archive — Netlify configuration
 #
 # Build strategy:
-#   - Data (films.json, watch-links.json, etc.) is refreshed by a
-#     GitHub Actions cron (.github/workflows/fetch-data.yml) that
-#     commits data/** back to main. Netlify then rebuilds on push.
-#   - Netlify itself never calls the Notion API, so NOTION_TOKEN is
-#     NOT required in the Netlify UI.
-#   - Netlify just runs `npm run build` against committed data.
-#
-# Preview builds are enabled for all branches and PRs (deploy-preview
-# context). Previews use the same data snapshot as main.
+#   - Production: `npm run deploy` (fetch:all + build). Netlify pulls
+#     a fresh Notion snapshot at build time, so the live site is always
+#     current with Notion. NOTION_TOKEN must be set in the Netlify UI
+#     (Site settings → Environment variables).
+#   - The .github/workflows/fetch-data.yml cron also commits a daily
+#     snapshot to main, which triggers a Netlify rebuild for free —
+#     belt-and-suspenders freshness without a webhook.
+#   - Preview builds (PRs / branch deploys) use the same fetch+build
+#     so previews always reflect current Notion content.
 #############################################################
 
 [build]
-  command = "npm run build"
+  command = "npm run deploy"
   publish = "dist"
 
 [build.environment]
@@ -27,13 +27,13 @@
 #############################################################
 
 [context.production]
-  command = "npm run build"
+  command = "npm run deploy"
 
 [context.deploy-preview]
-  command = "npm run build"
+  command = "npm run deploy"
 
 [context.branch-deploy]
-  command = "npm run build"
+  command = "npm run deploy"
 
 #############################################################
 # Security headers (applied to every response)
