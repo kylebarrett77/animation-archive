@@ -29,8 +29,10 @@
  *   });
  */
 
-const FONT_LINKS = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">`;
+/* FONT_LINKS removed 2026-04-26 (Round 7 #1) — Round 5's font self-host
+   migration missed this file, so all genre/keyword/platform pages were
+   still loading from fonts.googleapis.com. The shared FONT_HEAD constant
+   is now passed in via deps from build-site.js. */
 
 /**
  * Size thresholds for the tag-cloud link size on the index page.
@@ -71,6 +73,33 @@ function generateFacetDetailPage(config, value, valueFilms) {
   const valueSlug = slugify(value);
   const singularName = name; // e.g. "Genre"
 
+  // Stat aggregation — added 2026-04-26 (Round 7 #4) so tag pages stop
+  // being bare lists and start being research surfaces. Mirrors the
+  // pattern from generateCountryPage / generateDecadePage in build-site.js.
+  const countries = {};
+  const decades = {};
+  const techniques = {};
+  for (const f of sorted) {
+    if (f.country) countries[f.country] = (countries[f.country] || 0) + 1;
+    if (f.year) {
+      const dec = Math.floor(f.year / 10) * 10;
+      decades[dec] = (decades[dec] || 0) + 1;
+    }
+    for (const t of f.technique || []) {
+      techniques[t] = (techniques[t] || 0) + 1;
+    }
+  }
+  const countriesSorted = Object.entries(countries).sort((a, b) => b[1] - a[1]);
+  const decadesSorted = Object.entries(decades).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+  const techniquesSorted = Object.entries(techniques).sort((a, b) => b[1] - a[1]);
+
+  // Don't repeat the facet's own dimension as a stat card. e.g. on the
+  // Technique facet pages, suppress the Techniques stat card (it would
+  // just say "<this technique>: 100%").
+  const showCountries  = countriesSorted.length  > 0;
+  const showDecades    = decadesSorted.length    > 0;
+  const showTechniques = techniquesSorted.length > 0 && name.toLowerCase() !== 'technique';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -83,7 +112,7 @@ function generateFacetDetailPage(config, value, valueFilms) {
 <meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${SITE_URL}/${slug}/${valueSlug}.html">
 ${FAVICON}
-${FONT_LINKS}
+${deps.FONT_HEAD || ''}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -103,6 +132,26 @@ ${generateBreadcrumb([
     <h1 class="tag-name">${escapeHtml(value)}</h1>
     <p class="tag-count">${sorted.length} films</p>
   </div>
+
+  ${(showCountries || showDecades || showTechniques) ? `
+  <div class="tag-stats-grid">
+    ${showCountries ? `
+    <div class="tag-stat-card">
+      <div class="stat-card-title">Top Countries</div>
+      <div class="stat-card-list">${countriesSorted.slice(0, 8).map(([c, n]) => `<a href="../countries/${slugify(c)}.html" class="stat-tag">${escapeHtml(c)} <span class="stat-tag-count">(${n})</span></a>`).join('')}</div>
+    </div>` : ''}
+    ${showDecades ? `
+    <div class="tag-stat-card">
+      <div class="stat-card-title">Decades</div>
+      <div class="stat-card-list">${decadesSorted.map(([d, n]) => `<a href="../decades/${d}s.html" class="stat-tag">${d}s <span class="stat-tag-count">(${n})</span></a>`).join('')}</div>
+    </div>` : ''}
+    ${showTechniques ? `
+    <div class="tag-stat-card">
+      <div class="stat-card-title">Techniques</div>
+      <div class="stat-card-list">${techniquesSorted.slice(0, 6).map(([t, n]) => `<a href="../techniques/${slugify(t)}.html" class="stat-tag">${escapeHtml(t)} <span class="stat-tag-count">(${n})</span></a>`).join('')}</div>
+    </div>` : ''}
+  </div>` : ''}
+
   <section class="tag-films-section">
     <div class="table-wrapper">
       <table class="film-table">
@@ -111,9 +160,11 @@ ${generateBreadcrumb([
           <th scope="col">Title</th>
           <th scope="col">Director / Studio</th>
           <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
+          <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
+          <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
           <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
-        <tbody>${generateTableRows(sorted, '../')}</tbody>
+        <tbody>${generateTableRows(sorted, { basePath: '../' })}</tbody>
       </table>
     </div>
   </section>
@@ -156,7 +207,7 @@ ${FAVICON}
 <meta property="og:type" content="website">
 <meta property="og:title" content="${escapeHtml(label)} — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
-${FONT_LINKS}
+${deps.FONT_HEAD || ''}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>

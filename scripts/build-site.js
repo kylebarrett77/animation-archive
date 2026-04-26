@@ -99,16 +99,29 @@ const OG_IMAGE = `${SITE_URL}/og-image.png`;
  * Critical pair (`Inter` + `Playfair Display`) is preloaded; the rest
  * load on demand. Cuts FCP-blocking font fetch to 2 from 6.
  */
-const FONT_HEAD = `<link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/fonts/playfair-display.woff2" as="font" type="font/woff2" crossorigin>
+// Round 9 #4: was a constant with absolute /fonts/ paths — broke when the
+// site was opened via file:// or served from a non-dist root (Live Server
+// at project root, etc). Now a depth-aware function. Pass '' for root-level
+// pages (homepage), '../' for sub-pages (films/, countries/, studios/, etc).
+// All sub-pages live at exactly one directory below dist/ root.
+function fontHead(prefix = '') {
+  const p = prefix;
+  return `<link rel="preload" href="${p}fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="${p}fonts/playfair-display.woff2" as="font" type="font/woff2" crossorigin>
 <style>
-@font-face{font-family:'Inter';font-style:normal;font-weight:400 600;font-display:swap;src:url('/fonts/inter.woff2') format('woff2')}
-@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 600;font-display:swap;src:url('/fonts/jetbrains-mono.woff2') format('woff2')}
-@font-face{font-family:'Playfair Display';font-style:normal;font-weight:400 600;font-display:swap;src:url('/fonts/playfair-display.woff2') format('woff2')}
-@font-face{font-family:'Playfair Display';font-style:italic;font-weight:400;font-display:swap;src:url('/fonts/playfair-display-italic.woff2') format('woff2')}
-@font-face{font-family:'Source Serif 4';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/source-serif-4.woff2') format('woff2')}
-@font-face{font-family:'Source Serif 4';font-style:italic;font-weight:400;font-display:swap;src:url('/fonts/source-serif-4-italic.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:400 600;font-display:swap;src:url('${p}fonts/inter.woff2') format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 600;font-display:swap;src:url('${p}fonts/jetbrains-mono.woff2') format('woff2')}
+@font-face{font-family:'Playfair Display';font-style:normal;font-weight:400 600;font-display:swap;src:url('${p}fonts/playfair-display.woff2') format('woff2')}
+@font-face{font-family:'Playfair Display';font-style:italic;font-weight:400;font-display:swap;src:url('${p}fonts/playfair-display-italic.woff2') format('woff2')}
+@font-face{font-family:'Source Serif 4';font-style:normal;font-weight:400;font-display:swap;src:url('${p}fonts/source-serif-4.woff2') format('woff2')}
+@font-face{font-family:'Source Serif 4';font-style:italic;font-weight:400;font-display:swap;src:url('${p}fonts/source-serif-4-italic.woff2') format('woff2')}
 </style>`;
+}
+// Backward-compat shim — old call sites destructure FONT_HEAD as a string.
+// Resolves to the homepage variant. Sub-page templates that previously used
+// FONT_HEAD must be migrated to fontHead('../') — see migration in the
+// per-page edits below.
+const FONT_HEAD = fontHead('');
 
 function confidenceToPips(confidence) {
   const levels = { '★': 1, '★★': 2, '★★★': 3, '★★★★': 4, '★★★★★': 5 };
@@ -158,6 +171,50 @@ const countryCodes = {
 };
 
 function getCountryCode(country) { return countryCodes[country] || country?.substring(0, 3).toUpperCase() || '???'; }
+
+// Round 9 #6: country → BCP-47 language code map for original-title fields.
+// Falls back to 'und' (undetermined) for ambiguous/multilingual countries
+// (Belgium, Switzerland, Canada, India) where we can't confidently pick one.
+// Screen readers use lang attrs to switch voicing — Japanese characters
+// announced under lang="ja" sound right; under lang="und" or default English,
+// they don't. Conservative map: only countries where one language dominates
+// the animation production language.
+const countryLangs = {
+  'Japan': 'ja', 'China': 'zh', 'Taiwan': 'zh', 'Hong Kong': 'zh', 'Macau': 'zh',
+  'South Korea': 'ko', 'North Korea': 'ko',
+  'Russia': 'ru', 'USSR': 'ru', 'Belarus': 'ru', 'Ukraine': 'uk',
+  'Czech Republic': 'cs', 'Czechoslovakia': 'cs', 'Slovakia': 'sk',
+  'Poland': 'pl', 'Hungary': 'hu', 'Romania': 'ro', 'Bulgaria': 'bg',
+  'Yugoslavia': 'sh', 'Croatia': 'hr', 'Serbia': 'sr', 'Slovenia': 'sl',
+  'Bosnia and Herzegovina': 'bs', 'Montenegro': 'sr', 'North Macedonia': 'mk', 'Albania': 'sq',
+  'Greece': 'el', 'Turkey': 'tr', 'Iran': 'fa', 'Israel': 'he',
+  'Saudi Arabia': 'ar', 'UAE': 'ar', 'Egypt': 'ar', 'Kuwait': 'ar', 'Qatar': 'ar',
+  'Lebanon': 'ar', 'Syria': 'ar', 'Jordan': 'ar', 'Iraq': 'ar', 'Palestine': 'ar',
+  'Bahrain': 'ar', 'Oman': 'ar', 'Yemen': 'ar', 'Morocco': 'ar', 'Algeria': 'ar',
+  'Tunisia': 'ar', 'Libya': 'ar', 'Sudan': 'ar',
+  'Germany': 'de', 'East Germany': 'de', 'Austria': 'de',
+  'France': 'fr', 'Italy': 'it', 'Spain': 'es', 'Portugal': 'pt',
+  'Netherlands': 'nl', 'Sweden': 'sv', 'Denmark': 'da', 'Norway': 'no',
+  'Finland': 'fi', 'Iceland': 'is', 'Estonia': 'et', 'Latvia': 'lv', 'Lithuania': 'lt',
+  'Brazil': 'pt', 'Mexico': 'es', 'Argentina': 'es', 'Chile': 'es', 'Colombia': 'es',
+  'Peru': 'es', 'Venezuela': 'es', 'Cuba': 'es', 'Ecuador': 'es', 'Uruguay': 'es',
+  'Bolivia': 'es', 'Paraguay': 'es', 'Guatemala': 'es', 'Honduras': 'es',
+  'El Salvador': 'es', 'Nicaragua': 'es', 'Costa Rica': 'es', 'Panama': 'es',
+  'Dominican Republic': 'es', 'Puerto Rico': 'es',
+  'Vietnam': 'vi', 'Thailand': 'th', 'Indonesia': 'id', 'Malaysia': 'ms',
+  'Philippines': 'fil', 'Cambodia': 'km', 'Laos': 'lo', 'Myanmar': 'my',
+  'Mongolia': 'mn', 'Bangladesh': 'bn', 'Pakistan': 'ur', 'Sri Lanka': 'si',
+  'Nepal': 'ne', 'Afghanistan': 'fa', 'Armenia': 'hy', 'Georgia': 'ka',
+  'Kazakhstan': 'kk', 'Uzbekistan': 'uz', 'Turkmenistan': 'tk', 'Tajikistan': 'tg',
+  'Kyrgyzstan': 'ky', 'Azerbaijan': 'az',
+  'Ethiopia': 'am', 'Madagascar': 'mg',
+  'USA': 'en', 'UK': 'en', 'Australia': 'en', 'New Zealand': 'en', 'Ireland': 'en',
+  'Jamaica': 'en', 'Trinidad and Tobago': 'en', 'Bahamas': 'en', 'Singapore': 'en',
+  // Multilingual countries default to 'und' (curator can override per-film if needed):
+  // Belgium (nl/fr/de), Switzerland (de/fr/it/rm), Canada (en/fr), India (hi+22 others),
+  // South Africa (en/af/zu+9), Cameroon (en/fr), Luxembourg, Malta, Cyprus.
+};
+function getCountryLang(country) { return countryLangs[country] || 'und'; }
 
 // Technique descriptions for technique pages
 const techniqueDescriptions = {
@@ -623,7 +680,12 @@ function generateFooter(pathPrefix = '') {
   // For static pages, pick a random film at build time (changes daily with rebuilds)
   const randomFilm = films[Math.floor(Math.random() * films.length)];
   const randomUrl = pathPrefix + getFilmUrl(randomFilm);
-  return `<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="${randomUrl}" class="footer-random">🎲 Random Film</a><a href="#report-form" target="_blank" class="footer-report">📝 Report broken link</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer><button class="back-to-top" aria-label="Back to top">↑</button>`;
+  // Round 9 #6: was href="#report-form" pointing to a non-existent anchor
+  // (dead-link bug on every page). Now opens user's mail client with a
+  // pre-filled subject. mailto: works without JavaScript and without an
+  // external form provider — appropriate for a personal research archive.
+  const reportSubject = encodeURIComponent('Animation Archive: broken/missing watch link');
+  return `<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="${randomUrl}" class="footer-random">🎲 Random Film</a><a href="mailto:kylebarrett1@mac.com?subject=${reportSubject}" class="footer-report">📝 Report broken link</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer><button class="back-to-top" aria-label="Back to top">↑</button>`;
 }
 
 // Film of the Day: deterministic selection by calendar date.
@@ -907,15 +969,223 @@ function generateRelatedFilmsSection(film) {
   </section>`;
 }
 
-function generateTableRows(filmList, basePath = '') {
+// Backwards-compat: legacy signature was `generateTableRows(films, basePath)`
+// where basePath was a string. New signature accepts an options object too:
+//   generateTableRows(films, '../')                                    // legacy
+//   generateTableRows(films, { basePath: '../' })                      // new
+//   generateTableRows(films, { basePath: '../', omitMeta: 'studio' })  // new
+//
+// `omitMeta` filters one of director/studio out of the meta cell — used
+// by entity pages so a director's filmography doesn't repeat the
+// Round 10 #1: shared sortable thead for entity pages — country, technique,
+// decade, studio, director, series, genre, keyword, platform. Mirrors the
+// homepage table's class="sortable" + aria-sort pattern so entityTableEnhanceScript
+// below can wire up keyboard-accessible click-to-sort. Default sort is year-desc
+// (newest first), matching the homepage convention.
+function entityTableThead() {
+  return `<thead>
+        <tr>
+          <th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+          <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
+          <th scope="col">Director / Studio</th>
+          <th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
+          <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
+          <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
+          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+        </tr>
+      </thead>`;
+}
+
+// Round 10 #1: search box + watchable/subs filter pills + result counter.
+// Renders ABOVE the entity table inside .entity-films-section. Self-contained;
+// no dependency on the homepage app.js or the lazy-loaded catalog. Operates
+// purely on the inline <tr data-watchable data-subs ...> rows that
+// generateTableRows() already emits.
+function entityTableControls(filmCount) {
+  const noun = filmCount === 1 ? 'film' : 'films';
+  return `<div class="entity-controls" role="search" aria-label="Filter and search films">
+        <input type="search" id="entity-search" class="entity-search-input" placeholder="Search ${filmCount.toLocaleString()} ${noun}…" autocomplete="off" />
+        <label class="entity-filter-pill"><input type="checkbox" id="entity-filter-watchable"><span>Watchable only</span></label>
+        <label class="entity-filter-pill"><input type="checkbox" id="entity-filter-subs"><span>EN subs</span></label>
+        <span class="entity-result-count" id="entity-result-count" aria-live="polite">${filmCount.toLocaleString()} ${noun}</span>
+      </div>`;
+}
+
+// Round 10 #1: inline JS that wires the controls + sortable headers above
+// to the static <tbody> rows. Hides non-matching rows via display:none;
+// updates the count badge; reorders rows for sort. ~80 lines of JS, runs
+// once per page on DOMContentLoaded. No external dependencies.
+function entityTableEnhanceScript(filmCount) {
+  return `<script>
+(function(){
+  const search = document.getElementById('entity-search');
+  const watchableT = document.getElementById('entity-filter-watchable');
+  const subsT = document.getElementById('entity-filter-subs');
+  const countEl = document.getElementById('entity-result-count');
+  const tbody = document.querySelector('.entity-films-section tbody');
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const total = ${filmCount};
+  const noun = total === 1 ? 'film' : 'films';
+  function applyFilters(){
+    const q = (search && search.value || '').trim().toLowerCase();
+    const wantW = !!(watchableT && watchableT.checked);
+    const wantS = !!(subsT && subsT.checked);
+    let visible = 0;
+    for (const row of rows){
+      let show = true;
+      if (q){
+        const text = (row.textContent || '').toLowerCase();
+        if (!text.includes(q)) show = false;
+      }
+      if (show && wantW && row.dataset.watchable !== 'true') show = false;
+      if (show && wantS && row.dataset.subs !== 'true') show = false;
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    }
+    if (countEl){
+      countEl.textContent = visible === total
+        ? total.toLocaleString() + ' ' + noun
+        : visible.toLocaleString() + ' of ' + total.toLocaleString() + ' ' + noun;
+    }
+  }
+  if (search) search.addEventListener('input', applyFilters);
+  if (watchableT) watchableT.addEventListener('change', applyFilters);
+  if (subsT) subsT.addEventListener('change', applyFilters);
+  // Sortable column headers
+  const ths = document.querySelectorAll('.entity-films-section th.sortable');
+  let cur = { col: 'year', dir: 'desc' };
+  function sortRows(col, dir){
+    const cmp = (a, b) => {
+      let av, bv;
+      if (col === 'year'){
+        av = parseInt(a.dataset.year || (a.querySelector('.table-year') && a.querySelector('.table-year').textContent) || '0', 10) || 0;
+        bv = parseInt(b.dataset.year || (b.querySelector('.table-year') && b.querySelector('.table-year').textContent) || '0', 10) || 0;
+      } else if (col === 'title'){
+        av = ((a.querySelector('.table-title') && a.querySelector('.table-title').textContent) || '').toLowerCase();
+        bv = ((b.querySelector('.table-title') && b.querySelector('.table-title').textContent) || '').toLowerCase();
+      } else if (col === 'technique'){
+        av = (a.dataset.technique || '').toLowerCase();
+        bv = (b.dataset.technique || '').toLowerCase();
+      } else return 0;
+      if (av < bv) return dir === 'asc' ? -1 : 1;
+      if (av > bv) return dir === 'asc' ? 1 : -1;
+      return 0;
+    };
+    rows.sort(cmp);
+    const frag = document.createDocumentFragment();
+    for (const r of rows) frag.appendChild(r);
+    tbody.appendChild(frag);
+  }
+  ths.forEach(th => {
+    const handler = () => {
+      const col = th.dataset.sort;
+      let dir = 'asc';
+      if (cur.col === col) dir = cur.dir === 'asc' ? 'desc' : 'asc';
+      cur = { col: col, dir: dir };
+      ths.forEach(t => {
+        const isActive = t === th;
+        t.classList.toggle('active', isActive);
+        t.setAttribute('aria-sort', isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none');
+        const ind = t.querySelector('.sort-indicator');
+        if (ind) ind.textContent = isActive ? (dir === 'asc' ? '▲' : '▼') : '';
+      });
+      sortRows(col, dir);
+    };
+    th.addEventListener('click', handler);
+    th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); handler(); }});
+  });
+})();
+</script>`;
+}
+
+// Round 12 #3: "Most prolific" chip strip rendered above the alphabet nav
+// on directors / studios / countries indexes. Surfaces the top-N entities
+// so the user lands on a discovery surface, not just a lookup tool. Build-
+// time computation; entities passed in pre-sorted by film count desc.
+function entityIndexTopChips(items, hrefFor, countFor, opts = {}) {
+  const { limit = 10, label = 'Most prolific' } = opts;
+  const top = items.slice(0, limit).filter(it => countFor(it) > 0);
+  if (top.length === 0) return '';
+  return `<div class="entity-index-top" aria-label="${escapeHtml(label)}">
+    <span class="entity-index-top-label">${escapeHtml(label)}</span>
+    <div class="entity-index-top-chips">
+      ${top.map(it => `<a href="${hrefFor(it)}" class="entity-index-top-chip">${escapeHtml(it.name)} <span class="entity-index-top-chip-count">${countFor(it)}</span></a>`).join('')}
+    </div>
+  </div>`;
+}
+
+// Round 12 #1: search box + result counter for entity index pages
+// (directors, studios, countries). Same .entity-controls styling as the
+// table version (Round 10 #1) but scoped to filter cards in a CSS grid
+// instead of rows in a tbody. Empty letter sections collapse when their
+// last visible card is filtered out.
+function entityIndexControls(totalEntities, entityNoun = 'entries') {
+  return `<div class="entity-controls" role="search" aria-label="Filter ${entityNoun}">
+    <input type="search" id="entity-index-search" class="entity-search-input" placeholder="Search ${totalEntities.toLocaleString()} ${entityNoun}…" autocomplete="off" />
+    <span class="entity-result-count" id="entity-index-result-count" aria-live="polite">${totalEntities.toLocaleString()} ${entityNoun}</span>
+  </div>`;
+}
+
+// Round 12 #1: inline JS that wires the search box to the card grid.
+// Hides non-matching cards via display:none. Letter-section headings
+// collapse when all their cards are hidden, so the alphabetical
+// structure reflects the active filter. Self-contained per page.
+function entityIndexEnhanceScript(totalEntities, entityNoun = 'entries') {
+  return `<script>
+(function(){
+  const search = document.getElementById('entity-index-search');
+  const countEl = document.getElementById('entity-index-result-count');
+  const cards = Array.from(document.querySelectorAll('.director-card, .country-card, .entity-card'));
+  const sections = Array.from(document.querySelectorAll('.directors-letter-section, .entity-index-letter-section'));
+  if (!search || cards.length === 0) return;
+  const total = ${totalEntities};
+  const noun = '${entityNoun}';
+  function applyFilter(){
+    const q = search.value.trim().toLowerCase();
+    let visible = 0;
+    for (const card of cards) {
+      const name = (card.querySelector('.director-name, .country-card-name, .entity-card-name') || card).textContent.toLowerCase();
+      const show = !q || name.includes(q);
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    }
+    for (const section of sections) {
+      const anyVisible = Array.from(section.querySelectorAll('.director-card, .entity-card')).some(c => c.style.display !== 'none');
+      section.style.display = anyVisible ? '' : 'none';
+    }
+    if (countEl) {
+      countEl.textContent = visible === total
+        ? total.toLocaleString() + ' ' + noun
+        : visible.toLocaleString() + ' of ' + total.toLocaleString() + ' ' + noun;
+    }
+  }
+  search.addEventListener('input', applyFilter);
+})();
+</script>`;
+}
+
+// director's name in every row, and a studio's filmography doesn't
+// repeat the studio's name. Producing the OTHER party only.
+function generateTableRows(filmList, opts = '') {
+  // Normalize legacy string-arg call
+  const { basePath = '', omitMeta = null } = (typeof opts === 'string') ? { basePath: opts } : opts;
   return filmList.map(film => {
-    const directorHtml = getDirectorLink(film, basePath);
-    const studioHtml = getStudioLink(film, basePath);
+    const directorHtml = (omitMeta !== 'director') ? getDirectorLink(film, basePath) : '';
+    const studioHtml   = (omitMeta !== 'studio')   ? getStudioLink(film, basePath)   : '';
+    let metaCell;
+    if (directorHtml && studioHtml) {
+      metaCell = `<td class="table-meta"><strong>${directorHtml}</strong><br>${studioHtml}</td>`;
+    } else if (directorHtml || studioHtml) {
+      metaCell = `<td class="table-meta">${directorHtml || studioHtml}</td>`;
+    } else {
+      metaCell = `<td class="table-meta">—</td>`;
+    }
     return `
     <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}">
       <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
       <td><a href="${getFilmUrl(film, basePath)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
-      <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
+      ${metaCell}
       <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
       <td class="table-runtime hide-mobile">${escapeHtml(film.runtime) || '—'}</td>
       <td class="hide-mobile"><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
@@ -1046,7 +1316,7 @@ ${FONT_HEAD}
     </div>
     <div class="sidebar-group">
       <div class="sidebar-group-header">Filter</div>
-      <div class="query-display" id="active-query" style="display:none;"><div class="query-label">Active Filters</div><div class="query-tags" id="query-tags"></div></div>
+      ${/* Round 9 #5: .query-display removed — duplicated the above-table FILTERED: pill strip. The active filter-item already shows visual selection via .filter-item.active left-border accent, so the sidebar carries no redundant pill block. */ ''}
       <div class="sidebar-section"><div class="sidebar-header">Format</div><div class="filter-list" role="listbox" aria-label="Filter by format">
         <div class="filter-item" data-filter-type="format" data-filter-value="Feature" role="option"><span class="name">Feature</span><span class="count">${stats.formats.Feature || 0}</span></div>
         <div class="filter-item" data-filter-type="format" data-filter-value="Short" role="option"><span class="name">Short</span><span class="count">${stats.formats.Short || 0}</span></div>
@@ -1069,7 +1339,12 @@ ${FONT_HEAD}
     <div class="content-header"><div><h2 class="content-title">From the Collection</h2><span class="content-meta" id="results-count">${stats.total.toLocaleString()} films</span></div><div class="search-actions"><div class="search-box"><label for="search-input" class="visually-hidden">Search films</label><input type="text" id="search-input" placeholder="Search titles, directors..." aria-describedby="results-count" /></div><button class="mobile-filter-toggle" id="mobile-filter-toggle" aria-label="Open filters">FILTERS</button><button id="random-film-btn" class="random-btn" aria-label="Go to random film">🎲 Random</button></div><div class="keyboard-hints"><kbd>/</kbd> search <kbd>r</kbd> random <kbd>esc</kbd> clear</div></div>
     <div class="active-filters-bar" id="active-filters-bar"><span class="active-filters-label">Filtered:</span></div>
     ${generateFilmOfTheDayCard(getFilmOfTheDay(sortedFilms))}
-    <div class="table-wrapper"><table class="film-table"><thead><tr><th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th><th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col">Director / Studio</th><th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col" style="width:70px" class="hide-mobile">Runtime</th><th scope="col" style="width:90px" class="hide-mobile">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
+    ${/* Round 9 #5: aria-live="polite" on the wrapper so screen readers
+        announce row updates when the user changes filters/search. Polite
+        (not assertive) — table changes shouldn't preempt other speech.
+        aria-atomic="false" so only the changed rows are announced, not
+        the entire table on every keystroke. */ ''}
+    <div class="table-wrapper" aria-live="polite" aria-atomic="false"><table class="film-table"><thead><tr><th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th><th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col">Director / Studio</th><th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col" style="width:70px" class="hide-mobile">Runtime</th><th scope="col" style="width:90px" class="hide-mobile">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
     <div id="no-results" class="no-results" style="display:none"><h3 class="no-results-title">No films match your criteria</h3><p class="no-results-message" id="no-results-detail">Try adjusting your search or filters.</p><button id="clear-all-btn" class="clear-all-btn" style="display:none">Clear All Filters</button></div>
     ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${sortedFilms.length}">Load More <span class="load-more-count">(${sortedFilms.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
   </main>
@@ -1087,7 +1362,8 @@ ${FONT_HEAD}
 </section>
 <footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><a href="#" class="footer-random" id="footer-random-link">🎲 Random</a><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
 <button class="back-to-top" aria-label="Back to top">↑</button>
-<script>window.__CATALOG_URL=${JSON.stringify('/' + ASSET_URLS.filmsIndex)}</script>
+<!-- Round 9 #4: relative path (no leading /) so the catalog loads regardless of how the site is served — file://, Live Server with project-root, npx serve dist, Netlify. Only injected on the homepage; sub-pages don't filter. -->
+<script>window.__CATALOG_URL=${JSON.stringify(ASSET_URLS.filmsIndex)}</script>
 <script src="${ASSET_URLS.app}" defer></script>
 <!-- Catalog (films-index.js, ~280KB gz) is now lazy-loaded by app.js on
      first interaction or after 2s of idle — see ensureCatalog() in
@@ -1206,7 +1482,7 @@ ${film.year ? `<meta property="video:release_date" content="${film.year}">` : ''
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateFilmJsonLd(film)}</script>
 
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -1227,7 +1503,7 @@ ${generateBreadcrumb([
     <div class="detail-title-section">
       <div class="detail-technique">${escapeHtml(techniques.toUpperCase())}</div>
       <h1 class="detail-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</h1>
-      ${film.originalTitle ? `<div class="detail-original" lang="und">${escapeHtml(film.originalTitle)}</div>` : ''}
+      ${film.originalTitle ? `<div class="detail-original" lang="${getCountryLang(film.country)}">${escapeHtml(film.originalTitle)}</div>` : ''}
       <div class="detail-credits">${getDirectorLink(film, '../') ? `Directed by <strong>${getDirectorLink(film, '../')}</strong><br>` : ''}${getStudioLink(film, '../') ? `Produced by <strong>${getStudioLink(film, '../')}</strong>` : ''}${film.runtime ? ` · ${escapeHtml(film.runtime)}` : ''}</div>
     </div>
     <div class="detail-actions">${(() => {
@@ -1237,14 +1513,24 @@ ${generateBreadcrumb([
       // Inline lock SVG to dodge cross-OS emoji rendering inconsistency.
       const link = getBestWatchLink(film);
       if (!link) {
-        return `<a href="#report-form" class="detail-suggest-link" aria-label="Help us find a watch link for ${escapeHtml(film.titleEnglish || 'this film')}">Help us find a watch link →</a>`;
+        // Round 9 #6: real mailto: with film title pre-filled. Was a dead
+        // #report-form anchor that scrolled nowhere. The body parameter
+        // gives the user a starting message so they don't face a blank email.
+        const subj = encodeURIComponent(`Watch link for ${film.titleEnglish || 'this film'}`);
+        const body = encodeURIComponent(`Hi — I have a watch link suggestion for ${film.titleEnglish || 'this film'} (${film.year || ''}):\n\nURL: \nPlatform: \nNotes: \n\nThanks!`);
+        return `<a href="mailto:kylebarrett1@mac.com?subject=${subj}&body=${body}" class="detail-suggest-link" aria-label="Help us find a watch link for ${escapeHtml(film.titleEnglish || 'this film')}">Help us find a watch link →</a>`;
       }
       const lockSvg = `<svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0;margin-right:6px"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>`;
       const gated = isGated(link);
       const cls = gated ? 'detail-watch-btn detail-watch-btn-gated' : 'detail-watch-btn';
+      // Round 9 #2: platform name wrapped in .detail-watch-platform so the
+      // truncation point at narrow widths is the platform (replaceable
+      // with a tap-to-open) rather than the verb. Round 8 #5 had the
+      // ellipsis on the button itself, which clipped "OPEN ON ARCH…"
+      // and lost where the user was going.
       const label = gated
-        ? `${lockSvg}OPEN ON ${escapeHtml((link.platform || 'PLATFORM').toUpperCase())}`
-        : `▶ WATCH NOW`;
+        ? `${lockSvg}<span class="detail-watch-prefix">OPEN ON</span> <span class="detail-watch-platform">${escapeHtml((link.platform || 'PLATFORM').toUpperCase())}</span>`
+        : `<span class="detail-watch-prefix">▶ WATCH NOW</span>`;
       const aria = gated
         ? `Open ${escapeHtml(film.titleEnglish || 'this film')} on ${escapeHtml(link.platform || 'platform')} — sign-in or subscription may be required (opens in new tab)`
         : `Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)`;
@@ -1265,7 +1551,7 @@ ${generateBreadcrumb([
       ${film.keyCredits ? `<h2>Key Credits</h2><p>${escapeHtml(film.keyCredits)}</p>` : ''}
       ${film.notes ? `<h2>Notes</h2><p>${escapeHtml(film.notes)}</p>` : ''}
       ${film.researchSources ? `<div class="research-sources"><h2>Research Sources</h2><p class="sources-list">${escapeHtml(film.researchSources).split(',').map(s => s.trim()).filter(s => s).join(' · ')}</p></div>` : ''}
-      ${!film.synopsis && !film.historicalContext && !film.keyCredits && !film.notes ? '<div class="empty-state"><p class="empty-state-message">No detailed information available yet.</p><a href="#report-form" class="empty-state-cta">Help us add details for this film →</a></div>' : ''}
+      ${!film.synopsis && !film.historicalContext && !film.keyCredits && !film.notes ? `<div class="empty-state"><p class="empty-state-message">No detailed information available yet.</p><a href="mailto:kylebarrett1@mac.com?subject=${encodeURIComponent('Details for ' + (film.titleEnglish || 'this film'))}&body=${encodeURIComponent('Hi — I have details to contribute for ' + (film.titleEnglish || 'this film') + ' (' + (film.year || '') + '):\n\nSynopsis:\nHistorical context:\nKey credits:\nNotes:\nSources:\n\nThanks!')}" class="empty-state-cta">Help us add details for this film →</a></div>` : ''}
       ${generateFilmTags(film)}
     </div>
     <aside class="detail-data-panel" aria-label="Film metadata">
@@ -1276,7 +1562,17 @@ ${generateBreadcrumb([
       ${film.studioEntities && film.studioEntities.length > 0 ? `<div class="data-row"><dt class="data-label">Studio</dt><dd class="data-value">${film.studioEntities.map(s => { const studio = studioMap.get(s.id); return studio ? `<a href="../${getStudioUrl(studio)}">${escapeHtml(s.name)}</a>` : escapeHtml(s.name); }).join(', ')}</dd></div>` : film.studio ? `<div class="data-row"><dt class="data-label">Studio</dt><dd class="data-value">${escapeHtml(film.studio)}</dd></div>` : ''}
       ${film.directorEntities && film.directorEntities.length > 0 ? `<div class="data-row"><dt class="data-label">Director</dt><dd class="data-value">${film.directorEntities.map(d => { const director = directorMap.get(d.id); return director ? `<a href="../${getDirectorUrl(director)}">${escapeHtml(d.name)}</a>` : escapeHtml(d.name); }).join(', ')}</dd></div>` : ''}
       ${film.seriesEntities && film.seriesEntities.length > 0 ? `<div class="data-row"><dt class="data-label">Part of</dt><dd class="data-value">${film.seriesEntities.map(s => { const series = seriesMap.get(s.id); return series ? `<a href="../${getSeriesUrl(series)}">${escapeHtml(s.name)}</a>` : escapeHtml(s.name); }).join(', ')}</dd></div>` : ''}
-      ${film.sourceMaterial ? `<div class="data-row"><dt class="data-label">Source</dt><dd class="data-value">${escapeHtml(film.sourceMaterial)}</dd></div>` : ''}
+      ${film.sourceMaterial ? (() => {
+        // Round 9 #6: Source values can be 200+ chars (manga serialization
+        // history, etc) — too long for a key/value row. Truncate at 60
+        // chars in the panel; full string lives in the title attribute
+        // for hover. Curators who want long-form provenance should add it
+        // to the body Notes/Historical Context sections.
+        const src = film.sourceMaterial;
+        const truncated = src.length > 60 ? src.slice(0, 60).trimEnd() + '…' : src;
+        const titleAttr = src.length > 60 ? ` title="${escapeHtml(src)}"` : '';
+        return `<div class="data-row"><dt class="data-label">Source</dt><dd class="data-value"${titleAttr}>${escapeHtml(truncated)}</dd></div>`;
+      })() : ''}
       ${film.runtime ? `<div class="data-row"><dt class="data-label">Runtime</dt><dd class="data-value">${escapeHtml(film.runtime)}</dd></div>` : ''}
       <div class="data-row"><dt class="data-label">Confidence</dt><dd class="data-value confidence-pips">${confidenceToPips(film.confidence)}</dd></div>
       <div class="data-row"><dt class="data-label">Updated</dt><dd class="data-value">${film.lastUpdated?.split('T')[0] || '—'}</dd></div>
@@ -1291,183 +1587,223 @@ ${generateFooter('../')}
 </body></html>`;
 }
 
+// Round 16 #1: extracted shared design-token block. Was hand-mirrored in two
+// places (generateCSS main styles + generate404Page inline styles). Round 15's
+// --ink-faint deletion silently failed to propagate to the 404 because the
+// inline copy was orphaned. Now both surfaces consume the same source — any
+// token change here flows automatically. KEEP the comment markers in :root
+// (they're useful for grep) but the actual values live in this single helper.
+function coreDesignTokens() {
+  return `:root{
+/* Round 15 ancillary: --cream-dark powers .active-filters-bar background. --rule-dark powers .film-table th + .filter-item:hover. Both look stagnant in selector counts but are doing real work — keep. */
+--cream:#f8f6f1;--cream-dark:#eae6dd;--paper:#fffef9;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#6b655e;
+/* Round 15 #1: --ink-faint was a perceptual twin of --ink-muted (Δ G+1 B+2). Deleted; 13 refs migrated. */
+--rule:#d6d3d1;--rule-dark:#a8a29e;--accent:#9f1239;--data-bg:#f3f1ec;--mono:'JetBrains Mono',monospace;
+/* Round 15 #2: badge tokens — replace inline style="background:#hex" emitted in watch-link cards. */
+--badge-free:#22c55e;--badge-ads:#eab308;--badge-sub:#3b82f6;--badge-rent:#f97316;--badge-buy:#ef4444;--badge-disc:#6b7280;--badge-region:#8b5cf6;
+/* Round 14 #1/#2: type scale — page/section heros + body/data tokens. */
+--type-page-hero:42px;--type-section-hero:22px;
+--type-body:16px;--type-body-sm:14px;--type-meta:13px;
+--type-data:12px;--type-data-sm:11px;--type-data-xs:10px;
+/* Round 13 #1: spacing scale + outlined-button border width. */
+--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;--space-7:48px;
+--border-emphasis:1.5px;
+/* Round 14 ancillary: font-family tokens. Mirrors --mono. */
+--font-display:'Playfair Display',serif;--font-prose:'Source Serif 4',serif;
+}`;
+}
+
 function generateCSS() {
-  return `*{margin:0;padding:0;box-sizing:border-box}:root{--cream:#f8f6f1;--cream-dark:#eae6dd;--paper:#fffef9;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#6b655e;--ink-faint:#6b6660;--rule:#d6d3d1;--rule-dark:#a8a29e;--accent:#9f1239;--data-bg:#f3f1ec;--mono:'JetBrains Mono',monospace;
-/* Type scale — three semantic title roles. New page templates should use
-   these tokens instead of inventing px values. Existing selectors that
-   pre-date the tokens are migrated incrementally; one-off sizes
-   (.decade-name 56px display, .film-of-day-title 22px, .masthead-title 36px)
-   stay because they're intentional editorial choices. */
---type-page-hero:42px;     /* top-of-page entity name (country, director, studio, series, tag, error) */
---type-section-hero:22px;  /* h2-equivalent within content */
---type-card-hero:18px;     /* card title in a grid of cards (country-card, entity-card, director-card, related) */
-}html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}a{color:inherit}.skip-link{position:absolute;top:-40px;left:0;background:var(--ink);color:var(--cream);padding:8px 16px;z-index:1000;font-family:var(--mono);font-size:12px;text-decoration:none}.skip-link:focus{top:0}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.masthead{background:var(--paper);border-bottom:1px solid var(--rule)}.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:10px 32px;border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.masthead-main{text-align:center;padding:28px 32px 24px}.masthead-title{font-family:'Playfair Display',serif;font-size:36px;font-weight:400;letter-spacing:.02em;margin-bottom:4px}.masthead-subtitle{font-family:'Source Serif 4',serif;font-size:13px;font-style:italic;color:var(--ink-muted)}.stats-bar{background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:11px;display:flex}.stat-block{flex:1;padding:8px 20px;border-right:1px solid rgba(255,255,255,.15);display:flex;justify-content:space-between;align-items:baseline;gap:12px}.stat-block:last-child{border-right:none}.stat-label{opacity:.6;text-transform:uppercase;letter-spacing:.1em;font-size:10px}.stat-value{font-size:13px;font-weight:600}.main-nav{display:flex;justify-content:center;gap:40px;padding:14px 32px;background:var(--cream);border-bottom:2px solid var(--ink)}.main-nav a{font-size:11px;letter-spacing:.15em;text-transform:uppercase;text-decoration:none;color:var(--ink-light);font-weight:500;transition:color .2s}.main-nav a:hover,.main-nav a.active{color:var(--accent)}.main-layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 200px)}.sidebar{background:var(--paper);border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px}.sidebar-group{border-bottom:1px solid var(--rule)}.sidebar-group-header{padding:12px 16px;background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:600}.browse-nav{display:flex;flex-direction:column}.browse-link{display:flex;align-items:center;padding:12px 16px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:12px;color:var(--ink-light);text-decoration:none;border-bottom:1px solid var(--rule);transition:background .15s,color .15s}.browse-link:last-child{border-bottom:none}.browse-link:hover{background:var(--cream);color:var(--accent)}.browse-link:focus{outline:2px solid var(--accent);outline-offset:-2px;color:var(--accent)}.browse-arrow{margin-right:8px;color:var(--ink-faint)}.browse-link:hover .browse-arrow{color:var(--accent)}.browse-link .count{margin-left:auto;color:var(--ink-faint);font-size:11px}.sidebar-section{border-bottom:1px solid var(--rule)}.sidebar-header{padding:12px 16px;background:var(--data-bg);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);display:flex;justify-content:space-between;border-bottom:1px solid var(--rule)}.query-display{padding:16px;background:var(--cream-dark);border-bottom:1px solid var(--rule)}.query-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;font-weight:600}.query-tags{display:flex;flex-wrap:wrap;gap:6px}.query-tag{background:var(--paper);border:1px solid var(--rule);padding:4px 10px;font-size:11px;display:flex;align-items:center;gap:8px}.query-tag .remove{color:var(--ink-faint);cursor:pointer;font-size:14px}.query-tag .remove:hover{color:var(--accent)}.filter-list{max-height:200px;overflow-y:auto}.filter-item{display:flex;justify-content:space-between;align-items:center;min-height:44px;padding:10px 16px;cursor:pointer;transition:background .15s;border-left:3px solid transparent}.filter-item:hover{background:var(--cream);border-left-color:var(--rule-dark)}.filter-item:focus{outline:2px solid var(--accent);outline-offset:-2px}.filter-item.active{background:var(--cream);border-left-color:var(--accent)}.filter-item .name{color:var(--ink-light)}.filter-item.active .name{color:var(--ink);font-weight:500}.filter-item .count{color:var(--ink-faint)}.content{background:var(--cream)}.content-header{display:flex;justify-content:space-between;align-items:center;padding:16px 32px;border-bottom:1px solid var(--rule);background:var(--paper)}.content-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:400}.content-meta{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.search-box input{padding:10px 16px;border:1px solid var(--rule);background:var(--cream);font-family:var(--mono);font-size:12px;width:280px}.search-box input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}.table-wrapper{overflow-x:auto}.film-table{width:100%;border-collapse:collapse;font-size:13px}.film-table thead{position:sticky;top:0;z-index:10;transition:box-shadow .2s}.film-table thead.is-sticky{box-shadow:0 2px 8px rgba(0,0,0,.1)}.film-table th{background:var(--data-bg);padding:12px 16px;text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);border-bottom:2px solid var(--rule-dark);font-weight:600}.film-table td{padding:16px;border-bottom:1px solid var(--rule);vertical-align:top;background:var(--paper)}.film-table tr:hover td{background:var(--cream)}.film-table tr.hidden{display:none}.table-year{font-family:'Playfair Display',serif;font-size:24px;font-weight:500;color:var(--ink);line-height:1}.table-country{font-family:var(--mono);font-size:10px;color:var(--ink-muted);margin-top:4px;letter-spacing:.05em}.table-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:500;margin-bottom:4px;line-height:1.3;text-decoration:none;display:block}.table-title:hover{color:var(--accent)}.table-title:focus{outline:2px solid var(--accent);outline-offset:2px}.table-original{font-family:'Source Serif 4',serif;font-size:13px;font-style:italic;color:var(--ink-muted)}.table-meta{font-size:12px;color:var(--ink-light);line-height:1.7}.table-meta strong{font-weight:500;color:var(--ink)}.table-technique{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:500}.table-runtime{font-family:var(--mono);font-size:12px;color:var(--ink-light)}.confidence-pips{font-family:var(--mono);font-size:14px;letter-spacing:2px}.confidence-pips .filled{color:var(--accent)}.confidence-pips .empty{color:var(--rule)}.watch-cell{text-align:right}.watch-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--ink);color:var(--cream);padding:10px 18px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.05em;text-decoration:none;transition:background .2s}.watch-btn:hover,.watch-btn:focus{background:var(--accent)}.subs-badge{display:block;margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--ink-muted)}.no-link{font-family:var(--mono);font-size:12px;color:var(--ink-faint)}.load-more-container{padding:32px;text-align:center;background:var(--paper);border-top:1px solid var(--rule)}.load-more-btn{background:var(--ink);color:var(--cream);border:none;padding:16px 40px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.1em;cursor:pointer;transition:background .2s}.load-more-btn:hover,.load-more-btn:focus{background:var(--accent);outline:none}.load-more-btn:disabled{background:var(--ink-muted);cursor:not-allowed}.load-more-count{opacity:.6;font-weight:400}.detail-page{padding:48px 32px;max-width:1200px;margin:0 auto}.detail-header{display:grid;grid-template-columns:180px 1fr auto;gap:40px;padding-bottom:40px;border-bottom:2px solid var(--ink);margin-bottom:40px}.detail-year-block{background:var(--data-bg);padding:32px;text-align:center;border:1px solid var(--rule)}.detail-year{font-family:'Playfair Display',serif;font-size:56px;font-weight:400;line-height:1;color:var(--ink)}.detail-country{font-family:var(--mono);font-size:12px;letter-spacing:.15em;color:var(--ink-muted);margin-top:12px}.detail-title-section{display:flex;flex-direction:column;justify-content:center}.detail-technique{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--accent);font-weight:600;margin-bottom:12px}.detail-title{font-family:'Playfair Display',serif;font-size:38px;font-weight:400;line-height:1.15;margin-bottom:8px}.detail-original{font-family:'Source Serif 4',serif;font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:20px}.detail-credits{font-size:15px;color:var(--ink-light);line-height:1.8}.detail-credits strong{font-weight:500;color:var(--ink)}.detail-actions{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:12px}.detail-watch-btn{display:flex;align-items:center;justify-content:center;gap:12px;background:var(--ink);color:var(--cream);padding:18px 32px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.1em;text-decoration:none;transition:background .2s}.detail-watch-btn:hover,.detail-watch-btn:focus{background:var(--accent)}/* Gated detail CTA — Restricted/Unverified status. Honest about the gating without making the page's primary button look broken. */.detail-watch-btn-gated{background:transparent;color:var(--ink);border:1.5px solid var(--ink);padding:16.5px 30.5px}.detail-watch-btn-gated:hover,.detail-watch-btn-gated:focus{background:var(--ink);color:var(--cream)}/* Empty-state CTA replacing the dead "NO WATCH LINK AVAILABLE" text. Encourages contribution rather than ending the journey. */.detail-suggest-link{display:inline-flex;align-items:center;font-family:var(--mono);font-size:12px;color:var(--ink-muted);text-decoration:underline;text-underline-offset:3px;padding:12px 0;min-height:44px;transition:color .15s}.detail-suggest-link:hover,.detail-suggest-link:focus{color:var(--accent)}.detail-subs{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.detail-body{display:grid;grid-template-columns:1fr 280px;gap:60px}.detail-content h2{font-family:'Playfair Display',serif;font-size:var(--type-section-hero);font-weight:400;margin-bottom:16px;margin-top:36px}.detail-content h2:first-child{margin-top:0}.detail-content p{font-family:'Source Serif 4',serif;font-size:16px;line-height:1.9;color:var(--ink-light);margin-bottom:20px}.detail-content .no-content{font-style:italic;color:var(--ink-muted)}.detail-data-panel{background:var(--data-bg);border:1px solid var(--rule);padding:24px;font-family:var(--mono);font-size:12px;height:fit-content;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto}.data-panel-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule)}.data-list{display:block}.data-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--rule)}.data-row:last-of-type{border-bottom:none}.data-label{color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;font-size:10px}.data-value{color:var(--ink);text-align:right;font-weight:500}.data-links{margin-top:24px;padding-top:24px;border-top:1px solid var(--rule)}.data-link{display:flex;align-items:center;padding:12px 0;min-height:44px;box-sizing:border-box;color:var(--ink-light);text-decoration:none;transition:color .15s;border-bottom:1px solid var(--rule)}.data-link:last-child{border-bottom:none}.data-link:hover{color:var(--accent)}.data-link:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}.data-link::before{content:'→';margin-right:8px;color:var(--ink-faint)}.about-section{background:var(--paper);border-top:2px solid var(--ink);padding:80px 32px}.about-inner{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px}.about-text h2{font-family:'Playfair Display',serif;font-size:32px;font-weight:400;line-height:1.3;margin-bottom:24px}.about-text h2 em{font-style:italic}.about-text p{font-family:'Source Serif 4',serif;font-size:15px;line-height:1.9;color:var(--ink-light);margin-bottom:16px}.about-data{background:var(--data-bg);border:1px solid var(--rule);padding:32px;font-family:var(--mono)}.about-data-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:24px}.about-stat-row{display:flex;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--rule);align-items:baseline}.about-stat-row:last-child{border-bottom:none}.about-stat-label{font-size:12px;color:var(--ink-light)}.about-stat-value{font-size:24px;font-weight:600;color:var(--ink)}.footer{background:var(--ink);color:var(--cream);padding:32px}.footer-inner{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}.footer-logo{font-family:'Playfair Display',serif;font-size:18px}.footer-timestamp{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.7)}/* Mobile filter toggle */
-.mobile-filter-toggle{display:none;background:var(--ink);color:var(--cream);border:none;padding:10px 16px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .2s;white-space:nowrap}
+  return `*{margin:0;padding:0;box-sizing:border-box}${coreDesignTokens()}
+html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);font-size:var(--type-body-sm);line-height:1.6;-webkit-font-smoothing:antialiased}a{color:inherit}.skip-link{position:absolute;top:-40px;left:0;background:var(--ink);color:var(--cream);padding:8px 16px;z-index:1000;font-family:var(--mono);font-size:var(--type-data);text-decoration:none}.skip-link:focus{top:0}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.masthead{background:var(--paper);border-bottom:1px solid var(--rule)}.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:10px 32px;border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}.masthead-main{text-align:center;padding:28px 32px 24px}.masthead-title{font-family:var(--font-display);font-size:36px;font-weight:400;letter-spacing:.02em;margin-bottom:4px}.masthead-subtitle{font-family:var(--font-prose);font-size:var(--type-meta);font-style:italic;color:var(--ink-muted)}.stats-bar{background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:var(--type-data-sm);display:flex}.stat-block{flex:1;padding:8px 20px;border-right:1px solid rgba(255,255,255,.15);display:flex;justify-content:space-between;align-items:baseline;gap:12px}.stat-block:last-child{border-right:none}.stat-label{opacity:.6;text-transform:uppercase;letter-spacing:.1em;font-size:var(--type-data-xs)}.stat-value{font-size:var(--type-meta);font-weight:600}.main-nav{display:flex;justify-content:center;gap:40px;padding:14px 32px;background:var(--cream);border-bottom:2px solid var(--ink)}.main-nav a{font-size:var(--type-data-sm);letter-spacing:.15em;text-transform:uppercase;text-decoration:none;color:var(--ink-light);font-weight:500;transition:color .2s}.main-nav a:hover,.main-nav a.active{color:var(--accent)}.main-layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 200px)}.sidebar{background:var(--paper);border-right:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data)}.sidebar-group{border-bottom:1px solid var(--rule)}.sidebar-group-header{padding:12px 16px;background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;font-weight:600}.browse-nav{display:flex;flex-direction:column}.browse-link{display:flex;align-items:center;padding:12px 16px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);color:var(--ink-light);text-decoration:none;border-bottom:1px solid var(--rule);transition:background .15s,color .15s}.browse-link:last-child{border-bottom:none}.browse-link:hover{background:var(--cream);color:var(--accent)}.browse-link:focus{outline:2px solid var(--accent);outline-offset:-2px;color:var(--accent)}.browse-arrow{margin-right:8px;color:var(--ink-muted)}.browse-link:hover .browse-arrow{color:var(--accent)}.browse-link .count{margin-left:auto;color:var(--ink-muted);font-size:var(--type-data-sm)}.sidebar-section{border-bottom:1px solid var(--rule)}.sidebar-header{padding:12px 16px;background:var(--data-bg);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);display:flex;justify-content:space-between;border-bottom:1px solid var(--rule)}/* Round 9 #5: removed .query-display / .query-label / .query-tags / .query-tag rules. The sidebar block they styled is gone — single source of truth for active filters is the above-table .active-filters-bar. */.filter-list{max-height:200px;overflow-y:auto}.filter-item{display:flex;justify-content:space-between;align-items:center;min-height:44px;padding:10px 16px;cursor:pointer;transition:background .15s;border-left:3px solid transparent}.filter-item:hover{background:var(--cream);border-left-color:var(--rule-dark)}.filter-item:focus{outline:2px solid var(--accent);outline-offset:-2px}.filter-item.active{background:var(--cream);border-left-color:var(--accent)}.filter-item .name{color:var(--ink-light)}.filter-item.active .name{color:var(--ink);font-weight:500}.filter-item .count{color:var(--ink-muted)}.content{background:var(--cream)}.content-header{display:flex;justify-content:space-between;align-items:center;padding:16px 32px;border-bottom:1px solid var(--rule);background:var(--paper)}.content-title{font-family:var(--font-display);font-size:20px;font-weight:400}.content-meta{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}.search-box input{padding:10px 16px;border:1px solid var(--rule);background:var(--cream);font-family:var(--mono);font-size:var(--type-data);width:280px}.search-box input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}.table-wrapper{overflow-x:auto}.film-table{width:100%;border-collapse:collapse;font-size:var(--type-meta)}.film-table thead{position:sticky;top:0;z-index:10;transition:box-shadow .2s}.film-table thead.is-sticky{box-shadow:0 2px 8px rgba(0,0,0,.1)}.film-table th{background:var(--data-bg);padding:12px 16px;text-align:left;font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);border-bottom:2px solid var(--rule-dark);font-weight:600}.film-table td{padding:16px;border-bottom:1px solid var(--rule);vertical-align:top;background:var(--paper)}.film-table tr:hover td{background:var(--cream)}.film-table tr.hidden{display:none}.table-year{font-family:var(--font-display);font-size:24px;font-weight:500;color:var(--ink);line-height:1}.table-country{font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);margin-top:4px;letter-spacing:.05em}.table-title{font-family:var(--font-display);font-size:18px;font-weight:500;margin-bottom:4px;line-height:1.3;text-decoration:none;display:block}.table-title:hover{color:var(--accent)}.table-title:focus{outline:2px solid var(--accent);outline-offset:2px}.table-original{font-family:var(--font-prose);font-size:var(--type-meta);font-style:italic;color:var(--ink-muted)}.table-meta{font-size:var(--type-data);color:var(--ink-light);line-height:1.7}.table-meta strong{font-weight:500;color:var(--ink)}.table-technique{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--accent);font-weight:500}.table-runtime{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-light)}.confidence-pips{font-family:var(--mono);font-size:var(--type-body-sm);letter-spacing:2px}.confidence-pips .filled{color:var(--accent)}.confidence-pips .empty{color:var(--rule)}.watch-cell{text-align:right}/* Round 13 #2: .btn utility family — base + size + variant. New components should compose class=btn+btn-md+btn-primary instead of inventing a new named class. Existing named buttons (.watch-btn, .detail-watch-btn, etc) below are kept for semantic readability in templates but now share a tokenized padding/border idiom. The base .btn carries everything common; size and variant modifiers stack. */.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:44px;box-sizing:border-box;font-family:var(--mono);font-weight:600;letter-spacing:.1em;text-decoration:none;cursor:pointer;border:none;transition:background .2s,color .2s,border-color .2s}.btn-sm{padding:var(--space-2) var(--space-3);font-size:var(--type-data-sm)}.btn-md{padding:var(--space-3) var(--space-5);font-size:var(--type-data)}.btn-lg{padding:var(--space-4) var(--space-6);font-size:var(--type-data)}.btn-primary{background:var(--ink);color:var(--cream)}.btn-primary:hover,.btn-primary:focus{background:var(--accent);outline:none}.btn-secondary{background:transparent;color:var(--ink);border:var(--border-emphasis) solid var(--ink);padding:calc(var(--space-3) - var(--border-emphasis)) calc(var(--space-5) - var(--border-emphasis))}.btn-secondary:hover,.btn-secondary:focus{background:var(--ink);color:var(--cream);outline:none}.btn-ghost{background:transparent;color:var(--ink-muted);text-decoration:underline;text-underline-offset:3px}.btn-ghost:hover,.btn-ghost:focus{color:var(--accent);outline:none}.watch-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);background:var(--ink);color:var(--cream);padding:var(--space-3) calc(var(--space-3) + var(--space-1));min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data-sm);font-weight:500;letter-spacing:.05em;text-decoration:none;transition:background .2s}.watch-btn:hover,.watch-btn:focus{background:var(--accent)}.subs-badge{display:block;margin-top:8px;font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted)}.no-link{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-muted)}.load-more-container{padding:32px;text-align:center;background:var(--paper);border-top:1px solid var(--rule)}.load-more-btn{background:var(--ink);color:var(--cream);border:none;padding:16px 40px;font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.1em;cursor:pointer;transition:background .2s}.load-more-btn:hover,.load-more-btn:focus{background:var(--accent);outline:none}.load-more-btn:disabled{background:var(--ink-muted);cursor:not-allowed}.load-more-count{opacity:.6;font-weight:400}.detail-page{padding:48px 32px;max-width:1200px;margin:0 auto}.detail-header{display:grid;grid-template-columns:180px 1fr auto;gap:40px;padding-bottom:40px;border-bottom:2px solid var(--ink);margin-bottom:40px}.detail-year-block{background:var(--data-bg);padding:32px;text-align:center;border:1px solid var(--rule)}.detail-year{font-family:var(--font-display);font-size:56px;font-weight:400;line-height:1;color:var(--ink)}.detail-country{font-family:var(--mono);font-size:var(--type-data);letter-spacing:.15em;color:var(--ink-muted);margin-top:12px}.detail-title-section{display:flex;flex-direction:column;justify-content:center}.detail-technique{font-family:var(--mono);font-size:var(--type-data-sm);letter-spacing:.15em;color:var(--accent);font-weight:600;margin-bottom:12px}.detail-title{font-family:var(--font-display);font-size:38px;font-weight:400;line-height:1.15;margin-bottom:8px}.detail-original{font-family:var(--font-prose);font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:20px}.detail-credits{font-size:15px;color:var(--ink-light);line-height:1.8}.detail-credits strong{font-weight:500;color:var(--ink)}.detail-actions{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:12px}.detail-watch-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--ink);color:var(--cream);padding:18px 32px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.1em;text-decoration:none;transition:background .2s;max-width:100%}.detail-watch-btn:hover,.detail-watch-btn:focus{background:var(--accent)}/* Round 9 #2: prefix is fixed-length, platform truncates. min-width:0 on the truncating flex child is required (flex children default to min-content, which defeats overflow:hidden). */.detail-watch-prefix{flex:0 0 auto;white-space:nowrap}.detail-watch-platform{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}/* Gated detail CTA — Restricted/Unverified status. Honest about the gating without making the page's primary button look broken. */.detail-watch-btn-gated{background:transparent;color:var(--ink);border:var(--border-emphasis) solid var(--ink);padding:calc(var(--space-4) + 2px - var(--border-emphasis)) calc(var(--space-6) - var(--border-emphasis))}.detail-watch-btn-gated:hover,.detail-watch-btn-gated:focus{background:var(--ink);color:var(--cream)}/* Round 9 #6: promoted .detail-suggest-link from a thin underlined link to a proper outlined button. Mirrors .detail-watch-btn-gated dimensions (transparent + 1.5px ink border, ~44px tall) so the no-watch-link state has the same visual weight as a real CTA — honest about the gap, but visually completes the header column instead of leaving it looking unfinished. */.detail-suggest-link{display:flex;align-items:center;justify-content:center;gap:var(--space-2);background:transparent;color:var(--ink);border:var(--border-emphasis) solid var(--ink);padding:calc(var(--space-4) + 2px - var(--border-emphasis)) calc(var(--space-5) + var(--space-1) - var(--border-emphasis));min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.1em;text-decoration:none;transition:background .2s,color .2s;text-transform:uppercase}.detail-suggest-link:hover,.detail-suggest-link:focus{background:var(--ink);color:var(--cream);outline:none}.detail-subs{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}.detail-body{display:grid;grid-template-columns:1fr 280px;gap:60px}.detail-content h2{font-family:var(--font-display);font-size:var(--type-section-hero);font-weight:400;margin-bottom:16px;margin-top:36px}.detail-content h2:first-child{margin-top:0}.detail-content p{font-family:var(--font-prose);font-size:var(--type-body);line-height:1.9;color:var(--ink-light);margin-bottom:20px}.detail-content .no-content{font-style:italic;color:var(--ink-muted)}.detail-data-panel{background:var(--data-bg);border:1px solid var(--rule);padding:24px;font-family:var(--mono);font-size:var(--type-data);height:fit-content;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto}.data-panel-title{font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule)}.data-list{display:block}.data-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--rule)}.data-row:last-of-type{border-bottom:none}.data-label{color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;font-size:var(--type-data-xs)}.data-value{color:var(--ink);text-align:right;font-weight:500}.data-links{margin-top:24px;padding-top:24px;border-top:1px solid var(--rule)}.data-link{display:flex;align-items:center;padding:12px 0;min-height:44px;box-sizing:border-box;color:var(--ink-light);text-decoration:none;transition:color .15s;border-bottom:1px solid var(--rule)}.data-link:last-child{border-bottom:none}.data-link:hover{color:var(--accent)}.data-link:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}.data-link::before{content:'→';margin-right:8px;color:var(--ink-muted)}.about-section{background:var(--paper);border-top:2px solid var(--ink);padding:80px 32px}.about-inner{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px}.about-text h2{font-family:var(--font-display);font-size:32px;font-weight:400;line-height:1.3;margin-bottom:24px}.about-text h2 em{font-style:italic}.about-text p{font-family:var(--font-prose);font-size:15px;line-height:1.9;color:var(--ink-light);margin-bottom:16px}.about-data{background:var(--data-bg);border:1px solid var(--rule);padding:32px;font-family:var(--mono)}.about-data-title{font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:24px}.about-stat-row{display:flex;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--rule);align-items:baseline}.about-stat-row:last-child{border-bottom:none}.about-stat-label{font-size:var(--type-data);color:var(--ink-light)}.about-stat-value{font-size:24px;font-weight:600;color:var(--ink)}.footer{background:var(--ink);color:var(--cream);padding:32px}.footer-inner{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}.footer-logo{font-family:var(--font-display);font-size:18px}.footer-timestamp{font-family:var(--mono);font-size:var(--type-data-sm);color:rgba(255,255,255,.7)}/* Mobile filter toggle */
+.mobile-filter-toggle{display:none;background:var(--ink);color:var(--cream);border:none;padding:10px 16px;font-family:var(--mono);font-size:var(--type-data-sm);font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .2s;white-space:nowrap}
 .mobile-filter-toggle:hover,.mobile-filter-toggle:focus{background:var(--accent)}
-.filter-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:var(--cream);border-radius:50%;width:18px;height:18px;font-size:10px;margin-left:6px}
-.drawer-close-bar{display:none;padding:12px 16px;background:var(--ink);color:var(--cream);border:none;width:100%;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;text-align:center;border-bottom:1px solid rgba(255,255,255,.15)}
+.filter-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:var(--cream);border-radius:50%;width:18px;height:18px;font-size:var(--type-data-xs);margin-left:6px}
+.drawer-close-bar{display:none;padding:12px 16px;background:var(--ink);color:var(--cream);border:none;width:100%;font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;text-align:center;border-bottom:1px solid rgba(255,255,255,.15)}
 .drawer-close-bar:hover{background:var(--accent)}
 .sidebar-overlay{display:none}
 /* Active filters bar (outside sidebar) */
 .active-filters-bar{display:none;padding:10px 16px;background:var(--cream-dark);border-bottom:1px solid var(--rule);gap:8px;align-items:center;flex-wrap:wrap}
 .active-filters-bar.has-filters{display:flex}
-.active-filters-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:600}
-.active-filter-tag{background:var(--paper);border:1px solid var(--rule);padding:4px 10px;font-family:var(--mono);font-size:11px;display:inline-flex;align-items:center;gap:8px}
-.active-filter-tag .remove{color:var(--ink-light);cursor:pointer;font-size:16px;line-height:1;min-width:32px;min-height:32px;display:inline-flex;align-items:center;justify-content:center;padding:4px}
+.active-filters-label{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.active-filter-tag{background:var(--paper);border:1px solid var(--rule);padding:4px 10px;font-family:var(--mono);font-size:var(--type-data-sm);display:inline-flex;align-items:center;gap:8px}
+.active-filter-tag .remove{color:var(--ink-light);cursor:pointer;font-size:var(--type-body);line-height:1;min-width:32px;min-height:32px;display:inline-flex;align-items:center;justify-content:center;padding:4px}
 .active-filter-tag .remove:hover{color:var(--accent)}
-.clear-filters-btn{background:none;border:none;font-family:var(--mono);font-size:10px;color:var(--ink-muted);cursor:pointer;text-decoration:underline;margin-left:auto}
+.clear-filters-btn{background:none;border:none;font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);cursor:pointer;text-decoration:underline;margin-left:auto}
 .clear-filters-btn:hover{color:var(--accent)}
 @media(max-width:900px){.mobile-filter-toggle{display:inline-flex;align-items:center}.drawer-close-bar{display:block}}
-@media(max-width:900px){.main-layout{grid-template-columns:1fr}.sidebar{display:block;position:fixed;bottom:0;left:0;right:0;max-height:70vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s ease;z-index:200;border-right:none;border-top:2px solid var(--ink);box-shadow:0 -4px 20px rgba(0,0,0,.15)}.sidebar.open{transform:translateY(0)}.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199}.sidebar-overlay.visible{display:block}.stats-bar{flex-wrap:wrap}.stat-block{flex:1 1 50%}.detail-header{grid-template-columns:1fr}.detail-body{grid-template-columns:1fr}.about-inner{grid-template-columns:1fr}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}.back-to-top{position:fixed;bottom:2rem;right:2rem;width:44px;height:44px;background:var(--ink);color:var(--cream);border:none;border-radius:50%;font-size:1.25rem;cursor:pointer;opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;z-index:100}.back-to-top.visible{opacity:.8;visibility:visible}.back-to-top:hover{opacity:1}.keyboard-hints{font-family:var(--mono);font-size:10px;color:var(--ink-faint);margin-top:8px;text-align:right}.keyboard-hints kbd{display:inline-block;background:var(--data-bg);border:1px solid var(--rule);border-radius:3px;padding:2px 6px;font-size:10px;margin:0 2px}
+@media(max-width:900px){.main-layout{grid-template-columns:1fr}.sidebar{display:block;position:fixed;bottom:0;left:0;right:0;max-height:70vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s ease;z-index:200;border-right:none;border-top:2px solid var(--ink);box-shadow:0 -4px 20px rgba(0,0,0,.15)}.sidebar.open{transform:translateY(0)}.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199}.sidebar-overlay.visible{display:block}.stats-bar{flex-wrap:wrap}.stat-block{flex:1 1 50%}.detail-header{grid-template-columns:1fr}.detail-body{grid-template-columns:1fr}.about-inner{grid-template-columns:1fr}/* Round 8 #1: kill the Round 2 sticky data panel when the layout collapses to single-column. Sticky on a stacked block traps scroll. */.detail-data-panel{position:static;max-height:none;overflow-y:visible}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}.back-to-top{position:fixed;bottom:2rem;right:2rem;width:44px;height:44px;background:var(--ink);color:var(--cream);border:none;border-radius:50%;font-size:1.25rem;cursor:pointer;opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;z-index:100}.back-to-top.visible{opacity:.8;visibility:visible}.back-to-top:hover{opacity:1}.keyboard-hints{font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);margin-top:8px;text-align:right}.keyboard-hints kbd{display:inline-block;background:var(--data-bg);border:1px solid var(--rule);border-radius:3px;padding:2px 6px;font-size:var(--type-data-xs);margin:0 2px}
 /* Country Pages */
 .country-page{padding:48px 32px;max-width:1400px;margin:0 auto}
 .country-header{display:grid;grid-template-columns:auto 1fr auto;gap:32px;align-items:center;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:40px}
 .country-code-block{background:var(--ink);color:var(--cream);padding:24px 32px;text-align:center}
 .country-code-large{font-family:var(--mono);font-size:32px;font-weight:600;letter-spacing:.1em}
-.country-title-section h1.country-name{font-family:'Playfair Display',serif;font-size:var(--type-page-hero);font-weight:400;margin-bottom:8px}
-.country-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
-.country-nav{text-align:right}
-.country-back-link{font-family:var(--mono);font-size:12px;color:var(--ink-muted);text-decoration:none;letter-spacing:.05em}
-.country-back-link:hover{color:var(--accent)}
-.country-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:48px}
-.country-stat-card{background:var(--paper);border:1px solid var(--rule);padding:24px}
-.stat-card-title{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:12px}
-.stat-card-value{font-family:'Playfair Display',serif;font-size:48px;font-weight:400;line-height:1}
-.stat-card-detail{font-family:var(--mono);font-size:11px;color:var(--ink-muted);margin-top:8px}
+.country-title-section h1.country-name{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:8px}
+.country-subtitle{font-family:var(--font-prose);font-style:italic;color:var(--ink-muted);font-size:var(--type-body)}
+/* .country-nav / .country-back-link removed 2026-04-26 (Round 7 #5) —
+   breadcrumb covers the same orientation; same cleanup as Round 6
+   .entity-back-link removal. */
+/* Round 10 #2: per-entity stats-grid classes (.country-stats-grid, .technique-stats-grid, .decade-stats-grid) consolidated into the single .tag-stats-grid below. They were three rules doing the same job, none of them carrying the Round 9 #1 mobile scroll affordance. The unified .tag-stats-grid now owns all entity-page stat-card grids. */
+.stat-card-title{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:12px}
+.stat-card-value{font-family:var(--font-display);font-size:48px;font-weight:400;line-height:1}
+.stat-card-detail{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);margin-top:8px}
 .stat-card-list{display:flex;flex-wrap:wrap;gap:8px}
-.stat-tag{font-family:var(--mono);font-size:11px;background:var(--data-bg);padding:6px 10px;border:1px solid var(--rule)}
-.stat-tag em{font-style:normal;color:var(--ink-muted)}
-.country-films-section{margin-top:40px}
-.section-title{font-family:'Playfair Display',serif;font-size:24px;font-weight:400;margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid var(--rule)}
+/* stat-tag became clickable 2026-04-26 (Round 7 #3) — country page
+   technique/decade chips and decade page country/technique chips now
+   navigate to those facets. Touch target lifted to AA. The static
+   variant (.stat-tag-static) keeps the visual treatment for non-link
+   contexts (Format chips, where /formats/X.html doesn't exist). */
+.stat-tag{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:var(--type-data-sm);background:var(--data-bg);padding:8px 10px;min-height:44px;box-sizing:border-box;border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:border-color .2s,color .2s,background .2s}
+.stat-tag:hover,.stat-tag:focus{border-color:var(--ink);color:var(--accent);background:var(--paper);outline:none}
+.stat-tag-static{cursor:default}
+.stat-tag-static:hover,.stat-tag-static:focus{border-color:var(--rule);color:var(--ink-light);background:var(--data-bg)}
+.stat-tag-count{color:var(--ink-muted);font-style:normal}
+/* Round 10 #2: canonical stat-card grid for ALL entity pages — country, technique, decade, genre, keyword, platform, studio, director, series. Was 4 parallel rules (country/technique/decade/tag) doing the same job with slightly different dimensions. Unified on the country/technique/decade dimensions (200px min, 20px gap, 48px mb, 24px card padding) which 3 of the 4 used. The Round 9 #1 mobile scroll-affordance rule below applies to all of them now. */
+.tag-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:48px}
+.tag-stat-card{background:var(--paper);border:1px solid var(--rule);padding:24px}
+/* Round 10 #1: removed — see unified .entity-films-section. */
+.section-title{font-family:var(--font-display);font-size:24px;font-weight:400;margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid var(--rule)}
 /* Countries Index */
 .countries-index{padding:48px 32px;max-width:1400px;margin:0 auto}
-.countries-header{text-align:center;margin-bottom:48px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
-.countries-header h1{font-family:'Playfair Display',serif;font-size:48px;font-weight:400;margin-bottom:12px}
-.countries-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
+/* Round 12 ancillary: .countries-header / .countries-subtitle removed —
+   replaced by .entity-index-header above (used by directors and studios too). */
 .countries-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
 .country-card{display:grid;grid-template-columns:80px 1fr;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s}
 .country-card:hover{border-color:var(--ink);box-shadow:4px 4px 0 var(--rule)}
 .country-card:focus{outline:2px solid var(--accent);outline-offset:2px}
-.country-card-code{background:var(--ink);color:var(--cream);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;font-weight:600;letter-spacing:.1em}
+.country-card-code{background:var(--ink);color:var(--cream);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:var(--type-body-sm);font-weight:600;letter-spacing:.1em}
 .country-card-info{padding:20px}
-.country-card-name{font-family:'Playfair Display',serif;font-size:20px;font-weight:400;margin-bottom:8px}
-.country-card-meta{display:flex;gap:16px;font-family:var(--mono);font-size:11px;color:var(--ink-muted);margin-bottom:8px}
+.country-card-name{font-family:var(--font-display);font-size:20px;font-weight:400;margin-bottom:8px}
+.country-card-meta{display:flex;gap:16px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);margin-bottom:8px}
 .country-card-count{color:var(--ink)}
-.country-card-technique{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:500}
+.country-card-technique{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--accent);font-weight:500}
 /* Filter link styling */
 .filter-item .filter-link{text-decoration:none;color:inherit;display:block;flex:1}
 .filter-item .filter-link:hover .name{color:var(--accent)}
 .filter-item .filter-link .name{transition:color .15s}
-@media(max-width:900px){.country-header{grid-template-columns:1fr;text-align:center}.country-code-block{width:fit-content;margin:0 auto}.country-nav{text-align:center;margin-top:16px}.countries-grid{grid-template-columns:1fr}}
+@media(max-width:900px){.country-header{grid-template-columns:1fr;text-align:center}.country-code-block{width:fit-content;margin:0 auto}.countries-grid{grid-template-columns:1fr}}
 /* Technique Pages */
 .technique-page{padding:48px 32px;max-width:1400px;margin:0 auto}
 .technique-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:40px}
-.technique-title-section h1.technique-name{font-family:'Playfair Display',serif;font-size:42px;font-weight:400;margin-bottom:12px}
-.technique-description{font-family:'Source Serif 4',serif;font-size:18px;color:var(--ink-light);margin-bottom:8px;max-width:600px}
-.technique-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
+.technique-title-section h1.technique-name{font-family:var(--font-display);font-size:42px;font-weight:400;margin-bottom:12px}
+.technique-description{font-family:var(--font-prose);font-size:18px;color:var(--ink-light);margin-bottom:8px;max-width:600px}
+.technique-subtitle{font-family:var(--font-prose);font-style:italic;color:var(--ink-muted);font-size:var(--type-body)}
 .technique-nav{text-align:right;padding-top:8px}
-.technique-back-link{font-family:var(--mono);font-size:12px;color:var(--ink-muted);text-decoration:none;letter-spacing:.05em}
+.technique-back-link{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-muted);text-decoration:none;letter-spacing:.05em}
 .technique-back-link:hover{color:var(--accent)}
-.technique-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:48px}
-.technique-stat-card{background:var(--paper);border:1px solid var(--rule);padding:24px}
-.technique-films-section{margin-top:40px}
-.table-country-cell{font-family:var(--mono);font-size:11px}
+/* Round 10 #2: removed — see unified .tag-stats-grid above. */
+/* Round 10 #1: removed — see unified .entity-films-section. */
+.table-country-cell{font-family:var(--mono);font-size:var(--type-data-sm)}
 .table-country-code{display:block;color:var(--accent);font-weight:600;letter-spacing:.05em}
-.table-country-name{display:block;color:var(--ink-muted);font-size:10px;margin-top:2px}
+.table-country-name{display:block;color:var(--ink-muted);font-size:var(--type-data-xs);margin-top:2px}
 /* Techniques Index */
 .techniques-index{padding:48px 32px;max-width:1400px;margin:0 auto}
 .techniques-header{text-align:center;margin-bottom:48px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
-.techniques-header h1{font-family:'Playfair Display',serif;font-size:48px;font-weight:400;margin-bottom:12px}
-.techniques-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
+.techniques-header h1{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:12px}
+.techniques-subtitle{font-family:var(--font-prose);font-style:italic;color:var(--ink-muted);font-size:var(--type-body)}
 .techniques-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
 .technique-card{display:block;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s;padding:24px}
 .technique-card:hover{border-color:var(--ink);box-shadow:4px 4px 0 var(--rule)}
 .technique-card:focus{outline:2px solid var(--accent);outline-offset:2px}
-.technique-card-name{font-family:'Playfair Display',serif;font-size:24px;font-weight:400;margin-bottom:8px}
-.technique-card-desc{font-family:'Source Serif 4',serif;font-size:14px;color:var(--ink-light);margin-bottom:12px;line-height:1.5}
-.technique-card-meta{display:flex;gap:16px;font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
+.technique-card-name{font-family:var(--font-display);font-size:24px;font-weight:400;margin-bottom:8px}
+.technique-card-desc{font-family:var(--font-prose);font-size:var(--type-body-sm);color:var(--ink-light);margin-bottom:12px;line-height:1.5}
+.technique-card-meta{display:flex;gap:16px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
 .technique-card-count{color:var(--ink);font-weight:500}
 @media(max-width:900px){.technique-header{flex-direction:column;text-align:center}.technique-nav{text-align:center;margin-top:16px}.techniques-grid{grid-template-columns:1fr}}
-/* Directors Index */
+/* Directors Index — Round 12 #1/#2/#3 + ancillary unification.
+   .directors-header / .directors-subtitle removed: now use .entity-index-header
+   defined above. .directors-stats → .entity-index-stats. Per-card layout
+   classes (.director-card, .director-name, .director-meta, etc.) stay because
+   the visual is intentionally different from .country-card and .entity-card. */
 .directors-index{padding:48px 32px;max-width:1400px;margin:0 auto}
-.directors-header{text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:2px solid var(--ink)}
-.directors-header h1{font-family:'Playfair Display',serif;font-size:48px;font-weight:400;margin-bottom:12px}
-.directors-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
-.directors-stats{display:flex;justify-content:center;gap:48px;margin-bottom:32px;padding:24px;background:var(--data-bg);border:1px solid var(--rule)}
-.directors-stat{text-align:center}
-.directors-stat .stat-value{display:block;font-family:'Playfair Display',serif;font-size:36px;font-weight:400;color:var(--ink)}
-.directors-stat .stat-label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted)}
+.entity-index-stats{display:flex;justify-content:center;gap:48px;margin-bottom:32px;padding:24px;background:var(--data-bg);border:1px solid var(--rule)}
+.entity-index-stat{text-align:center}
+.entity-index-stat .stat-value{display:block;font-family:var(--font-display);font-size:36px;font-weight:400;color:var(--ink)}
+.entity-index-stat .stat-label{font-family:var(--mono);font-size:var(--type-data-sm);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted)}
 .directors-alphabet{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:40px;padding:16px;background:var(--paper);border:1px solid var(--rule)}
-.alphabet-link{font-family:var(--mono);font-size:14px;font-weight:600;padding:8px 12px;text-decoration:none;color:var(--ink-muted);transition:color .15s,background .15s}
+.alphabet-link{font-family:var(--mono);font-size:var(--type-body-sm);font-weight:600;padding:8px 12px;text-decoration:none;color:var(--ink-muted);transition:color .15s,background .15s}
 .alphabet-link:hover,.alphabet-link:focus{color:var(--accent);background:var(--cream)}
 .directors-list{display:flex;flex-direction:column;gap:40px}
-.directors-letter-section{scroll-margin-top:20px}
-.letter-heading{font-family:'Playfair Display',serif;font-size:32px;font-weight:400;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule);color:var(--accent)}
+/* Round 12 #2: content-visibility:auto skips paint/layout for off-screen
+   letter sections — initial render is fast even with 1,630 cards in the
+   DOM. contain-intrinsic-size reserves a layout placeholder so scroll
+   position doesn't jump as sections render in. ~600px is a reasonable
+   estimate for an average letter; the browser corrects per actual content. */
+.directors-letter-section{scroll-margin-top:20px;content-visibility:auto;contain-intrinsic-size:auto 600px}
+.letter-heading{font-family:var(--font-display);font-size:32px;font-weight:400;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule);color:var(--accent)}
 .directors-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 .director-card{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s}
 .director-card:hover{border-color:var(--ink);box-shadow:3px 3px 0 var(--rule)}
 .director-card:focus{outline:2px solid var(--accent);outline-offset:2px}
-.director-name{font-family:'Source Serif 4',serif;font-size:16px;color:var(--ink)}
+.director-name{font-family:var(--font-prose);font-size:var(--type-body);color:var(--ink)}
 .director-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
-.director-count{font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:500}
-.director-countries{font-family:var(--mono);font-size:10px;color:var(--ink-muted);letter-spacing:.05em}
-@media(max-width:900px){.directors-stats{flex-direction:column;gap:16px}.directors-grid{grid-template-columns:1fr}}
+.director-count{font-family:var(--mono);font-size:var(--type-data);color:var(--ink);font-weight:500}
+.director-countries{font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);letter-spacing:.05em}
+/* Round 12 #3: "Most prolific" / "Most films" chip strip above the alphabet
+   nav. Discovery surface — without it the user lands on the first alphabetical
+   entry which is rarely the most interesting. */
+.entity-index-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin-bottom:24px;padding:14px 16px;background:var(--cream-dark,var(--data-bg));border:1px solid var(--rule);border-left:3px solid var(--accent)}
+.entity-index-top-label{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);font-weight:600;flex:0 0 auto}
+.entity-index-top-chips{display:flex;flex-wrap:wrap;gap:6px;flex:1}
+.entity-index-top-chip{display:inline-flex;align-items:baseline;gap:6px;padding:6px 10px;background:var(--paper);border:1px solid var(--rule);font-family:var(--font-prose);font-size:var(--type-meta);color:var(--ink);text-decoration:none;transition:border-color .2s,color .2s}
+.entity-index-top-chip:hover,.entity-index-top-chip:focus{border-color:var(--ink);color:var(--accent);outline:none}
+.entity-index-top-chip-count{font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);font-weight:600}
+@media(max-width:900px){.entity-index-stats{flex-direction:column;gap:16px}.directors-grid{grid-template-columns:1fr}.entity-index-top{flex-direction:column;align-items:stretch;gap:8px}.entity-index-top-label{flex:0 0 auto}}
 /* Decade Pages */
 .decade-page{padding:48px 32px;max-width:1400px;margin:0 auto}
 .decade-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:40px}
-.decade-title-section h1.decade-name{font-family:'Playfair Display',serif;font-size:56px;font-weight:400;margin-bottom:4px}
-.decade-range{font-family:var(--mono);font-size:14px;color:var(--ink-muted);letter-spacing:.1em;margin-bottom:16px}
-.decade-description{font-family:'Source Serif 4',serif;font-size:18px;color:var(--ink-light);margin-bottom:8px;max-width:600px}
-.decade-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
-.decade-nav{text-align:right;padding-top:8px}
-.decade-back-link{font-family:var(--mono);font-size:12px;color:var(--ink-muted);text-decoration:none;letter-spacing:.05em}
-.decade-back-link:hover{color:var(--accent)}
-.decade-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:48px}
-.decade-stat-card{background:var(--paper);border:1px solid var(--rule);padding:24px}
-.decade-films-section{margin-top:40px}
+.decade-title-section h1.decade-name{font-family:var(--font-display);font-size:56px;font-weight:400;margin-bottom:4px}
+.decade-range{font-family:var(--mono);font-size:var(--type-body-sm);color:var(--ink-muted);letter-spacing:.1em;margin-bottom:16px}
+.decade-description{font-family:var(--font-prose);font-size:18px;color:var(--ink-light);margin-bottom:8px;max-width:600px}
+.decade-subtitle{font-family:var(--font-prose);font-style:italic;color:var(--ink-muted);font-size:var(--type-body)}
+/* .decade-nav / .decade-back-link removed 2026-04-26 (Round 7 #5). */
+/* Round 10 #2: removed — see unified .tag-stats-grid above. */
+/* Round 10 #1: removed — see unified .entity-films-section. */
 /* Decades Index */
 .decades-index{padding:48px 32px;max-width:1200px;margin:0 auto}
 .decades-header{text-align:center;margin-bottom:48px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
-.decades-header h1{font-family:'Playfair Display',serif;font-size:48px;font-weight:400;margin-bottom:12px}
-.decades-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
+.decades-header h1{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:12px}
+.decades-subtitle{font-family:var(--font-prose);font-style:italic;color:var(--ink-muted);font-size:var(--type-body)}
 .decades-timeline{display:flex;flex-direction:column;gap:16px}
 .decade-card{display:grid;grid-template-columns:120px 1fr;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s}
 .decade-card:hover{border-color:var(--ink);box-shadow:4px 4px 0 var(--rule)}
 .decade-card:focus{outline:2px solid var(--accent);outline-offset:2px}
-.decade-card-year{background:var(--ink);color:var(--cream);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:28px;font-weight:400}
+.decade-card-year{background:var(--ink);color:var(--cream);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:28px;font-weight:400}
 .decade-card-info{padding:24px}
-.decade-card-title{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--ink-muted);margin-bottom:8px}
-.decade-card-desc{font-family:'Source Serif 4',serif;font-size:16px;color:var(--ink);margin-bottom:12px;line-height:1.5}
-.decade-card-meta{display:flex;gap:24px;font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
+.decade-card-title{font-family:var(--mono);font-size:var(--type-data);letter-spacing:.1em;color:var(--ink-muted);margin-bottom:8px}
+.decade-card-desc{font-family:var(--font-prose);font-size:var(--type-body);color:var(--ink);margin-bottom:12px;line-height:1.5}
+.decade-card-meta{display:flex;gap:24px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
 .decade-card-count{color:var(--accent);font-weight:600}
 .decade-card-country{color:var(--ink-light)}
-@media(max-width:900px){.decade-header{flex-direction:column;text-align:center}.decade-nav{text-align:center;margin-top:16px}.decade-card{grid-template-columns:80px 1fr}.decade-card-year{font-size:20px}}
+@media(max-width:900px){.decade-header{flex-direction:column;text-align:center}.decade-card{grid-template-columns:80px 1fr}.decade-card-year{font-size:20px}}
 /* Random Button & Film of the Day */
 .search-actions{display:flex;gap:12px;align-items:center}
-.random-btn{background:var(--ink);color:var(--cream);border:none;padding:10px 16px;font-family:var(--mono);font-size:12px;font-weight:500;cursor:pointer;transition:background .2s;white-space:nowrap}
+.random-btn{background:var(--ink);color:var(--cream);border:none;padding:10px 16px;font-family:var(--mono);font-size:var(--type-data);font-weight:500;cursor:pointer;transition:background .2s;white-space:nowrap}
 .random-btn:hover,.random-btn:focus{background:var(--accent);outline:none}
 .film-of-day{background:var(--paper);border:2px solid var(--accent);border-left-width:4px;padding:20px 24px;margin:20px 32px;display:flex;justify-content:space-between;align-items:center;gap:24px}
+/* Round 9 #5: hide the FotD mount when filters/search are active. Toggled by updateDisplay() in app.js. */
+#film-of-day-mount.is-hidden{display:none}
 .film-of-day-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.film-of-day-label{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:600}
-.film-of-day-date{font-family:var(--mono);font-size:10px;color:var(--ink-muted)}
+.film-of-day-label{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.film-of-day-date{font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted)}
 .film-of-day-content{display:flex;justify-content:space-between;align-items:center;gap:24px;flex:1}
 .film-of-day-info{flex:1}
-.film-of-day-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:500;text-decoration:none;color:var(--ink);display:block;margin-bottom:8px}
+.film-of-day-title{font-family:var(--font-display);font-size:22px;font-weight:500;text-decoration:none;color:var(--ink);display:block;margin-bottom:8px}
 .film-of-day-title:hover{color:var(--accent)}
-.film-of-day-meta{display:flex;gap:16px;font-family:var(--mono);font-size:12px;margin-bottom:8px}
+.film-of-day-meta{display:flex;gap:16px;font-family:var(--mono);font-size:var(--type-data);margin-bottom:8px}
 .film-of-day-year{color:var(--ink);font-weight:500}
 .film-of-day-country{color:var(--accent);font-weight:600}
 .film-of-day-technique{color:var(--ink-muted)}
-.film-of-day-synopsis{font-family:'Source Serif 4',serif;font-size:14px;color:var(--ink-light);margin:0;line-height:1.5}
+.film-of-day-synopsis{font-family:var(--font-prose);font-size:var(--type-body-sm);color:var(--ink-light);margin:0;line-height:1.5}
 .film-of-day-actions{display:flex;gap:12px;flex-shrink:0}
-.film-of-day-watch-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:11px;padding:10px 16px;background:var(--ink);color:var(--cream);text-decoration:none;transition:background .2s}
+.film-of-day-watch-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data-sm);padding:10px 16px;background:var(--ink);color:var(--cream);text-decoration:none;transition:background .2s}
 .film-of-day-watch-btn:hover{background:var(--accent)}
 /* Gated FotD CTA — Restricted/Unverified status. Honest about the gating
    without making the card look broken: muted ink instead of bright crimson
    on hover, lock icon + platform name surfaces the actual ask. */
 .film-of-day-watch-btn-gated{background:transparent;color:var(--ink);border:1px solid var(--ink);font-weight:500}
 .film-of-day-watch-btn-gated:hover{background:var(--ink);color:var(--cream)}
-.footer-random{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.6);text-decoration:none;transition:color .2s}
+.footer-random{font-family:var(--mono);font-size:var(--type-data-sm);color:rgba(255,255,255,.6);text-decoration:none;transition:color .2s}
 .footer-random:hover{color:var(--cream)}
 @media(max-width:900px){.search-actions{flex-direction:column;align-items:stretch;gap:8px}.search-box input{width:100%}.film-of-day{flex-direction:column;margin:20px 16px}.film-of-day-content{flex-direction:column;align-items:flex-start}.film-of-day-actions{width:100%;justify-content:flex-start}}
 /* Related Films */
@@ -1475,24 +1811,24 @@ function generateCSS() {
 .related-section{margin-bottom:40px}
 .related-section:last-child{margin-bottom:0}
 .related-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule)}
-.related-header a{font-family:'Playfair Display',serif;font-size:var(--type-section-hero);font-weight:400;text-decoration:none;color:var(--ink)}
+.related-header a{font-family:var(--font-display);font-size:var(--type-section-hero);font-weight:400;text-decoration:none;color:var(--ink)}
 .related-header a:hover{color:var(--accent)}
-.related-count{font-family:var(--mono);font-size:11px;color:var(--ink-muted);letter-spacing:.05em}
+.related-count{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);letter-spacing:.05em}
 .related-count:hover{color:var(--accent)}
 .related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
 .related-card{display:block;background:var(--paper);border:1px solid var(--rule);padding:16px;min-height:44px;box-sizing:border-box;text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s;position:relative}
 .related-card:hover{border-color:var(--ink);box-shadow:3px 3px 0 var(--rule)}
 .related-card:focus{outline:2px solid var(--accent);outline-offset:2px}
-.related-title{display:block;font-family:'Playfair Display',serif;font-size:15px;font-weight:500;line-height:1.3;margin-bottom:8px;color:var(--ink)}
-.related-meta{display:block;font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
-.related-watch{position:absolute;top:12px;right:12px;font-size:12px;color:var(--accent)}
+.related-title{display:block;font-family:var(--font-display);font-size:15px;font-weight:500;line-height:1.3;margin-bottom:8px;color:var(--ink)}
+.related-meta{display:block;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
+.related-watch{position:absolute;top:12px;right:12px;font-size:var(--type-data);color:var(--accent)}
 .related-watch-gated{color:var(--ink-muted)}
 /* Folded "More like this" expander — keeps Decade/Technique sections
    accessible without dumping 25 cards on every detail page. */
 .related-extra{margin-top:24px;border-top:1px solid var(--rule);padding-top:24px}
-.related-extra-summary{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer;padding:12px 0;min-height:44px;display:flex;align-items:center;list-style:none;transition:color .15s}
+.related-extra-summary{font-family:var(--mono);font-size:var(--type-data-sm);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer;padding:12px 0;min-height:44px;display:flex;align-items:center;list-style:none;transition:color .15s}
 .related-extra-summary::-webkit-details-marker{display:none}
-.related-extra-summary::before{content:'▸';margin-right:8px;color:var(--ink-faint);transition:transform .15s}
+.related-extra-summary::before{content:'▸';margin-right:8px;color:var(--ink-muted);transition:transform .15s}
 .related-extra[open] .related-extra-summary::before{transform:rotate(90deg);display:inline-block}
 .related-extra-summary:hover,.related-extra-summary:focus{color:var(--accent)}
 .related-extra[open] .related-extra-summary{margin-bottom:24px}
@@ -1501,20 +1837,22 @@ function generateCSS() {
 .error-page{display:flex;align-items:center;justify-content:center;min-height:60vh;padding:48px 32px}
 .error-content{text-align:center;max-width:500px}
 .error-code{font-family:var(--mono);font-size:120px;font-weight:600;color:var(--rule);line-height:1;margin-bottom:16px}
-.error-title{font-family:'Playfair Display',serif;font-size:var(--type-page-hero);font-weight:400;margin-bottom:16px}
-.error-message{font-family:'Source Serif 4',serif;font-size:18px;color:var(--ink-muted);margin-bottom:24px}
+.error-title{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:16px}
+.error-message{font-family:var(--font-prose);font-size:18px;color:var(--ink-muted);margin-bottom:24px}
 /* Echoes the URL the user actually tried — populated by inline JS on
    the 404 page, hidden when JS is off (window.location unavailable to
    the template). Sits above the search form as recovery context. */
-.error-path{font-family:var(--mono);font-size:12px;color:var(--ink-muted);margin-bottom:24px;word-break:break-all}
+.error-path{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-muted);margin-bottom:24px;word-break:break-all}
 .error-path code{background:var(--data-bg);padding:2px 6px;color:var(--ink);border-radius:2px}
-.error-search{display:flex;gap:0;justify-content:center;margin-bottom:24px;max-width:380px;margin-left:auto;margin-right:auto}
-.error-search-input{flex:1;padding:12px 16px;border:1px solid var(--rule);border-right:none;background:var(--paper);font-family:var(--mono);font-size:13px;min-height:44px;box-sizing:border-box}
+/* Round 8 #8: max-width:min(380px,100%) keeps the form bounded on
+   desktop but allows full-width on <380px viewports (iPhone SE etc). */
+.error-search{display:flex;gap:0;justify-content:center;margin-bottom:24px;max-width:min(380px,100%);margin-left:auto;margin-right:auto}
+.error-search-input{flex:1;padding:12px 16px;border:1px solid var(--rule);border-right:none;background:var(--paper);font-family:var(--mono);font-size:var(--type-meta);min-height:44px;box-sizing:border-box}
 .error-search-input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}
-.error-search-btn{padding:12px 20px;border:1px solid var(--ink);background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;min-height:44px;box-sizing:border-box;transition:background .2s}
+.error-search-btn{padding:12px 20px;border:1px solid var(--ink);background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:var(--type-data-sm);font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;min-height:44px;box-sizing:border-box;transition:background .2s}
 .error-search-btn:hover,.error-search-btn:focus{background:var(--accent);border-color:var(--accent);outline:none}
 .error-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
-.error-btn{font-family:var(--mono);font-size:12px;font-weight:500;padding:14px 24px;min-height:44px;box-sizing:border-box;display:inline-flex;align-items:center;text-decoration:none;transition:all .2s}
+.error-btn{font-family:var(--mono);font-size:var(--type-data);font-weight:500;padding:14px 24px;min-height:44px;box-sizing:border-box;display:inline-flex;align-items:center;text-decoration:none;transition:all .2s}
 .error-btn-primary{background:var(--ink);color:var(--cream)}
 .error-btn-primary:hover,.error-btn-primary:focus{background:var(--accent);outline:none}
 .error-btn-secondary{background:var(--paper);color:var(--ink);border:1px solid var(--rule)}
@@ -1525,27 +1863,27 @@ function generateCSS() {
    prose), .no-links (watch-links section all dead), and the 404 page's
    .error-content. Pattern: centered text, muted color, optional CTA.
    See generateFilmPage / generate404Page / generateIndexPage for usage. */
-.empty-state{text-align:center;color:var(--ink-muted);font-family:'Source Serif 4',serif;font-style:italic;font-size:15px;line-height:1.6}
-.empty-state-title{font-family:'Playfair Display',serif;font-style:normal;font-size:var(--type-section-hero);color:var(--ink);margin-bottom:12px}
+.empty-state{text-align:center;color:var(--ink-muted);font-family:var(--font-prose);font-style:italic;font-size:15px;line-height:1.6}
+.empty-state-title{font-family:var(--font-display);font-style:normal;font-size:var(--type-section-hero);color:var(--ink);margin-bottom:12px}
 .empty-state-message{margin-bottom:16px}
-.empty-state-cta{display:inline-flex;align-items:center;font-family:var(--mono);font-style:normal;font-size:12px;color:var(--ink-muted);text-decoration:underline;text-underline-offset:3px;padding:12px 0;min-height:44px;transition:color .15s}
+.empty-state-cta{display:inline-flex;align-items:center;font-family:var(--mono);font-style:normal;font-size:var(--type-data);color:var(--ink-muted);text-decoration:underline;text-underline-offset:3px;padding:12px 0;min-height:44px;transition:color .15s}
 .empty-state-cta:hover,.empty-state-cta:focus{color:var(--accent)}
-.no-results{padding:48px 32px;background:var(--paper);text-align:center;color:var(--ink-muted);font-family:'Source Serif 4',serif;font-style:italic;font-size:15px;line-height:1.6}
-.no-results-title{font-family:'Playfair Display',serif;font-style:normal;font-size:var(--type-section-hero);color:var(--ink);margin-bottom:12px}
-.no-results-message{font-family:'Source Serif 4',serif;color:var(--ink-muted);font-size:16px;margin-bottom:16px}
-.clear-all-btn{background:var(--ink);color:var(--cream);border:none;padding:12px 24px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:12px;font-weight:500;cursor:pointer;transition:background .2s;margin-top:8px}
+.no-results{padding:48px 32px;background:var(--paper);text-align:center;color:var(--ink-muted);font-family:var(--font-prose);font-style:italic;font-size:15px;line-height:1.6}
+.no-results-title{font-family:var(--font-display);font-style:normal;font-size:var(--type-section-hero);color:var(--ink);margin-bottom:12px}
+.no-results-message{font-family:var(--font-prose);color:var(--ink-muted);font-size:var(--type-body);margin-bottom:16px}
+.clear-all-btn{background:var(--ink);color:var(--cream);border:none;padding:12px 24px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);font-weight:500;cursor:pointer;transition:background .2s;margin-top:8px}
 .clear-all-btn:hover,.clear-all-btn:focus{background:var(--accent);outline:none}
 /* Sortable table headers */
 .sortable{cursor:pointer;user-select:none;transition:color .15s}
 .sortable:hover{color:var(--accent)}
-.sort-indicator{margin-left:4px;opacity:0.4;font-size:10px}
+.sort-indicator{margin-left:4px;opacity:0.4;font-size:var(--type-data-xs)}
 .sortable.active .sort-indicator{opacity:1;color:var(--accent)}
 /* Watch Links Section */
 .watch-links-section{margin-top:32px;padding:24px;background:var(--data-bg);border:1px solid var(--rule)}
-.watch-links-section h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:16px}
+.watch-links-section h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:16px}
 .watch-links-grid{display:flex;flex-direction:column;gap:8px}
 .watch-link-group{display:flex;flex-direction:column;gap:8px}
-.group-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-muted);margin:8px 0 4px}
+.group-label{font-family:var(--mono);font-size:var(--type-data-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-muted);margin:8px 0 4px}
 .watch-link-card{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:var(--ink);transition:border-color .2s,box-shadow .2s}
 .watch-link-card:hover{border-color:var(--ink);box-shadow:2px 2px 0 var(--rule);transform:translateY(-1px)}
 /* Gated card — Restricted/Unverified status. URL works but needs login,
@@ -1556,29 +1894,53 @@ function generateCSS() {
 .link-gate-icon{display:inline-block;margin-left:4px;vertical-align:-1px;color:var(--ink-muted)}
 /* Row-level gated watch button. Applied via .watch-btn-gated next to .watch-btn
    in the renderRow template — hex of the lock instead of the play triangle. */
-.watch-btn-gated{background:transparent;color:var(--ink-muted);border:1px solid var(--rule);font-weight:500}
-.watch-btn-gated:hover{background:var(--data-bg);color:var(--ink);border-color:var(--ink-muted)}
-.link-icon{font-size:1.3rem;flex-shrink:0;width:2rem;text-align:center}
-.link-info{display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex:1}
-.link-platform{font-family:'Source Serif 4',serif;font-size:15px;font-weight:600}
-.link-badge{display:inline-block;padding:3px 8px;border-radius:9999px;font-family:var(--mono);font-size:10px;font-weight:600;color:white;text-transform:uppercase;letter-spacing:.03em}
+/* Round 13 #3: was transparent + --ink-muted text + --rule border (read as "disabled"). Reconciled to mirror .detail-watch-btn-gated's secondary-action treatment — full --ink text + --ink border — so the SAME gated state sends the SAME signal in the table as it does in the film hero. Border kept at 1px (vs 1.5px on hero) because table-row buttons are smaller; visual weight scales with size. */
+.watch-btn-gated{background:transparent;color:var(--ink);border:1px solid var(--ink);font-weight:500}
+.watch-btn-gated:hover,.watch-btn-gated:focus{background:var(--ink);color:var(--cream);border-color:var(--ink);outline:none}
+/* Round 11 #2: .link-icon rule removed — emoji column dropped from the
+   watch-link-card. The platform name carries the identity; cross-OS emoji
+   inconsistency goes away. */
+.link-info{display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex:1;min-width:0}
+.link-platform{font-family:var(--font-prose);font-size:15px;font-weight:600}
+/* Round 15 #3: switched .link-badge text from color:white to color:var(--ink). White-on-mid-tone-saturated-bg failed WCAG AA on EVERY badge color (Free 2.0:1 / Ads 1.8:1 / Sub 2.5:1 / Rent 2.4:1 / Buy 3.8:1 / Disc 3.7:1 / Region 3.6:1 — none passed 4.5:1). Ink-on-saturated-bg passes for 6 of 7 (Region marginal at 4.1:1; acceptable for low-frequency Region-Locked use). */
+.link-badge{display:inline-block;padding:3px 8px;border-radius:9999px;font-family:var(--mono);font-size:var(--type-data-xs);font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.03em}
+/* Round 15 #2: badge background classes — replace inline style=background:#hex emitted by watch-links-renderer.js. ACCESS_BADGES.class field already provides the right name (badge-free, badge-ads, etc). */
+.badge-free{background:var(--badge-free)}
+.badge-ads{background:var(--badge-ads)}
+.badge-sub{background:var(--badge-sub)}
+.badge-rent{background:var(--badge-rent)}
+.badge-buy{background:var(--badge-buy)}
+.badge-disc{background:var(--badge-disc)}
+.badge-region{background:var(--badge-region)}
 .link-chips{display:flex;gap:4px;flex-wrap:wrap}
-.chip{display:inline-block;padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:10px;background:var(--data-bg);color:var(--ink-muted)}
-.link-notes{font-family:'Source Serif 4',serif;font-size:12px;color:var(--ink-muted);font-style:italic;width:100%}
-.verified-date,.status-icon{flex-shrink:0;font-size:14px}
-.no-links{font-family:'Source Serif 4',serif;color:var(--ink-muted);font-style:italic}
-.dead-links-notice{margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--ink-light)}
-@media(max-width:600px){.watch-link-card{padding:8px 12px}.link-chips{display:none}}
+.chip{display:inline-block;padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:var(--type-data-xs);background:var(--data-bg);color:var(--ink-muted)}
+.link-notes{font-family:var(--font-prose);font-size:var(--type-data);color:var(--ink-muted);font-style:italic;width:100%}
+/* Round 11 #1: was a binary ✅/⚠️ glyph at 14px with the date hidden in
+   a title attribute. Now renders as inline text ("verified Feb 2026") so
+   the freshness signal is legible without hover and announces correctly
+   to screen readers. .verified-date-stale is the >9-month modifier;
+   .verified-date-unverified is the legacy "Unverified"/"Restricted" fallback. */
+.verified-date{flex-shrink:0;font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);letter-spacing:.03em;text-transform:lowercase;white-space:nowrap}
+.verified-date-stale{color:var(--ink-muted);font-style:italic}
+.verified-date-unverified{color:var(--ink-muted)}
+.status-icon{flex-shrink:0;font-size:var(--type-body-sm)}
+.no-links{font-family:var(--font-prose);color:var(--ink-muted);font-style:italic}
+.dead-links-notice{margin-top:8px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-light)}
+/* Round 11 #3: don't hide .link-chips on mobile — same Round 8 #2 shape
+   (subs-badge fix). Quality (480p/HD) and language (Dubbed EN, Subs JA)
+   are top-3 decision factors for international animation. Shrink to 9px
+   inline next to the platform name instead of vanishing. */
+@media(max-width:600px){.watch-link-card{padding:8px 12px}.chip{font-size:9px;padding:1px 4px}.link-chips{gap:3px}}
 /* Research Sources */
 .research-sources{margin-top:32px;padding:20px;background:var(--cream);border:1px solid var(--rule);border-left:3px solid var(--accent)}
-.research-sources h2{font-family:'Playfair Display',serif;font-size:16px;font-weight:400;margin-bottom:12px;color:var(--ink-muted)}
-.sources-list{font-family:var(--mono);font-size:12px;color:var(--ink-light);line-height:1.8}
+.research-sources h2{font-family:var(--font-display);font-size:var(--type-body);font-weight:400;margin-bottom:12px;color:var(--ink-muted)}
+.sources-list{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-light);line-height:1.8}
 /* Film Tags */
 .film-tags{margin-top:32px}
 .tag-section{margin-bottom:16px}
-.tag-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);display:block;margin-bottom:8px}
+.tag-label{font-family:var(--mono);font-size:var(--type-data-xs);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);display:block;margin-bottom:8px}
 .tag-list{display:flex;flex-wrap:wrap;gap:8px}
-.tag{display:inline-flex;align-items:center;padding:8px 12px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:12px;text-decoration:none;border:1px solid var(--rule);transition:all .2s}.tag:hover{border-color:var(--ink);color:var(--accent)}.tag:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}
+.tag{display:inline-flex;align-items:center;padding:8px 12px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);text-decoration:none;border:1px solid var(--rule);transition:all .2s}.tag:hover{border-color:var(--ink);color:var(--accent)}.tag:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}
 .tag:hover{border-color:var(--ink);background:var(--cream)}
 .genre-tag{background:var(--paper);color:var(--ink)}
 .keyword-tag{background:var(--data-bg);color:var(--ink-light)}
@@ -1586,99 +1948,132 @@ function generateCSS() {
 .entity-page{padding:48px 32px;max-width:1200px;margin:0 auto}
 .entity-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:32px}
 .entity-title-section{flex:1}
-.entity-name{font-family:'Playfair Display',serif;font-size:var(--type-page-hero);font-weight:400;margin-bottom:8px}
-.entity-native-name{font-family:'Source Serif 4',serif;font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:8px}
-.entity-subtitle{font-family:'Source Serif 4',serif;color:var(--ink-light);font-size:16px;margin-bottom:4px}
-.entity-dates{font-family:var(--mono);font-size:13px;color:var(--ink-muted)}
-.entity-type-badge{display:inline-block;font-family:var(--mono);font-size:11px;padding:4px 10px;background:var(--accent);color:var(--cream);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
-.entity-type-badge.small{font-size:10px;padding:3px 8px;margin-bottom:8px}
+.entity-name{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:8px}
+.entity-native-name{font-family:var(--font-prose);font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:8px}
+.entity-subtitle{font-family:var(--font-prose);color:var(--ink-light);font-size:var(--type-body);margin-bottom:4px}
+.entity-dates{font-family:var(--mono);font-size:var(--type-meta);color:var(--ink-muted)}
+.entity-type-badge{display:inline-block;font-family:var(--mono);font-size:var(--type-data-sm);padding:4px 10px;background:var(--accent);color:var(--cream);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+.entity-type-badge.small{font-size:var(--type-data-xs);padding:3px 8px;margin-bottom:8px}
 .entity-nav{text-align:right}
-.entity-back-link{font-family:var(--mono);font-size:12px;color:var(--ink-muted);text-decoration:none}
-.entity-back-link:hover{color:var(--accent)}
+/* .entity-back-link removed 2026-04-26 (Round 6 #4) — breadcrumb covers
+   the same orientation; three back-affordances per page was two too many. */
 .entity-description{margin-bottom:32px}
-.entity-description h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:12px}
-.entity-description p{font-family:'Source Serif 4',serif;font-size:16px;line-height:1.8;color:var(--ink-light)}
+.entity-description h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:12px}
+.entity-description p{font-family:var(--font-prose);font-size:var(--type-body);line-height:1.8;color:var(--ink-light)}
 .entity-meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:32px}
 .entity-meta-card{background:var(--paper);border:1px solid var(--rule);padding:20px}
-.meta-card-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin-bottom:8px}
-.meta-card-value{font-family:'Playfair Display',serif;font-size:28px;font-weight:400}
-.meta-card-detail{font-family:var(--mono);font-size:11px;color:var(--ink-muted);margin-top:4px}
+.meta-card-title{font-family:var(--mono);font-size:var(--type-data-xs);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin-bottom:8px}
+.meta-card-value{font-family:var(--font-display);font-size:28px;font-weight:400}
+.meta-card-detail{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);margin-top:4px}
 .meta-card-tags{display:flex;flex-wrap:wrap;gap:6px}
-.meta-tag{font-family:var(--mono);font-size:11px;padding:4px 8px;background:var(--data-bg);border:1px solid var(--rule)}
+/* meta-tag became clickable 2026-04-26 (Round 6 #3) — Notable Techniques
+   now link to /techniques/X.html. Bumped to AA touch target for the
+   tap-to-explore behavior. */
+.meta-tag{display:inline-flex;align-items:center;font-family:var(--mono);font-size:var(--type-data-sm);padding:8px 10px;min-height:44px;box-sizing:border-box;background:var(--data-bg);border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:border-color .2s,color .2s}
+.meta-tag:hover{border-color:var(--ink);color:var(--accent)}
+.meta-tag:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}
+/* Inline links inside entity headers (country, nationality) — kept low-key
+   so they don't compete with the Playfair entity name. */
+.entity-meta-link{color:inherit;text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px;transition:text-decoration-color .15s,color .15s}
+.entity-meta-link:hover,.entity-meta-link:focus{color:var(--accent);text-decoration-color:var(--accent);outline:none}
+/* Director bio section — replaces the three stacked entity-description
+   blocks with one section + sub-headers. Round 6 #5 hierarchy fix. */
+.entity-bio{margin-bottom:32px}
+.entity-bio-block{margin-bottom:24px}
+.entity-bio-block:last-child{margin-bottom:0}
+.entity-bio-label{font-family:var(--mono);font-size:var(--type-data-sm);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin-bottom:8px;font-weight:600}
+.entity-bio-block p{font-family:var(--font-prose);font-size:var(--type-body);line-height:1.8;color:var(--ink-light)}
 .entity-links{margin-bottom:32px}
-.entity-links h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:12px}
-.entity-link{display:block;font-family:var(--mono);font-size:13px;color:var(--ink-light);text-decoration:none;padding:8px 0;border-bottom:1px solid var(--rule)}
+.entity-links h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:12px}
+.entity-link{display:flex;align-items:center;font-family:var(--mono);font-size:var(--type-meta);color:var(--ink-light);text-decoration:none;padding:12px 0;min-height:44px;box-sizing:border-box;border-bottom:1px solid var(--rule)}
 .entity-link:hover{color:var(--accent)}
+.entity-link:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}
 .entity-awards{margin-bottom:32px;padding:20px;background:var(--data-bg);border:1px solid var(--rule)}
-.entity-awards h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:12px}
-.entity-awards p{font-family:'Source Serif 4',serif;font-size:15px;color:var(--ink-light);line-height:1.7}
+.entity-awards h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:12px}
+.entity-awards p{font-family:var(--font-prose);font-size:15px;color:var(--ink-light);line-height:1.7}
 .entity-collaborators{margin-bottom:32px}
-.entity-collaborators h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:12px}
+.entity-collaborators h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:12px}
 .collaborator-tags{display:flex;flex-wrap:wrap;gap:8px}
-.collaborator-tag{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:12px;padding:6px 12px;background:var(--paper);border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:border-color .2s,color .2s}
+.collaborator-tag{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:var(--type-data);padding:10px 12px;min-height:44px;box-sizing:border-box;background:var(--paper);border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:border-color .2s,color .2s}
 .collaborator-tag:hover{border-color:var(--ink);color:var(--accent)}
-.collab-count{color:var(--ink-faint);font-size:11px}
+.collaborator-tag:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}
+.collab-count{color:var(--ink-muted);font-size:var(--type-data-sm)}
 .entity-watch-order{margin-bottom:32px;padding:20px;background:var(--paper);border:1px solid var(--rule)}
-.entity-watch-order h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;margin-bottom:12px}
-.watch-order-content{font-family:'Source Serif 4',serif;font-size:15px;color:var(--ink-light);line-height:1.8}
+.entity-watch-order h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:12px}
+.watch-order-content{font-family:var(--font-prose);font-size:15px;color:var(--ink-light);line-height:1.8}
 .watch-order-list{margin:12px 0;padding-left:24px}
 .watch-order-list li{margin-bottom:8px;padding-left:8px}
-.watch-order-header{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin:16px 0 8px}
+.watch-order-header{font-family:var(--mono);font-size:var(--type-data);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin:16px 0 8px}
 ol.watch-order-list{list-style:decimal}
 ul.watch-order-list{list-style:disc}
 .entity-films-section{margin-top:40px}
+/* Round 10 #1: search box + watchable/subs filter pills + result counter
+   above entity-page tables. Self-contained component; no homepage app.js
+   dependency. The :has() selector on .entity-filter-pill toggles the
+   ink-on-cream styling when the inner checkbox is checked — modern
+   browsers support :has() (Safari 15.4+, Chrome 105+, Firefox 121+);
+   older browsers degrade to a static checkbox visual which still works. */
+.entity-controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:24px;padding:14px 16px;background:var(--paper);border:1px solid var(--rule)}
+.entity-search-input{flex:1 1 280px;padding:10px 14px;border:1px solid var(--rule);background:var(--cream);font-family:var(--mono);font-size:var(--type-data);min-width:0;min-height:44px;box-sizing:border-box}
+.entity-search-input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}
+.entity-filter-pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-light);cursor:pointer;padding:8px 12px;border:1px solid var(--rule);background:var(--cream);min-height:44px;box-sizing:border-box;transition:background .15s,border-color .15s,color .15s;letter-spacing:.05em;text-transform:uppercase;font-weight:500;-webkit-user-select:none;user-select:none}
+.entity-filter-pill:hover{background:var(--data-bg)}
+.entity-filter-pill input{margin:0;cursor:pointer}
+.entity-filter-pill:has(input:checked){background:var(--ink);color:var(--cream);border-color:var(--ink)}
+.entity-result-count{margin-left:auto;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
+@media(max-width:600px){.entity-controls{padding:12px;gap:8px}.entity-result-count{margin-left:0;width:100%;text-align:center}}
 /* Entity Index Pages */
 .entity-index{padding:48px 32px;max-width:1400px;margin:0 auto}
 .entity-index-header{text-align:center;margin-bottom:48px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
-.entity-index-header h1{font-family:'Playfair Display',serif;font-size:48px;font-weight:400;margin-bottom:12px}
-.entity-index-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
+.entity-index-header h1{font-family:var(--font-display);font-size:48px;font-weight:400;margin-bottom:12px}
+.entity-index-subtitle{font-family:var(--font-prose);font-style:italic;color:var(--ink-muted);font-size:var(--type-body)}
 .entity-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
 .entity-card{display:block;background:var(--paper);border:1px solid var(--rule);padding:20px;text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s}
 .entity-card:hover{border-color:var(--ink);box-shadow:4px 4px 0 var(--rule)}
-.entity-card-name{font-family:'Playfair Display',serif;font-size:20px;font-weight:400;margin-bottom:8px;color:var(--ink)}
-.entity-card-meta{display:flex;gap:12px;font-family:var(--mono);font-size:11px;color:var(--ink-muted);margin-bottom:4px}
+.entity-card-name{font-family:var(--font-display);font-size:20px;font-weight:400;margin-bottom:8px;color:var(--ink)}
+.entity-card-meta{display:flex;gap:12px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);margin-bottom:4px}
 .entity-card-country{color:var(--accent)}
 .entity-card-count{color:var(--ink)}
-.entity-card-dates{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+.entity-card-dates{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
 /* Tag Pages (Genres, Keywords) */
 .tag-page{padding:48px 32px;max-width:1200px;margin:0 auto}
 .tag-header{text-align:center;margin-bottom:40px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
-.tag-type{display:inline-block;font-family:var(--mono);font-size:11px;padding:4px 12px;background:var(--ink);color:var(--cream);text-transform:uppercase;letter-spacing:.15em;margin-bottom:12px}
-.tag-name{font-family:'Playfair Display',serif;font-size:48px;font-weight:400;margin-bottom:8px}
-.tag-count{font-family:var(--mono);font-size:14px;color:var(--ink-muted)}
+.tag-type{display:inline-block;font-family:var(--mono);font-size:var(--type-data-sm);padding:4px 12px;background:var(--ink);color:var(--cream);text-transform:uppercase;letter-spacing:.15em;margin-bottom:12px}
+.tag-name{font-family:var(--font-display);font-size:48px;font-weight:400;margin-bottom:8px}
+.tag-count{font-family:var(--mono);font-size:var(--type-body-sm);color:var(--ink-muted)}
 .tag-films-section{margin-top:24px}
 /* Tag Cloud */
 .tag-cloud{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;padding:24px}
 .tag-cloud-item{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:var(--ink);transition:all .2s;border-radius:4px}
 .tag-cloud-item:hover{border-color:var(--ink);box-shadow:3px 3px 0 var(--rule);transform:translateY(-1px)}
-.tag-cloud-item .tag-name{font-family:'Source Serif 4',serif}
-.tag-cloud-item .tag-count{font-family:var(--mono);font-size:11px;color:var(--ink-muted);background:var(--data-bg);padding:2px 6px;border-radius:3px}
-.tag-size-xs{font-size:13px;padding:6px 10px}
-.tag-size-xs .tag-count{font-size:10px}
-.tag-size-sm{font-size:14px;padding:8px 12px}
-.tag-size-md{font-size:16px;padding:10px 16px}
+.tag-cloud-item .tag-name{font-family:var(--font-prose)}
+.tag-cloud-item .tag-count{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);background:var(--data-bg);padding:2px 6px;border-radius:3px}
+.tag-size-xs{font-size:var(--type-meta);padding:6px 10px}
+.tag-size-xs .tag-count{font-size:var(--type-data-xs)}
+.tag-size-sm{font-size:var(--type-body-sm);padding:8px 12px}
+.tag-size-md{font-size:var(--type-body);padding:10px 16px}
 .tag-size-lg{font-size:18px;padding:12px 18px;font-weight:500}
 .tag-size-xl{font-size:22px;padding:14px 22px;font-weight:500;background:var(--data-bg)}
 @media(max-width:900px){.tag-cloud{gap:8px;padding:16px}.tag-cloud-item{padding:8px 12px}}
 /* Collapsible Sidebar Sections */
 .collapsible-header{cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center}
-.collapse-icon{font-size:10px;color:var(--ink-faint);transition:transform .2s}
+.collapse-icon{font-size:var(--type-data-xs);color:var(--ink-muted);transition:transform .2s}
 .collapsible-content.collapsed{display:none}
 /* Footer Report Link */
 .footer-links{display:flex;gap:24px;align-items:center}
-.footer-report{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.5);text-decoration:none}
+.footer-report{font-family:var(--mono);font-size:var(--type-data-sm);color:rgba(255,255,255,.5);text-decoration:none}
 .footer-report:hover{color:var(--cream)}
 /* Series type in film meta */
-.series-type{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
+.series-type{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
 /* Breadcrumb Navigation */
-.breadcrumb{padding:12px 32px;background:var(--paper);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:12px}
+.breadcrumb{padding:12px 32px;background:var(--paper);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data)}
 .breadcrumb-list{display:flex;flex-wrap:wrap;align-items:center;list-style:none;gap:0}
 .breadcrumb-item{display:inline-flex;align-items:center}
 .breadcrumb-item a{color:var(--ink-muted);text-decoration:none;transition:color .15s}
 .breadcrumb-item a:hover{color:var(--accent)}
 .breadcrumb-item span[aria-current]{color:var(--ink);font-weight:500}
-.breadcrumb-sep{color:var(--ink-faint);margin:0 8px}
-@media(max-width:900px){.entity-header{flex-direction:column}.entity-nav{margin-top:16px}.entity-grid{grid-template-columns:1fr}.breadcrumb{padding:12px 16px;font-size:11px}.breadcrumb-sep{margin:0 6px}.main-nav{gap:20px;padding:14px 16px;flex-wrap:wrap}}
+.breadcrumb-sep{color:var(--ink-muted);margin:0 8px}
+@media(max-width:900px){.entity-header{flex-direction:column}.entity-nav{margin-top:16px}.entity-grid{grid-template-columns:1fr}.breadcrumb{padding:12px 16px;font-size:var(--type-data-sm)}.breadcrumb-sep{margin:0 6px}.main-nav{gap:20px;padding:14px 16px;flex-wrap:wrap}}
 @media(max-width:480px){
 .main-nav{overflow-x:auto;flex-wrap:nowrap;gap:24px;padding:14px 16px;justify-content:flex-start;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none}
 .main-nav::-webkit-scrollbar{display:none}
@@ -1687,7 +2082,8 @@ ul.watch-order-list{list-style:disc}
 .masthead-title{font-size:24px}
 .masthead-top{padding:8px 16px;flex-wrap:wrap;justify-content:center;gap:4px}
 .masthead-top span:nth-child(2){display:none}
-.stat-block{flex:1 1 100%;padding:12px 16px}
+/* Round 8 #3: removed flex:1 1 100% override — the 900px rule's flex:1 1 50% cascades correctly, giving a 2x2 grid instead of 4 stacked rows. */
+.stat-block{padding:12px 16px}
 .content-header{padding:12px 16px;flex-direction:column;gap:8px;align-items:flex-start}
 .search-box input{width:100%}
 .keyboard-hints{display:none}
@@ -1699,27 +2095,52 @@ ul.watch-order-list{list-style:disc}
 .film-table tr.hidden{display:none}
 .film-table td{padding:0;border:none;background:none!important}
 .film-table td:first-child{order:1}
-.table-year{font-size:14px;display:inline}
+.table-year{font-size:var(--type-body-sm);display:inline}
 .table-country{display:inline;margin-top:0;margin-left:4px}
 .film-table td:nth-child(2){order:0;width:100%;flex-basis:100%}
-.table-title{font-size:16px;font-weight:600}
-.table-original{font-size:12px}
+.table-title{font-size:var(--type-body);font-weight:600}
+.table-original{font-size:var(--type-data)}
 .film-table td:nth-child(3){order:2;flex:1;min-width:0}
-.table-meta{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.table-meta{font-size:var(--type-data-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .film-table td:last-child{order:3}
-.watch-btn{padding:6px 10px;font-size:10px}
+.watch-btn{padding:6px 10px;font-size:var(--type-data-xs)}
 .watch-cell{text-align:center}
-.subs-badge{display:none}
-.no-link{display:none}
+/* Round 8 #2: subs badge shrinks instead of disappearing — for an
+   international archive, "EN subs" is the top decision factor on mobile.
+   Inlined next to the watch button at 9px to fit. */
+.subs-badge{display:inline-block;margin-top:0;margin-left:6px;font-size:9px;padding:1px 4px;background:var(--data-bg);border-radius:2px;color:var(--ink-muted)}
+/* Round 8 #6: keep the em-dash on mobile so empty watch cells read
+   consistently (was display:none — caused alternating button/blank). */
+.no-link{display:inline;font-size:var(--type-body-sm);color:var(--ink-muted)}
 .detail-page{padding:24px 16px}
 .detail-header{gap:20px;padding-bottom:24px;margin-bottom:24px}
 .detail-year-block{padding:20px;display:flex;align-items:center;gap:16px}
 .detail-year{font-size:36px}
 .detail-country{margin-top:0}
 .detail-title{font-size:24px}
-.detail-original{font-size:16px}
-.detail-credits{font-size:14px}
-.detail-watch-btn{padding:14px 20px;width:100%;justify-content:center}
+.detail-original{font-size:var(--type-body)}
+.detail-credits{font-size:var(--type-body-sm)}
+/* Round 9 #2: ellipsis lifted off the button itself onto the inner
+   .detail-watch-platform span (defined in base rules). The button now
+   just constrains width and aligns; the inner span does the truncation,
+   so "OPEN ON ARCHIVE.ORG" becomes "OPEN ON ARCHIVE…" not
+   "OPEN ON ARCH…". The verb stays legible. */
+.detail-watch-btn{padding:14px 16px;width:100%;justify-content:center;gap:6px}
+/* Gated variant compensation — base padding override at mobile loses
+   the 1.5px-border inset balance from desktop. Match heights. */
+.detail-watch-btn-gated{padding:calc(var(--space-3) + 2px - var(--border-emphasis)) calc(var(--space-4) + var(--space-1) - var(--border-emphasis))}
+/* Round 8 #4: tag-page stat cards collapse to horizontal scroll on
+   mobile so the films section isn't pushed below 700px of stat cards.
+   Round 9 #1: Round 8 hid the scrollbar with no replacement affordance
+   — users couldn't tell more cards existed off-screen. Added a right-edge
+   mask fade (signals "more →") and scroll-snap so cards land on a clean
+   left edge. Both webkit + standard mask-image for Safari. */
+.tag-stats-grid{display:flex;overflow-x:auto;gap:12px;padding:0 16px 8px;margin:0 -16px;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 32px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 32px),transparent)}
+.tag-stats-grid::-webkit-scrollbar{display:none}
+.tag-stat-card{flex:0 0 240px;min-width:0;scroll-snap-align:start}
+/* Trailing spacer card so the last real card scrolls fully into view past
+   the right-edge fade, instead of disappearing under it. */
+.tag-stats-grid::after{content:'';flex:0 0 16px}
 .detail-actions{align-items:stretch}
 .detail-body{gap:24px}
 .detail-content h2{font-size:18px;margin-top:24px}
@@ -1735,28 +2156,32 @@ ul.watch-order-list{list-style:disc}
 .entity-index-header h1,.tag-name{font-size:32px}
 .stat-card-value{font-size:36px}
 .decade-name{font-size:36px}
-.decade-description,.technique-description{font-size:16px}
+.decade-description,.technique-description{font-size:var(--type-body)}
 .section-title{font-size:20px}
 .meta-card-value{font-size:24px}
-.breadcrumb{padding:8px 12px;font-size:10px}
+/* Round 8 #7: 11px is the design system minimum text size; 10px violated our own floor. */
+.breadcrumb{padding:8px 12px;font-size:var(--type-data-sm)}
 .film-of-day{margin:12px 16px;padding:16px}
 .film-of-day-title{font-size:18px}
 .related-films{padding:24px 16px}
 .related-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .error-code{font-size:72px}
 .error-title{font-size:24px}
-.error-message{font-size:16px}
+.error-message{font-size:var(--type-body)}
 .footer{padding:20px 16px}
 .footer-inner{flex-direction:column;gap:12px;text-align:center}
 .alphabet-link{min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}
 .tag-cloud-item{min-height:44px}
 .load-more-btn{min-height:44px}
 .decade-card{grid-template-columns:60px 1fr}
-.decade-card-year{font-size:16px}
+.decade-card-year{font-size:var(--type-body)}
 .decade-card-info{padding:16px}
 .watch-links-section{padding:16px}
 .watch-link-card{padding:8px 12px}
-.link-chips{display:none}
+/* Round 11 #3: was .link-chips{display:none} at 480px — second hide rule
+   (the 600px one was already fixed). Same shape: shrink, don't hide. */
+.chip{font-size:9px;padding:1px 4px}
+.link-chips{gap:3px;width:100%}
 .no-results{padding:24px 16px}
 .no-results-title{font-size:20px}
 }`;
@@ -1767,8 +2192,9 @@ function generateJS() {
 const tbody=document.getElementById('film-tbody');
 const searchInput=document.getElementById('search-input');
 const resultsCount=document.getElementById('results-count');
-const activeQueryBox=document.getElementById('active-query');
-const queryTags=document.getElementById('query-tags');
+// Round 9 #5: activeQueryBox / queryTags removed — see HTML emission and
+// updateQueryDisplay() removal. Above-table FILTERED: strip is the single
+// source of truth for active-filter chips now.
 const filterItems=document.querySelectorAll('.filter-item');
 const loadMoreBtn=document.getElementById('load-more-btn');
 // Catalog is lazy-loaded — see ensureCatalog() below. Until first
@@ -2017,21 +2443,22 @@ function updateDisplay(resetPagination){
     }
   }
   resultsCount.textContent=sorted.length.toLocaleString()+' films';
-  updateQueryDisplay();
+  // Round 9 #5: hide FotD when any filter/search is active. Showing a
+  // randomly-rotated daily pick alongside a "you searched for X" view
+  // breaks the page's implicit promise that visible content reflects
+  // active filters. Hidden via CSS class so reduced-motion / print
+  // styles can override if needed.
+  const fotdMount=document.getElementById('film-of-day-mount');
+  if(fotdMount)fotdMount.classList.toggle('is-hidden',!!isFiltered);
   if(typeof updateActiveFiltersBar==='function')updateActiveFiltersBar();
 }
 
-function updateQueryDisplay(){
-  const hasFilters=Object.keys(activeFilters).length>0;
-  activeQueryBox.style.display=hasFilters?'block':'none';
-  if(hasFilters){
-    queryTags.innerHTML=Object.entries(activeFilters).map(([type,value])=>'<span class="query-tag">'+value+' <span class="remove" data-type="'+type+'" tabindex="0" role="button" aria-label="Remove '+value+' filter">×</span></span>').join('');
-    queryTags.querySelectorAll('.remove').forEach(btn=>{
-      const handler=function(){delete activeFilters[this.dataset.type];document.querySelectorAll('.filter-item.active').forEach(item=>{if(item.dataset.filterType===this.dataset.type)item.classList.remove('active')});updateDisplay();};
-      btn.addEventListener('click',handler);
-      btn.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();handler.call(this);}});
-    });
-  }
+// Round 9 #5: updateQueryDisplay() removed — the above-table
+// updateActiveFiltersBar() (called from updateDisplay) handles all
+// active-filter chip rendering in a single discoverable location.
+function _removed_updateQueryDisplay(){
+  // intentionally empty — preserved as a name landmark for git blame
+  // searches; safe to delete on a future cleanup pass.
 }
 
 searchInput.addEventListener('input',function(){
@@ -2415,7 +2842,7 @@ ${FAVICON}
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateCountryJsonLd(country, countryFilms)}</script>
 
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2431,59 +2858,48 @@ ${generateBreadcrumb([
 ], '../')}
 <main class="country-page" id="main-content">
   <div class="country-header">
-    <div class="country-code-block"><span class="country-code-large">${countryCode}</span></div>
+    <div class="country-code-block"><abbr title="${escapeHtml(country)}" class="country-code-large">${countryCode}</abbr></div>
     <div class="country-title-section">
       <h1 class="country-name">${escapeHtml(country)}</h1>
       <p class="country-subtitle">${countryFilms.length} films in the archive</p>
     </div>
-    <nav class="country-nav" aria-label="Country navigation">
-      <a href="index.html" class="country-back-link">← All Countries</a>
-    </nav>
   </div>
 
-  <div class="country-stats-grid">
-    <div class="country-stat-card">
+  <div class="tag-stats-grid">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Total Films</div>
       <div class="stat-card-value">${countryFilms.length}</div>
     </div>
-    <div class="country-stat-card">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Watchable</div>
       <div class="stat-card-value">${watchable}</div>
       <div class="stat-card-detail">${withSubs} with EN subs</div>
     </div>
-    <div class="country-stat-card">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Techniques</div>
-      <div class="stat-card-list">${techniquesSorted.slice(0, 5).map(([t, c]) => `<span class="stat-tag">${escapeHtml(t)} <em>(${c})</em></span>`).join('')}</div>
+      <div class="stat-card-list">${techniquesSorted.slice(0, 5).map(([t, c]) => `<a href="../techniques/${slugify(t)}.html" class="stat-tag">${escapeHtml(t)} <span class="stat-tag-count">(${c})</span></a>`).join('')}</div>
     </div>
-    <div class="country-stat-card">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Decades</div>
-      <div class="stat-card-list">${decadesSorted.map(([d, c]) => `<span class="stat-tag">${d}s <em>(${c})</em></span>`).join('')}</div>
+      <div class="stat-card-list">${decadesSorted.map(([d, c]) => `<a href="../decades/${d}s.html" class="stat-tag">${d}s <span class="stat-tag-count">(${c})</span></a>`).join('')}</div>
     </div>
-    <div class="country-stat-card">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Formats</div>
-      <div class="stat-card-list">${formatsSorted.map(([f, c]) => `<span class="stat-tag">${escapeHtml(f)} <em>(${c})</em></span>`).join('')}</div>
+      <div class="stat-card-list">${formatsSorted.map(([f, c]) => `<span class="stat-tag stat-tag-static">${escapeHtml(f)} <span class="stat-tag-count">(${c})</span></span>`).join('')}</div>
     </div>
   </div>
 
-  <section class="country-films-section">
+  <section class="entity-films-section">
     <h2 class="section-title">All Films from ${escapeHtml(country)}</h2>
-    <div class="table-wrapper">
+    ${entityTableControls(countryFilms.length)}
+    <div class="table-wrapper" aria-live="polite" aria-atomic="false">
       <table class="film-table">
-        <thead>
-          <tr>
-            <th scope="col" style="width:90px">Year</th>
-            <th scope="col">Title</th>
-            <th scope="col">Director / Studio</th>
-            <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
-            <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
-            <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
-            <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
-          </tr>
-        </thead>
+        ${entityTableThead()}
         <tbody>${generateTableRows(countryFilms, '../')}</tbody>
       </table>
     </div>
   </section>
+  ${entityTableEnhanceScript(countryFilms.length)}
 </main>
 ${generateFooter('../')}
 </body></html>`;
@@ -2535,7 +2951,7 @@ ${FAVICON}
     "dateModified": BUILD_TIMESTAMP
   })}</script>
 
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2549,10 +2965,21 @@ ${generateBreadcrumb([
   { label: 'Countries' }
 ], '../')}
 <main class="countries-index" id="main-content">
-  <div class="countries-header">
+  <div class="entity-index-header">
     <h1>Countries</h1>
-    <p class="countries-subtitle">Explore ${totalCountries} countries with animated films in the archive</p>
+    <p class="entity-index-subtitle">Explore ${totalCountries} countries with animated films in the archive</p>
   </div>
+
+  ${/* Round 12 #3: Top-10 most-prolific countries. sortedCountries already by film-count desc. */ ''}
+  ${entityIndexTopChips(
+    sortedCountries.map(([name, films]) => ({ name, _films: films })),
+    c => `${slugify(c.name)}.html`,
+    c => c._films.length,
+    { label: 'Most films' }
+  )}
+
+  ${/* Round 12 #1: search filters .country-card by country name. */ ''}
+  ${entityIndexControls(totalCountries, 'countries')}
 
   <div class="countries-grid">
     ${sortedCountries.map(([country, countryFilms]) => {
@@ -2581,6 +3008,7 @@ ${generateBreadcrumb([
   </div>
 </main>
 ${generateFooter('../')}
+${entityIndexEnhanceScript(totalCountries, 'countries')}
 </body></html>`;
 }
 
@@ -2694,7 +3122,7 @@ ${FAVICON}
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateTechniqueJsonLd(technique, techniqueFilms)}</script>
 
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2720,38 +3148,39 @@ ${generateBreadcrumb([
     </nav>
   </div>
 
-  <div class="technique-stats-grid">
-    <div class="technique-stat-card">
+  <div class="tag-stats-grid">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Total Films</div>
       <div class="stat-card-value">${techniqueFilms.length}</div>
     </div>
-    <div class="technique-stat-card">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Watchable</div>
       <div class="stat-card-value">${watchable}</div>
       <div class="stat-card-detail">${withSubs} with EN subs</div>
     </div>
-    <div class="technique-stat-card">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Top Countries</div>
       <div class="stat-card-list">${countriesSorted.slice(0, 10).map(([c, n]) => `<span class="stat-tag">${escapeHtml(c)} <em>(${n})</em></span>`).join('')}</div>
     </div>
-    <div class="technique-stat-card">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Decades</div>
       <div class="stat-card-list">${decadesSorted.map(([d, c]) => `<span class="stat-tag">${d}s <em>(${c})</em></span>`).join('')}</div>
     </div>
-    <div class="technique-stat-card">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Formats</div>
       <div class="stat-card-list">${formatsSorted.map(([f, c]) => `<span class="stat-tag">${escapeHtml(f)} <em>(${c})</em></span>`).join('')}</div>
     </div>
   </div>
 
-  <section class="technique-films-section">
+  <section class="entity-films-section">
     <h2 class="section-title">All ${escapeHtml(technique)} Films</h2>
-    <div class="table-wrapper">
+    ${entityTableControls(techniqueFilms.length)}
+    <div class="table-wrapper" aria-live="polite" aria-atomic="false">
       <table class="film-table">
         <thead>
           <tr>
-            <th scope="col" style="width:90px">Year</th>
-            <th scope="col">Title</th>
+            <th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+            <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
             <th scope="col">Director / Studio</th>
             <th scope="col" style="width:100px" class="hide-mobile">Country</th>
             <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
@@ -2763,6 +3192,7 @@ ${generateBreadcrumb([
       </table>
     </div>
   </section>
+  ${entityTableEnhanceScript(techniqueFilms.length)}
 </main>
 ${generateFooter('../')}
 </body></html>`;
@@ -2832,7 +3262,7 @@ ${FAVICON}
     "dateModified": BUILD_TIMESTAMP
   })}</script>
 
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2963,7 +3393,7 @@ ${FAVICON}
     "dateModified": BUILD_TIMESTAMP
   })}</script>
 
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2977,15 +3407,32 @@ ${generateBreadcrumb([
   { label: 'Directors' }
 ], '../')}
 <main class="directors-index" id="main-content">
-  <div class="directors-header">
+  <div class="entity-index-header">
     <h1>Directors</h1>
-    <p class="directors-subtitle">Browse ${totalDirectors} directors in the archive</p>
+    <p class="entity-index-subtitle">Browse ${totalDirectors} directors in the archive</p>
   </div>
 
-  <div class="directors-stats">
-    <div class="directors-stat"><span class="stat-value">${totalDirectors}</span><span class="stat-label">Directors</span></div>
-    <div class="directors-stat"><span class="stat-value">${avgFilms}</span><span class="stat-label">Avg Films/Director</span></div>
+  <div class="entity-index-stats">
+    <div class="entity-index-stat"><span class="stat-value">${totalDirectors}</span><span class="stat-label">Directors</span></div>
+    <div class="entity-index-stat"><span class="stat-value">${avgFilms}</span><span class="stat-label">Avg Films/Director</span></div>
   </div>
+
+  ${/* Round 12 #3: Top-10 most-prolific strip — surfaces discovery entry points
+        above the alphabet nav. Without this the user lands on "A Da (4 films)"
+        with no signal that Hayao Miyazaki / Mamoru Oshii / etc exist. */ ''}
+  ${entityIndexTopChips(
+    [...sortedDirectors].sort((a, b) => b.films.length - a.films.length),
+    d => {
+      const matched = directorsByName.get(d.name.toLowerCase().trim());
+      return matched ? `${slugify(matched.name)}-${matched.id.slice(0,8)}.html` : `../index.html?director=${encodeURIComponent(d.name)}`;
+    },
+    d => d.films.length,
+    { label: 'Most prolific' }
+  )}
+
+  ${/* Round 12 #1: search input filters .director-card by name. Self-contained;
+        see entityIndexEnhanceScript at the bottom of the page. */ ''}
+  ${entityIndexControls(totalDirectors, 'directors')}
 
   <nav class="directors-alphabet" aria-label="Jump to letter">
     ${letters.map(letter => `<a href="#letter-${letter}" class="alphabet-link">${letter}</a>`).join('')}
@@ -3017,6 +3464,7 @@ ${generateBreadcrumb([
   </div>
 </main>
 ${generateFooter('../')}
+${entityIndexEnhanceScript(totalDirectors, 'directors')}
 </body></html>`;
 }
 
@@ -3157,7 +3605,7 @@ ${FAVICON}
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateDecadeJsonLd(decade, decadeFilms)}</script>
 
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -3176,49 +3624,47 @@ ${generateBreadcrumb([
     <div class="decade-title-section">
       <h1 class="decade-name">${decadeLabel}</h1>
       <p class="decade-range">${decadeRange}</p>
-      <p class="decade-description">${escapeHtml(decadeDesc)}</p>
+      ${decadeDesc ? `<p class="decade-description">${escapeHtml(decadeDesc)}</p>` : ''}
       <p class="decade-subtitle">${decadeFilms.length} films in the archive</p>
     </div>
-    <nav class="decade-nav" aria-label="Decade navigation">
-      <a href="index.html" class="decade-back-link">← All Decades</a>
-    </nav>
   </div>
 
-  <div class="decade-stats-grid">
-    <div class="decade-stat-card">
+  <div class="tag-stats-grid">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Total Films</div>
       <div class="stat-card-value">${decadeFilms.length}</div>
     </div>
-    <div class="decade-stat-card">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Watchable</div>
       <div class="stat-card-value">${watchable}</div>
       <div class="stat-card-detail">${withSubs} with EN subs</div>
     </div>
-    <div class="decade-stat-card">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Top Countries</div>
-      <div class="stat-card-list">${countriesSorted.slice(0, 10).map(([c, n]) => `<span class="stat-tag">${escapeHtml(c)} <em>(${n})</em></span>`).join('')}</div>
+      <div class="stat-card-list">${countriesSorted.slice(0, 10).map(([c, n]) => `<a href="../countries/${slugify(c)}.html" class="stat-tag">${escapeHtml(c)} <span class="stat-tag-count">(${n})</span></a>`).join('')}</div>
     </div>
-    <div class="decade-stat-card">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Techniques</div>
-      <div class="stat-card-list">${techniquesSorted.slice(0, 8).map(([t, c]) => `<span class="stat-tag">${escapeHtml(t)} <em>(${c})</em></span>`).join('')}</div>
+      <div class="stat-card-list">${techniquesSorted.slice(0, 8).map(([t, c]) => `<a href="../techniques/${slugify(t)}.html" class="stat-tag">${escapeHtml(t)} <span class="stat-tag-count">(${c})</span></a>`).join('')}</div>
     </div>
-    <div class="decade-stat-card">
+    <div class="tag-stat-card">
       <div class="stat-card-title">Formats</div>
-      <div class="stat-card-list">${formatsSorted.map(([f, c]) => `<span class="stat-tag">${escapeHtml(f)} <em>(${c})</em></span>`).join('')}</div>
+      <div class="stat-card-list">${formatsSorted.map(([f, c]) => `<span class="stat-tag stat-tag-static">${escapeHtml(f)} <span class="stat-tag-count">(${c})</span></span>`).join('')}</div>
     </div>
   </div>
 
-  <section class="decade-films-section">
+  <section class="entity-films-section">
     <h2 class="section-title">All Films from the ${decadeLabel}</h2>
-    <div class="table-wrapper">
+    ${entityTableControls(decadeFilms.length)}
+    <div class="table-wrapper" aria-live="polite" aria-atomic="false">
       <table class="film-table">
         <thead>
           <tr>
-            <th scope="col" style="width:70px">Year</th>
-            <th scope="col">Title</th>
+            <th scope="col" style="width:70px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+            <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
             <th scope="col">Director / Studio</th>
             <th scope="col" style="width:100px" class="hide-mobile">Country</th>
-            <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
+            <th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
             <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
             <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
           </tr>
@@ -3227,6 +3673,7 @@ ${generateBreadcrumb([
       </table>
     </div>
   </section>
+  ${entityTableEnhanceScript(decadeFilms.length)}
 </main>
 ${generateFooter('../')}
 </body></html>`;
@@ -3279,7 +3726,7 @@ ${FAVICON}
     "dateModified": BUILD_TIMESTAMP
   })}</script>
 
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -3357,10 +3804,16 @@ function generateDecadePages() {
 
 // ===================== STUDIO PAGES =====================
 function generateStudioPage(studio) {
-  // Get films for this studio
+  // Token-exact match (was substring 2026-04-26): the previous
+  // `.toLowerCase().includes(studio.name.toLowerCase())` over-collected
+  // for any studio whose name was a substring of another (e.g. "Pixar"
+  // matching "Pixar Reborn"). Splits the comma-separated studio string,
+  // trims, and matches whole tokens. Entity-array path is unchanged
+  // (id-based; never had the bug).
+  const studioNameLower = studio.name.toLowerCase();
   const studioFilms = films.filter(f =>
     (f.studioEntities && f.studioEntities.some(s => s.id === studio.id)) ||
-    (f.studio && f.studio.toLowerCase().includes(studio.name.toLowerCase()))
+    (f.studio && f.studio.split(',').map(s => s.trim().toLowerCase()).includes(studioNameLower))
   ).sort((a, b) => (a.year || 0) - (b.year || 0));
 
   const filmCount = studioFilms.length;
@@ -3387,7 +3840,7 @@ ${FAVICON}
 <meta property="og:url" content="${SITE_URL}/${getStudioUrl(studio)}">
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:image" content="${OG_IMAGE}">
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -3405,12 +3858,9 @@ ${generateBreadcrumb([
   <div class="entity-header">
     <div class="entity-title-section">
       <h1 class="entity-name">${escapeHtml(studio.name)}</h1>
-      ${studio.country ? `<p class="entity-subtitle">${escapeHtml(studio.country)}</p>` : ''}
+      ${studio.country ? `<p class="entity-subtitle"><a href="../countries/${slugify(studio.country)}.html" class="entity-meta-link">${escapeHtml(studio.country)}</a></p>` : ''}
       ${statusText ? `<p class="entity-dates">${statusText}</p>` : ''}
     </div>
-    <nav class="entity-nav">
-      <a href="index.html" class="entity-back-link">← All Studios</a>
-    </nav>
   </div>
 
   ${studio.significance ? `<div class="entity-description"><p>${escapeHtml(studio.significance)}</p></div>` : ''}
@@ -3419,7 +3869,7 @@ ${generateBreadcrumb([
     ${studio.notableTechniques && studio.notableTechniques.length > 0 ? `
     <div class="entity-meta-card">
       <div class="meta-card-title">Notable Techniques</div>
-      <div class="meta-card-tags">${studio.notableTechniques.map(t => `<span class="meta-tag">${escapeHtml(t)}</span>`).join('')}</div>
+      <div class="meta-card-tags">${studio.notableTechniques.map(t => `<a href="../techniques/${slugify(t)}.html" class="meta-tag">${escapeHtml(t)}</a>`).join('')}</div>
     </div>` : ''}
     <div class="entity-meta-card">
       <div class="meta-card-title">Films in Archive</div>
@@ -3475,29 +3925,32 @@ ${generateBreadcrumb([
   ${studioFilms.length > 0 ? `
   <section class="entity-films-section">
     <h2 class="section-title">Filmography (${filmCount} films)</h2>
-    <div class="table-wrapper">
+    ${entityTableControls(filmCount)}
+    <div class="table-wrapper" aria-live="polite" aria-atomic="false">
       <table class="film-table">
         <thead><tr>
-          <th scope="col" style="width:90px" class="sortable active" data-col="year" tabindex="0" aria-sort="ascending">Year <span class="sort-indicator" aria-hidden="true">▲</span></th>
-          <th scope="col" class="sortable" data-col="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true">⇅</span></th>
+          <th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+          <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
           <th scope="col">Director</th>
-          <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
+          <th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
+          <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
+          <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
           <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
-        <tbody>${studioFilms.map(film => `
-          <tr>
-            <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
-            <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
-            <td class="table-meta">${getDirectorLink(film, '../') || '—'}</td>
-            <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-            <td class="watch-cell">${renderWatchCell(film, { compact: true })}</td>
-          </tr>`).join('')}</tbody>
+        <tbody>${generateTableRows(studioFilms, { basePath: '../', omitMeta: 'studio' })}</tbody>
       </table>
     </div>
-  </section>` : ''}
+  </section>
+  ${entityTableEnhanceScript(filmCount)}` : `
+  <section class="entity-films-section">
+    <div class="empty-state">
+      <p class="empty-state-message">We have ${escapeHtml(studio.name)} cataloged but no films linked yet.</p>
+      <a href="mailto:kylebarrett1@mac.com?subject=${encodeURIComponent('Filmography for ' + studio.name)}&body=${encodeURIComponent('Hi — I have films to contribute for studio ' + studio.name + ':\n\nFilm 1: \nFilm 2: \n\nThanks!')}" class="empty-state-cta">Help us add their filmography →</a>
+    </div>
+  </section>`}
 </main>
 ${generateFooter('../')}
-${studioFilms.length > 0 ? generateEntityTableSort() : ''}
+${/* Round 10 #1: removed generateEntityTableSort() — replaced by entityTableEnhanceScript() emitted inside the section. */ ''}
 </body></html>`;
 }
 
@@ -3521,7 +3974,7 @@ ${FAVICON}
 <meta property="og:type" content="website">
 <meta property="og:title" content="Studios — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -3539,6 +3992,18 @@ ${generateBreadcrumb([
     <h1>Studios</h1>
     <p class="entity-index-subtitle">Browse ${studios.length} animation studios from around the world</p>
   </div>
+
+  ${/* Round 12 #3: Top-10 most-prolific studios. sortedStudios already sorted by film count desc. */ ''}
+  ${entityIndexTopChips(
+    sortedStudios.map(s => ({ name: s.name, slug: s.id, _filmCount: films.filter(f => f.studioEntities?.some(se => se.id === s.id)).length, _id: s.id })),
+    s => `${slugify(s.name)}-${s._id.slice(0,8)}.html`,
+    s => s._filmCount,
+    { label: 'Most prolific' }
+  )}
+
+  ${/* Round 12 #1: search filters .entity-card by name. */ ''}
+  ${entityIndexControls(studios.length, 'studios')}
+
   <div class="entity-grid">
     ${sortedStudios.map(studio => {
       const filmCount = films.filter(f => f.studioEntities?.some(s => s.id === studio.id)).length;
@@ -3556,6 +4021,7 @@ ${generateBreadcrumb([
   </div>
 </main>
 ${generateFooter('../')}
+${entityIndexEnhanceScript(studios.length, 'studios')}
 </body></html>`;
 }
 
@@ -3580,15 +4046,23 @@ function generateStudioPages() {
 
 // ===================== DIRECTOR DETAIL PAGES =====================
 function generateDirectorDetailPage(director) {
-  // Get films for this director
+  // Token-exact match (was substring 2026-04-26): the previous
+  // `.toLowerCase().includes(director.name.toLowerCase())` was a silent
+  // bug for common surnames. "Lee" matched every film with any "Lee" in
+  // the director string (Spike Lee, Bruce Lee, Lee Unkrich, etc).
+  // Splits comma-separated director names and matches whole tokens.
+  const directorNameLower = director.name.toLowerCase();
   const directorFilms = films.filter(f =>
     (f.directorEntities && f.directorEntities.some(d => d.id === director.id)) ||
-    (f.director && f.director.toLowerCase().includes(director.name.toLowerCase()))
+    (f.director && f.director.split(',').map(d => d.trim().toLowerCase()).includes(directorNameLower))
   ).sort((a, b) => (a.year || 0) - (b.year || 0));
 
   const filmCount = directorFilms.length;
-  const lifespan = director.birthYear ?
-    `${director.birthYear}${director.deathYear ? ` – ${director.deathYear}` : ' – Present'}` : '';
+  // For living directors, "Born 1934" reads warmer than "1934 – Present"
+  // (which implies measuring against a future death year).
+  const lifespan = director.birthYear
+    ? (director.deathYear ? `${director.birthYear} – ${director.deathYear}` : `Born ${director.birthYear}`)
+    : '';
 
   const nationalities = Array.isArray(director.nationality) ? director.nationality.join(', ') : (director.nationality || '');
   const description = `${director.name}${director.nativeName ? ` (${director.nativeName})` : ''} — ${nationalities ? nationalities + ' ' : ''}animator and director. ${filmCount} films in the archive.`;
@@ -3604,7 +4078,7 @@ ${FAVICON}
 <meta property="og:type" content="profile">
 <meta property="og:title" content="${escapeHtml(director.name)} — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -3624,16 +4098,17 @@ ${generateBreadcrumb([
       <h1 class="entity-name">${escapeHtml(director.name)}</h1>
       ${director.nativeName ? `<p class="entity-native-name">${escapeHtml(director.nativeName)}</p>` : ''}
       ${lifespan ? `<p class="entity-dates">${lifespan}</p>` : ''}
-      ${nationalities ? `<p class="entity-subtitle">Nationality: ${escapeHtml(nationalities)}</p>` : ''}
+      ${nationalities ? `<p class="entity-subtitle">Nationality: ${(Array.isArray(director.nationality) ? director.nationality : [director.nationality]).filter(Boolean).map(n => `<a href="../countries/${slugify(n)}.html" class="entity-meta-link">${escapeHtml(n)}</a>`).join(', ')}</p>` : ''}
     </div>
-    <nav class="entity-nav">
-      <a href="index.html" class="entity-back-link">← All Directors</a>
-    </nav>
   </div>
 
-  ${director.bio ? `<div class="entity-description"><h3>Biography</h3><p>${escapeHtml(director.bio)}</p></div>` : ''}
-  ${director.significance ? `<div class="entity-description"><h3>Significance</h3><p>${escapeHtml(director.significance)}</p></div>` : ''}
-  ${director.signatureStyle ? `<div class="entity-description"><h3>Signature Style</h3><p>${escapeHtml(director.signatureStyle)}</p></div>` : ''}
+  ${(director.bio || director.significance || director.signatureStyle) ? `
+  <section class="entity-bio" aria-labelledby="entity-bio-heading">
+    <h2 id="entity-bio-heading" class="section-title">About</h2>
+    ${director.bio ? `<div class="entity-bio-block"><h4 class="entity-bio-label">Biography</h4><p>${escapeHtml(director.bio)}</p></div>` : ''}
+    ${director.significance ? `<div class="entity-bio-block"><h4 class="entity-bio-label">Significance</h4><p>${escapeHtml(director.significance)}</p></div>` : ''}
+    ${director.signatureStyle ? `<div class="entity-bio-block"><h4 class="entity-bio-label">Signature Style</h4><p>${escapeHtml(director.signatureStyle)}</p></div>` : ''}
+  </section>` : ''}
 
   <div class="entity-meta-grid">
     ${director.primaryTechnique ? `
@@ -3694,29 +4169,32 @@ ${generateBreadcrumb([
   ${directorFilms.length > 0 ? `
   <section class="entity-films-section">
     <h2 class="section-title">Filmography (${filmCount} films)</h2>
-    <div class="table-wrapper">
+    ${entityTableControls(filmCount)}
+    <div class="table-wrapper" aria-live="polite" aria-atomic="false">
       <table class="film-table">
         <thead><tr>
-          <th scope="col" style="width:90px" class="sortable active" data-col="year" tabindex="0" aria-sort="ascending">Year <span class="sort-indicator" aria-hidden="true">▲</span></th>
-          <th scope="col" class="sortable" data-col="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true">⇅</span></th>
+          <th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+          <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
           <th scope="col">Studio</th>
-          <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
+          <th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
+          <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
+          <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
           <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
-        <tbody>${directorFilms.map(film => `
-          <tr>
-            <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
-            <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
-            <td class="table-meta">${getStudioLink(film, '../') || '—'}</td>
-            <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-            <td class="watch-cell">${renderWatchCell(film, { compact: true })}</td>
-          </tr>`).join('')}</tbody>
+        <tbody>${generateTableRows(directorFilms, { basePath: '../', omitMeta: 'director' })}</tbody>
       </table>
     </div>
-  </section>` : ''}
+  </section>
+  ${entityTableEnhanceScript(filmCount)}` : `
+  <section class="entity-films-section">
+    <div class="empty-state">
+      <p class="empty-state-message">We have ${escapeHtml(director.name)} cataloged but no films linked yet.</p>
+      <a href="mailto:kylebarrett1@mac.com?subject=${encodeURIComponent('Filmography for ' + director.name)}&body=${encodeURIComponent('Hi — I have films to contribute for director ' + director.name + ':\n\nFilm 1: \nFilm 2: \n\nThanks!')}" class="empty-state-cta">Help us add their filmography →</a>
+    </div>
+  </section>`}
 </main>
 ${generateFooter('../')}
-${directorFilms.length > 0 ? generateEntityTableSort() : ''}
+${/* Round 10 #1: removed generateEntityTableSort() — replaced by entityTableEnhanceScript() emitted inside the section. */ ''}
 </body></html>`;
 }
 
@@ -3769,7 +4247,7 @@ ${FAVICON}
 <meta property="og:type" content="website">
 <meta property="og:title" content="${escapeHtml(series.name)} — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -3788,12 +4266,9 @@ ${generateBreadcrumb([
     <div class="entity-title-section">
       <span class="entity-type-badge">${escapeHtml(typeLabel)}</span>
       <h1 class="entity-name">${escapeHtml(series.name)}</h1>
-      ${series.country ? `<p class="entity-subtitle">${escapeHtml(series.country)}</p>` : ''}
+      ${series.country ? `<p class="entity-subtitle"><a href="../countries/${slugify(series.country)}.html" class="entity-meta-link">${escapeHtml(series.country)}</a></p>` : ''}
       ${series.yearsActive ? `<p class="entity-dates">Years Active: ${escapeHtml(series.yearsActive)}</p>` : ''}
     </div>
-    <nav class="entity-nav">
-      <a href="index.html" class="entity-back-link">← All Series</a>
-    </nav>
   </div>
 
   ${series.description ? `<div class="entity-description"><p>${escapeHtml(series.description)}</p></div>` : ''}
@@ -3864,7 +4339,7 @@ ${FAVICON}
 <meta property="og:type" content="website">
 <meta property="og:title" content="Series & Universes — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
-${FONT_HEAD}
+${fontHead('../')}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -3937,7 +4412,7 @@ function generateGenrePages() {
       `Browse ${sorted.length} animation genres from around the world. ${total} films categorized in the Global Animation Archive.`,
     deps: {
       slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
-      SITE_URL, FAVICON, BUILD_DATE,
+      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'),
       writeFileSync, mkdirSync,
     },
   });
@@ -3969,7 +4444,7 @@ function generateKeywordPages() {
       `Browse ${sorted.length} animation keywords and themes. ${total} films tagged in the Global Animation Archive.`,
     deps: {
       slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
-      SITE_URL, FAVICON, BUILD_DATE,
+      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'),
       writeFileSync, mkdirSync,
     },
   });
@@ -4018,7 +4493,7 @@ function generatePlatformPages() {
       `Browse ${sorted.length} streaming platforms. ${total} animated films with verified watch links in the Global Animation Archive.`,
     deps: {
       slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
-      SITE_URL, FAVICON, BUILD_DATE,
+      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'),
       writeFileSync, mkdirSync,
     },
   });
@@ -4168,11 +4643,24 @@ function generate404Page() {
     pool.push('/' + getFilmUrl(films[idx]));
   }
 
+  // Round 16 #2: server-render a slim slug→title map so the 404 can do
+  // fuzzy-match suggestions without loading the 1.85MB catalog. Format is
+  // [[slug-without-hash, full-url, title], ...]. Per-film payload is ~50
+  // bytes; 2,330 films ≈ 117KB raw, ~30-35KB gzipped — acceptable for the
+  // recovery surface. Slug-without-hash is the part the user is most likely
+  // to typo (the 8-char content hash is rarely typed by hand).
+  const fuzzyMap = films.map(f => {
+    const url = getFilmUrl(f);
+    // Strip the trailing -XXXXXXXX.html hash to get the human-readable slug
+    const slug = url.replace(/^films\//, '').replace(/-[a-f0-9]{8}\.html$/, '');
+    return [slug, '/' + url, f.titleEnglish || ''];
+  });
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Page Not Found — Global Animation Archive</title>
+<title>This entry isn't in our archive — Global Animation Archive</title>
 <meta name="description" content="The page you're looking for doesn't exist in the Global Animation Archive. Browse the collection or search for what you were trying to find.">
 ${FAVICON}
 <meta name="robots" content="noindex">
@@ -4184,7 +4672,8 @@ ${FONT_HEAD}
    .error-* + .empty-state + .breadcrumb + .masthead + .footer rules in
    the main CSS — if those change, mirror here. */
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--cream:#f8f6f1;--paper:#fffef9;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#6b655e;--rule:#d6d3d1;--accent:#9f1239;--data-bg:#f3f1ec;--mono:'JetBrains Mono',monospace;--type-page-hero:42px}
+/* Round 16 #1: was a stale hand-mirrored copy of the :root token block — Round 15's --ink-faint deletion silently failed to propagate here. Now consumes the shared coreDesignTokens() helper. Any token change in coreDesignTokens flows here automatically. */
+${coreDesignTokens()}
 html{scroll-behavior:smooth}
 body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:inherit}
@@ -4198,7 +4687,7 @@ a{color:inherit}
 .breadcrumb{padding:12px 32px;background:var(--paper);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink-muted);letter-spacing:.05em}
 .breadcrumb a{color:var(--ink-muted);text-decoration:none;transition:color .15s}
 .breadcrumb a:hover,.breadcrumb a:focus{color:var(--accent)}
-.breadcrumb-sep{margin:0 8px;color:var(--ink-faint,#6b6660)}
+.breadcrumb-sep{margin:0 8px;color:var(--ink-muted)}
 .error-page{display:flex;align-items:center;justify-content:center;min-height:60vh;padding:48px 32px}
 .error-content{text-align:center;max-width:500px}
 .error-code{font-family:var(--mono);font-size:120px;font-weight:600;color:var(--rule);line-height:1;margin-bottom:16px}
@@ -4206,7 +4695,14 @@ a{color:inherit}
 .error-message{font-family:'Source Serif 4',serif;font-size:18px;color:var(--ink-muted);margin-bottom:24px}
 .error-path{font-family:var(--mono);font-size:12px;color:var(--ink-muted);margin-bottom:24px;word-break:break-all}
 .error-path code{background:var(--data-bg);padding:2px 6px;color:var(--ink);border-radius:2px}
-.error-search{display:flex;gap:0;justify-content:center;margin:0 auto 24px;max-width:380px}
+/* Round 16 #3: hide the row when its <code> is empty (no JS / not a typo'd path). :has(:empty) keeps the no-JS empty state from rendering "You tried: " with nothing after it. */
+.error-path:has(code:empty){display:none}
+/* Round 16 #2: fuzzy-match suggestion line above the search box. Hidden when empty (no match found OR JS hasn't loaded). The accent left-border signals "we found something for you". */
+.error-suggestion{font-family:'Source Serif 4',serif;font-size:15px;color:var(--ink);margin-bottom:24px;padding:12px 16px;background:var(--paper);border:1px solid var(--rule);border-left:3px solid var(--accent);text-align:left}
+.error-suggestion:empty{display:none}
+.error-suggestion a{color:var(--accent);font-weight:600;text-decoration:none}
+.error-suggestion a:hover,.error-suggestion a:focus{text-decoration:underline}
+.error-search{display:flex;gap:0;justify-content:center;margin:0 auto 24px;max-width:min(380px,100%)}
 .error-search-input{flex:1;padding:12px 16px;border:1px solid var(--rule);border-right:none;background:var(--paper);font-family:var(--mono);font-size:13px;min-height:44px;box-sizing:border-box}
 .error-search-input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}
 .error-search-btn{padding:12px 20px;border:1px solid var(--ink);background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;min-height:44px;box-sizing:border-box;transition:background .2s}
@@ -4235,14 +4731,17 @@ a{color:inherit}
 </header>
 ${generateBreadcrumb([
   { label: 'Home', url: 'index.html' },
-  { label: 'Page Not Found' }
+  { label: 'Not in archive' }
 ], '/')}
 <main class="error-page" id="main-content">
   <div class="error-content">
     <div class="error-code" aria-hidden="true">404</div>
-    <h1 class="error-title">Page Not Found</h1>
-    <p class="error-message">This page isn't in the archive. It may have been moved, mistyped, or never existed.</p>
-    <p class="error-path" id="error-path" hidden>You tried: <code id="error-path-value"></code></p>
+    <h1 class="error-title">This entry isn't in our archive</h1>
+    <p class="error-message">It may have been moved, mistyped, or never cataloged. Try a search, or recover via the options below.</p>
+    ${/* Round 16 #3: dropped hidden attribute. Visibility now CSS-driven via :has(code:empty){display:none} so JS-disabled users see "You tried: " (label only) instead of nothing — at minimum signals the system noticed their request. */ ''}
+    <p class="error-path" id="error-path">You tried: <code id="error-path-value"></code></p>
+    ${/* Round 16 #2: fuzzy-match suggestion slot. JS populates from fuzzyMap if it finds a slug within Levenshtein distance ≤3 of the typed path. Hidden by CSS (:empty) when no match. */ ''}
+    <p class="error-suggestion" id="error-suggestion"></p>
     <form class="error-search" action="/" method="get" role="search" aria-label="Search the archive">
       <label for="error-search-input" class="visually-hidden">Search films, directors, studios</label>
       <input type="search" name="q" id="error-search-input" class="error-search-input" placeholder="Search films, directors, studios…" autocomplete="off" />
@@ -4271,14 +4770,52 @@ ${generateFooter('/')}
       window.location.href = pick;
     });
   }
-  // Echo the URL the user actually tried to reach. Hidden by default so
-  // it doesn't render at all when JS is off (where window.location is
-  // unavailable to us at template time).
-  var pathEl = document.getElementById('error-path');
+  // Round 16 #3: echo the URL the user actually tried to reach. Row's
+  // visibility is now CSS-driven via :has(code:empty){display:none} —
+  // we just populate the code element; CSS handles show/hide.
   var pathVal = document.getElementById('error-path-value');
-  if (pathEl && pathVal && window.location.pathname && window.location.pathname !== '/404.html') {
+  if (pathVal && window.location.pathname && window.location.pathname !== '/404.html') {
     pathVal.textContent = window.location.pathname + (window.location.search || '');
-    pathEl.hidden = false;
+  }
+  // Round 16 #2: fuzzy-match suggestion. If the user typed a path that
+  // looks like a film slug (e.g. /films/akira-the-movie/), find the
+  // closest known slug within Levenshtein distance ≤3 and offer it.
+  // Most missed-film 404s are typos or out-of-date links; this converts
+  // them into successful page-finds.
+  var fuzzyMap = ${JSON.stringify(fuzzyMap)};
+  function levenshtein(a, b) {
+    if (a === b) return 0;
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+    var prev = []; var i, j;
+    for (j = 0; j <= b.length; j++) prev[j] = j;
+    for (i = 1; i <= a.length; i++) {
+      var curr = [i];
+      for (j = 1; j <= b.length; j++) {
+        curr[j] = Math.min(curr[j-1]+1, prev[j]+1, prev[j-1] + (a.charAt(i-1) === b.charAt(j-1) ? 0 : 1));
+      }
+      prev = curr;
+    }
+    return prev[b.length];
+  }
+  var sugEl = document.getElementById('error-suggestion');
+  var path = (window.location.pathname || '').toLowerCase();
+  // Extract the slug-like segment from /films/<slug>(-<hash>)?(.html)?(/)?
+  var m = path.match(/\\/films\\/([a-z0-9-]+?)(?:-[a-f0-9]{8})?(?:\\.html)?\\/?$/);
+  if (sugEl && m) {
+    var typedSlug = m[1];
+    var best = null, bestDist = Infinity;
+    for (var k = 0; k < fuzzyMap.length; k++) {
+      var entry = fuzzyMap[k];
+      var d = levenshtein(typedSlug, entry[0]);
+      if (d < bestDist) { bestDist = d; best = entry; if (d === 0) break; }
+    }
+    // Threshold: ≤3 characters off, or up to 30% of the typed slug length
+    // (whichever is larger). Prevents short slugs from being too forgiving.
+    var threshold = Math.max(3, Math.floor(typedSlug.length * 0.3));
+    if (best && bestDist <= threshold) {
+      sugEl.innerHTML = 'Did you mean <a href="' + best[1] + '">' + best[2].replace(/[<>&"]/g, function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]}) + '</a>?';
+    }
   }
 })();
 </script>

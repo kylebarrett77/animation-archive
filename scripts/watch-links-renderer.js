@@ -201,21 +201,55 @@ function renderSingleLink(link) {
     ? `<span class="link-notes">${escapeHtml(link.notes)}</span>`
     : '';
 
+  // Round 11 #1: was a binary ✅/⚠️ glyph in .verified-date with the
+  // actual date hidden in a `title` tooltip. Users couldn't tell what
+  // ⚠️ meant without hovering, and the title attr isn't reliably announced
+  // by screen readers. Now the date renders as text — "verified Feb 2026" —
+  // and stale links (>9 months old) get a `.verified-date-stale` modifier
+  // class for a muted color treatment. No vocabulary to learn.
   const verifiedHTML = link.lastVerified
-    ? `<span class="verified-date" title="Last verified ${link.lastVerified}">${status}</span>`
-    : (link.status ? `<span class="status-icon">${status}</span>` : '');
+    ? `<span class="verified-date${isVerifiedStale(link.lastVerified) ? ' verified-date-stale' : ''}">verified ${formatVerifiedDate(link.lastVerified)}</span>`
+    : (link.status && link.status !== 'Verified' ? `<span class="verified-date verified-date-unverified">${escapeHtml(link.status.toLowerCase())}</span>` : '');
 
+  // Round 11 #2: dropped <span class="link-icon">${icon}</span> — the
+  // platform name is sufficient identifier, and the per-platform emoji
+  // (▶️ for YouTube, 🏛️ for Internet Archive, etc) rendered inconsistently
+  // across macOS/Windows/Linux. Same Round 7 reasoning that converted the
+  // lock glyph to inline SVG. The .link-icon CSS rule is also removed.
   return `
       <a href="${escapeHtml(link.url)}" class="${cardClass}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(ariaLabel)}">
-        <span class="link-icon">${icon}</span>
         <span class="link-info">
           <span class="link-platform">${escapeHtml(link.platform)}${gated ? ' <svg class="link-gate-icon" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>' : ''}</span>
-          <span class="link-badge" style="background:${badge.color}">${badge.label}</span>
+          <span class="link-badge ${badge.class}">${badge.label}</span>
           ${chipsHTML}
           ${notesHTML}
         </span>
         ${verifiedHTML}
       </a>`;
+}
+
+// Round 11 #1: format an ISO date (2026-02-15) as "Feb 2026" for the
+// inline verified-date label. Compact enough to sit next to the link
+// without dominating; gives the user enough info to gauge freshness.
+function formatVerifiedDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// Round 11 #1: 9-month threshold — link confidence decays as time passes
+// (platforms remove content, accounts get suspended, regions change).
+// Stale links still render but with .verified-date-stale styling so the
+// user sees the age and can self-discount.
+function isVerifiedStale(iso) {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return false;
+  const ageMs = Date.now() - d.getTime();
+  const NINE_MONTHS_MS = 9 * 30 * 24 * 60 * 60 * 1000;
+  return ageMs > NINE_MONTHS_MS;
 }
 
 function generateLegacyHTML(legacyValue) {
@@ -233,10 +267,9 @@ function generateLegacyHTML(legacyValue) {
         <h3>Watch</h3>
         <div class="watch-links-grid">
           <a href="${escapeHtml(url)}" class="watch-link-card" target="_blank" rel="noopener noreferrer">
-            <span class="link-icon">${icon}</span>
             <span class="link-info">
               <span class="link-platform">${escapeHtml(platform)}</span>
-              <span class="link-badge" style="background:${badge.color}">${badge.label}</span>
+              <span class="link-badge ${badge.class}">${badge.label}</span>
             </span>
           </a>
         </div>
@@ -250,7 +283,6 @@ function generateLegacyHTML(legacyValue) {
         <h3>Watch</h3>
         <div class="watch-links-grid">
           <a href="${escapeHtml(legacyValue)}" class="watch-link-card" target="_blank" rel="noopener noreferrer">
-            <span class="link-icon">🔗</span>
             <span class="link-info">
               <span class="link-platform">Watch Link</span>
             </span>
