@@ -57,13 +57,31 @@ const ACCESS_BADGES = {
   'REGION': { label: 'Region-Locked', class: 'badge-region', color: '#8b5cf6' },
 };
 
-// Status indicators
+// Status indicators. Vocabulary lives in the Notion Watch Links DB
+// (collection://081a1b55-8709-423d-8320-fb977b9819e0); legacy statuses
+// 'Dead' and 'Redirect' are migrating to 'Broken' (see
+// scripts/lib/platform-trust.js → normalizeLegacyStatus).
 const STATUS_ICONS = {
-  'Verified': '✅',
-  'Unverified': '⚠️',
-  'Dead': '❌',
-  'Redirect': '🔄',
+  'Verified':    '✅',
+  'Restricted':  '🔒',
+  'Unavailable': '🚫',
+  'Broken':      '❌',
+  // legacy — kept so older snapshots still render cleanly
+  'Unverified':  '⚠️',
+  'Dead':        '❌',
+  'Redirect':    '🔄',
 };
+
+// Status partitions. Mirrors WATCHABLE_STATUSES / GATED_STATUSES /
+// HIDDEN_STATUSES in build-site.js — keep in sync.
+const HIDDEN_STATUSES_RENDERER = new Set(['Broken', 'Unavailable', 'Dead', 'Redirect']);
+const GATED_STATUSES_RENDERER  = new Set(['Restricted', 'Unverified']);
+function isLinkVisible(link) {
+  return link && link.url && !HIDDEN_STATUSES_RENDERER.has(link.status);
+}
+function isLinkGated(link) {
+  return link && link.url && GATED_STATUSES_RENDERER.has(link.status);
+}
 
 /**
  * Generate the complete Watch Links HTML section for a film detail page.
@@ -72,24 +90,33 @@ const STATUS_ICONS = {
  * @returns {string} HTML string
  */
 function generateWatchLinksHTML(watchLinks) {
-  // Handle empty state
+  // Handle empty state — uses shared .empty-state pattern from build-site.js
+  // CSS so all five "nothing here" surfaces (404, no-results, no-content,
+  // no watch links, all-broken watch links) share one visual treatment.
   if (!watchLinks || watchLinks.length === 0) {
     return `
       <div class="watch-links-section">
         <h3>Watch</h3>
-        <p class="no-links">No watch links available yet.</p>
+        <div class="empty-state">
+          <p class="empty-state-message">No watch links available yet.</p>
+          <a href="#report-form" class="empty-state-cta">Help us find one →</a>
+        </div>
       </div>`;
   }
 
-  // Filter out dead links and links without URLs for display
-  const activeLinks = watchLinks.filter(l => l.url && l.status !== 'Dead');
-  const deadLinks = watchLinks.filter(l => l.status === 'Dead');
+  // Filter using the centralized status partitions instead of a single
+  // hardcoded 'Dead' check — this catches Broken, Unavailable, Redirect.
+  const activeLinks = watchLinks.filter(isLinkVisible);
+  const hiddenCount = watchLinks.length - activeLinks.length;
 
   if (activeLinks.length === 0) {
     return `
       <div class="watch-links-section">
         <h3>Watch</h3>
-        <p class="no-links">All watch links are currently unavailable.${deadLinks.length > 0 ? ` (${deadLinks.length} dead link${deadLinks.length > 1 ? 's' : ''})` : ''}</p>
+        <div class="empty-state">
+          <p class="empty-state-message">All watch links are currently unavailable.${hiddenCount > 0 ? ` (${hiddenCount} broken or unavailable link${hiddenCount > 1 ? 's' : ''})` : ''}</p>
+          <a href="#report-form" class="empty-state-cta">Help us find a working link →</a>
+        </div>
       </div>`;
   }
 
@@ -117,9 +144,9 @@ function generateWatchLinksHTML(watchLinks) {
 
   html += `\n  </div>`;
 
-  // Dead links notice
-  if (deadLinks.length > 0) {
-    html += `\n  <p class="dead-links-notice">${deadLinks.length} link${deadLinks.length > 1 ? 's' : ''} currently unavailable</p>`;
+  // Hidden-link notice (broken / unavailable / redirect / legacy dead).
+  if (hiddenCount > 0) {
+    html += `\n  <p class="dead-links-notice">${hiddenCount} link${hiddenCount > 1 ? 's' : ''} currently unavailable</p>`;
   }
 
   html += `\n</div>`;
@@ -143,6 +170,14 @@ function renderSingleLink(link) {
   const icon = PLATFORM_ICONS[link.platform] || '🔗';
   const badge = ACCESS_BADGES[link.accessType] || ACCESS_BADGES['FREE'];
   const status = STATUS_ICONS[link.status] || '';
+  const gated = isLinkGated(link);
+  // Gated links get a distinct CSS modifier so the stylesheet can dim
+  // them and surface the lock icon, without losing the platform badge.
+  const cardClass = gated ? 'watch-link-card watch-link-card-gated' : 'watch-link-card';
+  const ariaSuffix = gated
+    ? ' — sign-in or subscription may be required'
+    : '';
+  const ariaLabel = `Open on ${link.platform || 'platform'}${ariaSuffix} (opens in new tab)`;
 
   // Build metadata chips
   const chips = [];
@@ -171,10 +206,10 @@ function renderSingleLink(link) {
     : (link.status ? `<span class="status-icon">${status}</span>` : '');
 
   return `
-      <a href="${escapeHtml(link.url)}" class="watch-link-card" target="_blank" rel="noopener noreferrer">
+      <a href="${escapeHtml(link.url)}" class="${cardClass}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(ariaLabel)}">
         <span class="link-icon">${icon}</span>
         <span class="link-info">
-          <span class="link-platform">${escapeHtml(link.platform)}</span>
+          <span class="link-platform">${escapeHtml(link.platform)}${gated ? ' <svg class="link-gate-icon" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>' : ''}</span>
           <span class="link-badge" style="background:${badge.color}">${badge.label}</span>
           ${chipsHTML}
           ${notesHTML}
@@ -281,6 +316,24 @@ const WATCH_LINKS_CSS = `
   background: #f5f0e6;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* Gated card — Restricted/Unverified status. URL resolves but playback
+   needs login, region access, or paid sub. Slightly desaturated so the
+   primary "▶ WATCH" CTA still draws the eye on rows with multiple links. */
+.watch-link-card-gated {
+  background: #f1ede4;
+  border-color: #d8d0bd;
+  opacity: 0.92;
+}
+.watch-link-card-gated:hover {
+  opacity: 1;
+}
+.link-gate-icon {
+  display: inline-block;
+  margin-left: 0.25rem;
+  font-size: 0.85em;
+  vertical-align: baseline;
 }
 
 .link-icon {

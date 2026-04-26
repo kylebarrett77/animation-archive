@@ -20,6 +20,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { classifyByPolicy, normalizeLegacyStatus } from './lib/platform-trust.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -157,12 +158,21 @@ async function fetchWatchLinksFromNotion(notion) {
   return entries;
 }
 
-async function updateNotionEntry(notion, entryId, status, lastVerified) {
+async function updateNotionEntry(notion, entryId, status, todayISO) {
+  // Convention added 2026-04-25 (matches Notion option description on
+  // 'Unverified': "Leave Last Verified empty instead."):
+  //   - 'Verified'   → stamp today's date
+  //   - everything else → clear Last Verified so the field truly reflects
+  //     "last time we confirmed this works", not "last time we touched it".
+  const dateValue = status === 'Verified'
+    ? { start: todayISO }
+    : null;
+
   return notion.pages.update({
     page_id: entryId,
     properties: {
       'Link Status': { select: { name: status } },
-      'Last Verified': { date: { start: lastVerified } },
+      'Last Verified': { date: dateValue },
     },
   });
 }
@@ -172,7 +182,27 @@ async function validateBatch(entries) {
 
   for (const entry of entries) {
     if (!entry.url) {
-      results.push({ ...entry, newStatus: 'Dead', code: null, error: 'No URL' });
+      results.push({ ...entry, newStatus: 'Broken', code: null, error: 'No URL' });
+      continue;
+    }
+
+    // 2026-04-25: policy classification first.
+    // Many platforms either return 200 for catalog misses (Netflix, MUBI,
+    // Tubi), 403 for valid URLs (Crunchyroll, HIDIVE), or hide content
+    // behind auth walls (Plex, Kanopy). For those, an HTTP ping is at best
+    // useless and at worst misleading. classifyByPolicy returns a verdict
+    // by URL pattern + platform whitelist; if it returns null, fall through
+    // to the original HTTP check.
+    // See scripts/lib/platform-trust.js + ops/WATCH-LINK-HARDENING.md.
+    const policyVerdict = classifyByPolicy(entry.platform, entry.url);
+    if (policyVerdict) {
+      results.push({
+        ...entry,
+        newStatus: policyVerdict.status,
+        code: null,
+        error: policyVerdict.source === 'pattern' ? null : `policy: ${policyVerdict.source}`,
+        redirect: null,
+      });
       continue;
     }
 
@@ -181,9 +211,12 @@ async function validateBatch(entries) {
       ? await validator(entry.url)
       : await checkUrl(entry.url);
 
+    // Drain legacy 'Dead' / 'Redirect' statuses into 'Broken' on every
+    // outbound write. The Notion Link Status options for Dead and Redirect
+    // are explicitly marked legacy ("migrate to Broken on next touch").
     results.push({
       ...entry,
-      newStatus: result.status,
+      newStatus: normalizeLegacyStatus(result.status),
       code: result.code,
       error: result.error,
       redirect: result.redirect || null,
@@ -260,37 +293,45 @@ async function main() {
 
     const progress = Math.min(i + CONCURRENCY, entriesWithUrls.length);
     const verified = allResults.filter(r => r.newStatus === 'Verified').length;
-    const dead = allResults.filter(r => r.newStatus === 'Dead').length;
-    process.stdout.write(`\r  Progress: ${progress}/${entriesWithUrls.length} | ✅ ${verified} | ❌ ${dead}`);
+    const broken = allResults.filter(r => r.newStatus === 'Broken').length;
+    process.stdout.write(`\r  Progress: ${progress}/${entriesWithUrls.length} | ✅ ${verified} | ❌ ${broken}`);
 
     await sleep(DELAY_MS);
   }
   console.log('\n');
 
-  // Summary
+  // Summary uses the canonical Notion vocabulary.
+  // Legacy 'Dead' / 'Redirect' / 'Unverified' are folded into the new
+  // names in the validator so they should never appear here, but the
+  // counters keep them visible if anything slips through.
   const summary = {
     date: today,
     total: allResults.length,
-    verified: allResults.filter(r => r.newStatus === 'Verified').length,
-    unverified: allResults.filter(r => r.newStatus === 'Unverified').length,
-    dead: allResults.filter(r => r.newStatus === 'Dead').length,
-    redirect: allResults.filter(r => r.newStatus === 'Redirect').length,
+    verified:   allResults.filter(r => r.newStatus === 'Verified').length,
+    broken:     allResults.filter(r => r.newStatus === 'Broken').length,
+    restricted: allResults.filter(r => r.newStatus === 'Restricted').length,
+    unavailable:allResults.filter(r => r.newStatus === 'Unavailable').length,
+    legacyDead:     allResults.filter(r => r.newStatus === 'Dead').length,
+    legacyRedirect: allResults.filter(r => r.newStatus === 'Redirect').length,
+    legacyUnverified: allResults.filter(r => r.newStatus === 'Unverified').length,
     statusChanges: allResults.filter(r => r.newStatus !== r.currentStatus).length,
-    newlyDead: allResults.filter(r => r.newStatus === 'Dead' && r.currentStatus !== 'Dead'),
+    newlyBroken: allResults.filter(r => r.newStatus === 'Broken' && r.currentStatus !== 'Broken'),
     newlyVerified: allResults.filter(r => r.newStatus === 'Verified' && r.currentStatus !== 'Verified'),
   };
 
   console.log('=== VALIDATION RESULTS ===');
   console.log(`Total checked: ${summary.total}`);
-  console.log(`Verified: ${summary.verified}`);
-  console.log(`Unverified: ${summary.unverified}`);
-  console.log(`Dead: ${summary.dead}`);
-  console.log(`Redirect: ${summary.redirect}`);
+  console.log(`Verified:   ${summary.verified}`);
+  console.log(`Broken:     ${summary.broken}`);
+  console.log(`Restricted: ${summary.restricted}`);
+  if (summary.legacyDead || summary.legacyRedirect || summary.legacyUnverified) {
+    console.log(`(legacy: Dead=${summary.legacyDead}  Redirect=${summary.legacyRedirect}  Unverified=${summary.legacyUnverified})`);
+  }
   console.log(`Status changes: ${summary.statusChanges}`);
 
-  if (summary.newlyDead.length > 0) {
-    console.log(`\n⚠️  NEWLY DEAD LINKS (${summary.newlyDead.length}):`);
-    for (const d of summary.newlyDead) {
+  if (summary.newlyBroken.length > 0) {
+    console.log(`\n⚠️  NEWLY BROKEN LINKS (${summary.newlyBroken.length}):`);
+    for (const d of summary.newlyBroken) {
       console.log(`  ❌ ${d.label}: ${d.url} (${d.error})`);
     }
   }
@@ -308,7 +349,7 @@ async function main() {
   // Save report
   const report = {
     ...summary,
-    newlyDead: summary.newlyDead.map(d => ({ label: d.label, url: d.url, error: d.error })),
+    newlyBroken: summary.newlyBroken.map(d => ({ label: d.label, url: d.url, error: d.error })),
     results: allResults.map(r => ({
       id: r.id,
       label: r.label,

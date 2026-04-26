@@ -1,4 +1,5 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync, copyFileSync } from 'fs';
+import * as fs from 'fs';
 import { createHash } from 'crypto';
 import { generateWatchLinksHTML, WATCH_LINKS_CSS } from './watch-links-renderer.js';
 import { generateTagFacetPages } from './lib/facet-builder.js';
@@ -78,6 +79,36 @@ const SITE_URL = 'https://animationarchive.netlify.app';
 const FILMS_PER_PAGE = 50;
 const FAVICON = `<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎞️</text></svg>">`;
 const OG_IMAGE = `${SITE_URL}/og-image.png`;
+
+/**
+ * Self-hosted font block — replaces the Google Fonts <link> on every
+ * page template (2026-04-26 perf). Eliminates DNS + CSS round-trip to
+ * fonts.googleapis.com and cross-origin font fetches from fonts.gstatic.com.
+ *
+ * Files live in /fonts/ and ship under the immutable cache header
+ * (already configured for /*.woff2 in netlify.toml — see below).
+ *
+ * Latin subset only (the catalog is ~99% Latin script with romanized
+ * CJK/Cyrillic). Variable font binaries are shared across weights:
+ * Inter, JetBrains Mono, and Playfair Display each have a single
+ * woff2 covering 400/500/600.
+ *
+ * `font-display: swap` matches the original Google Fonts behavior —
+ * fast paint with system fallback, swap to webfont when ready.
+ *
+ * Critical pair (`Inter` + `Playfair Display`) is preloaded; the rest
+ * load on demand. Cuts FCP-blocking font fetch to 2 from 6.
+ */
+const FONT_HEAD = `<link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/playfair-display.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:'Inter';font-style:normal;font-weight:400 600;font-display:swap;src:url('/fonts/inter.woff2') format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 600;font-display:swap;src:url('/fonts/jetbrains-mono.woff2') format('woff2')}
+@font-face{font-family:'Playfair Display';font-style:normal;font-weight:400 600;font-display:swap;src:url('/fonts/playfair-display.woff2') format('woff2')}
+@font-face{font-family:'Playfair Display';font-style:italic;font-weight:400;font-display:swap;src:url('/fonts/playfair-display-italic.woff2') format('woff2')}
+@font-face{font-family:'Source Serif 4';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/source-serif-4.woff2') format('woff2')}
+@font-face{font-family:'Source Serif 4';font-style:italic;font-weight:400;font-display:swap;src:url('/fonts/source-serif-4-italic.woff2') format('woff2')}
+</style>`;
 
 function confidenceToPips(confidence) {
   const levels = { '★': 1, '★★': 2, '★★★': 3, '★★★★': 4, '★★★★★': 5 };
@@ -370,26 +401,135 @@ function generateEntityTableSort() {
 // Watch Links — uses structured arrays from fetch-watch-links.js via Watch Links (Linked) relation
 
 /**
- * Check if a film has active watch links
+ * Notion 'Link Status' vocabulary, partitioned by what the UI should do.
+ * Source of truth: collection://081a1b55-8709-423d-8320-fb977b9819e0
+ * (confirmed live 2026-04-25). See scripts/lib/platform-trust.js.
+ *
+ *   WATCHABLE_STATUSES — render the primary "▶ WATCH" CTA. The link is
+ *     verified live and (we believe) playable for any user clicking through.
+ *
+ *   GATED_STATUSES     — render a secondary "🔒 OPEN" CTA. URL resolves but
+ *     requires login, region, or paid subscription. Still useful to users
+ *     who have an account; honest about the gating.
+ *
+ *   HIDDEN_STATUSES    — never surface. Either confirmed broken or
+ *     confirmed-not-in-catalog.
+ *
+ * Legacy 'Unverified' is treated as gated (not watchable) so the validator
+ * has no incentive to leave entries in that intermediate state.
  */
-function hasWatchLinks(film) {
-  if (Array.isArray(film.watchLinks) && film.watchLinks.length > 0) {
-    return film.watchLinks.some(l => l.url && l.status !== 'Dead');
-  }
-  return false;
+const WATCHABLE_STATUSES = new Set(['Verified']);
+const GATED_STATUSES     = new Set(['Restricted', 'Unverified']);
+const HIDDEN_STATUSES    = new Set(['Broken', 'Unavailable', 'Dead', 'Redirect']);
+
+function isWatchable(link) {
+  return Boolean(link && link.url && WATCHABLE_STATUSES.has(link.status));
+}
+function isGated(link) {
+  return Boolean(link && link.url && GATED_STATUSES.has(link.status));
+}
+function isVisible(link) {
+  return isWatchable(link) || isGated(link);
 }
 
 /**
- * Get the best watch URL for a film (first verified link, or first with URL)
+ * Check if a film has any visible (watchable OR gated) watch links.
+ */
+function hasWatchLinks(film) {
+  if (!Array.isArray(film.watchLinks) || film.watchLinks.length === 0) return false;
+  return film.watchLinks.some(isVisible);
+}
+
+/**
+ * Pick the best watch link for a film. Preference order:
+ *   1. First Watchable link (verified live).
+ *   2. First Gated link (works if user has access).
+ *   3. null.
+ *
+ * Returns the full link object — callers decide which fields to read.
+ */
+function getBestWatchLink(film) {
+  if (!Array.isArray(film.watchLinks) || film.watchLinks.length === 0) return null;
+  return film.watchLinks.find(isWatchable)
+      || film.watchLinks.find(isGated)
+      || null;
+}
+
+/**
+ * Backwards-compat: most callers just want a URL string.
+ * New callers that need to know whether the link is gated (to render a
+ * lock icon / "Sign In" CTA) should use getBestWatchLink() directly.
  */
 function getWatchUrl(film) {
-  if (Array.isArray(film.watchLinks) && film.watchLinks.length > 0) {
-    const active = film.watchLinks.filter(l => l.url && l.status !== 'Dead');
-    if (active.length > 0) return active[0].url;
-    const any = film.watchLinks.find(l => l.url);
-    return any ? any.url : null;
+  const link = getBestWatchLink(film);
+  return link ? link.url : null;
+}
+
+/**
+ * Watchable status semantics — disambiguating "playable" vs "surfacable".
+ *
+ *   isPlayable(film)   — at least one Watchable (Verified) link.
+ *                        Use for stat counters that count "films a user
+ *                        can stream right now without auth/region/sub".
+ *
+ *   isAccessible(film) — at least one Watchable OR Gated link.
+ *                        Use for stat counters and filters that count
+ *                        "films we can surface a button for at all".
+ *
+ * Until 2026-04-25 these were conflated in `hasWatchLinks(film)`, which
+ * returned the Accessible-set semantic but was named ambiguously and
+ * called from contexts that meant either thing. New code should pick
+ * one explicitly. `hasWatchLinks` retained as alias for `isAccessible`
+ * since most call sites mean "should we render a button at all".
+ */
+function isPlayable(film) {
+  if (!Array.isArray(film.watchLinks) || film.watchLinks.length === 0) return false;
+  return film.watchLinks.some(isWatchable);
+}
+function isAccessible(film) {
+  return hasWatchLinks(film);  // alias — same semantics
+}
+
+/**
+ * Single source of truth for the watch-cell rendering used in every
+ * film table (homepage + country / decade / studio / director / series
+ * pages). Centralizing this killed a class of drift bugs where each
+ * page template had its own hand-typed copy of the watch-cell HTML
+ * and only some of them were updated when the gated-status partition
+ * shipped (2026-04-25 cross-page consistency audit).
+ *
+ * Variants:
+ *   compact: false (default) — full "▶ WATCH" / "🔒 PLATFORM" with
+ *            optional EN-subs badge. Used in main collection table.
+ *   compact: true            — tight cell with only "▶" or lock icon.
+ *            Used in entity-page tables (Studio / Director / Series)
+ *            where width is tighter and the page context already tells
+ *            the user what they're browsing.
+ *
+ * Returns the inner HTML for the <td class="watch-cell"> contents.
+ * Callers wrap it in the <td> themselves.
+ */
+function renderWatchCell(film, { compact = false } = {}) {
+  const link = getBestWatchLink(film);
+  if (!link) return '<span class="no-link">—</span>';
+  const gated = isGated(link);
+  const lockSvg = gated
+    ? '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>'
+    : '';
+  const cls = gated ? 'watch-btn watch-btn-gated' : 'watch-btn';
+  let label;
+  if (compact) {
+    label = gated ? lockSvg : '▶';
+  } else {
+    label = gated
+      ? `${lockSvg}<span class="watch-btn-platform">${escapeHtml((link.platform || 'OPEN').toUpperCase())}</span>`
+      : '▶ WATCH';
   }
-  return null;
+  const aria = gated
+    ? `Open ${escapeHtml(film.titleEnglish || 'this film')} on ${escapeHtml(link.platform || 'platform')} — sign-in or subscription may be required (opens in new tab)`
+    : `Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)`;
+  const subs = (!compact && !gated && film.hasSubtitles) ? '<span class="subs-badge">EN subs</span>' : '';
+  return `<a href="${escapeHtml(link.url)}" class="${cls}" target="_blank" rel="noopener" aria-label="${aria}">${label}</a>${subs}`;
 }
 
 /**
@@ -486,23 +626,46 @@ function generateFooter(pathPrefix = '') {
   return `<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="${randomUrl}" class="footer-random">🎲 Random Film</a><a href="#report-form" target="_blank" class="footer-report">📝 Report broken link</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer><button class="back-to-top" aria-label="Back to top">↑</button>`;
 }
 
-// Film of the Day: deterministic selection based on date
+// Film of the Day: deterministic selection by calendar date.
+//
+// Selection runs both server-side (SSR pick at build time, for SEO and
+// no-JS users) and client-side (rotates daily without a rebuild — see
+// the FotD bootstrap block in generateJS()). Both sides use the same
+// seed algorithm so the picks agree when the user's local date equals
+// the build date.
+//
+// IMPORTANT: this seed depends on the *order* of `films` (or
+// ALL_FILMS_DATA on the client). build-site.js sorts films by year-desc
+// before passing to both the SSR call here and to buildFilmsIndexJs,
+// which keeps the two arrays aligned. If you ever change one sort,
+// change the other or the server/client picks will diverge on rebuild
+// day. See test in scripts/lib/film-of-day-seed.test (TODO).
+function dateSeed(date) {
+  return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+}
 function getFilmOfTheDay(filmList) {
-  const today = new Date();
-  const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-  const index = seed % filmList.length;
-  return filmList[index];
+  return filmList[dateSeed(new Date()) % filmList.length];
+}
+function todayLocalISO() {
+  const t = new Date();
+  return t.getFullYear() + '-' +
+    String(t.getMonth() + 1).padStart(2, '0') + '-' +
+    String(t.getDate()).padStart(2, '0');
 }
 
 function generateFilmOfTheDayCard(film) {
   const synopsis = film.synopsis ? (film.synopsis.length > 120 ? film.synopsis.substring(0, 117) + '...' : film.synopsis) : '';
   const techniques = film.technique?.join(', ') || 'Unknown';
-
+  const buildDateISO = todayLocalISO();
+  // Mount wrapper carries the SSR build date so the client bootstrap can
+  // detect "today != build day" and swap in a fresh pick without a rebuild.
+  // See generateJS() → "Film of the Day client rotation" block.
   return `
+    <div id="film-of-day-mount" data-build-date="${buildDateISO}">
     <div class="film-of-day">
       <div class="film-of-day-header">
         <span class="film-of-day-label">Film of the Day</span>
-        <span class="film-of-day-date">${BUILD_DATE}</span>
+        <span class="film-of-day-date">${buildDateISO}</span>
       </div>
       <div class="film-of-day-content">
         <div class="film-of-day-info">
@@ -515,10 +678,26 @@ function generateFilmOfTheDayCard(film) {
           ${synopsis ? `<p class="film-of-day-synopsis">${escapeHtml(synopsis)}</p>` : ''}
         </div>
         <div class="film-of-day-actions">
-          <a href="${getFilmUrl(film)}" class="film-of-day-details-btn">View Details</a>
-          ${hasWatchLinks(film) ? `<a href="${escapeHtml(getWatchUrl(film) || '#')}" class="film-of-day-watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'Film of the Day')} (opens in new tab)">▶ Watch</a>` : ''}
+          ${(() => {
+            // Mirror the gated-aware logic the client-side rotation already
+            // uses (rotateFilmOfDay in generateJS) so the SSR card on build
+            // day doesn't lie about Restricted/Plex/Disney+ links.
+            const link = getBestWatchLink(film);
+            if (!link) return '';
+            const lockSvg = `<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0;margin-right:4px"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>`;
+            const gated = isGated(link);
+            const cls = gated ? 'film-of-day-watch-btn film-of-day-watch-btn-gated' : 'film-of-day-watch-btn';
+            const label = gated
+              ? `${lockSvg}Open on ${escapeHtml(link.platform || 'platform')}`
+              : `▶ Watch`;
+            const aria = gated
+              ? `Open ${escapeHtml(film.titleEnglish || 'Film of the Day')} on ${escapeHtml(link.platform || 'platform')} — sign-in or subscription may be required (opens in new tab)`
+              : `Watch ${escapeHtml(film.titleEnglish || 'Film of the Day')} (opens in new tab)`;
+            return `<a href="${escapeHtml(link.url)}" class="${cls}" target="_blank" rel="noopener" aria-label="${aria}">${label}</a>`;
+          })()}
         </div>
       </div>
+    </div>
     </div>`;
 }
 
@@ -678,40 +857,69 @@ function generateRelatedFilmsSection(film) {
 
   if (sections.length === 0) return '';
 
-  return `
-  <section class="related-films">
-    ${sections.map(section => `
+  // Render up to N sections inline; fold the rest into a <details>
+  // expander. The unshift() calls above already prioritized Director and
+  // Series at positions 0-1; the natural order is then Country → Decade
+  // → Technique. Decade + Technique are the most generic ("more films
+  // from the 1980s"), so they're the right candidates to fold.
+  const PRIMARY_LIMIT = 3;
+  const primary = sections.slice(0, PRIMARY_LIMIT);
+  const extra = sections.slice(PRIMARY_LIMIT);
+
+  const renderSection = (section) => `
     <div class="related-section">
       <h3 class="related-header">
         <a href="${section.link}">${escapeHtml(section.title)}</a>
         <span class="related-count">${section.count} films →</span>
       </h3>
       <div class="related-grid">
-        ${section.films.map(f => `
+        ${section.films.map(f => {
+          const link = getBestWatchLink(f);
+          // Indicator honesty: only show ▶ for verified-watchable films;
+          // gated films get a small lock so users aren't lured into
+          // expecting playback. Hidden links get nothing.
+          const indicator = link
+            ? (isGated(link)
+              ? '<svg class="related-watch related-watch-gated" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>'
+              : '<span class="related-watch" aria-hidden="true">▶</span>')
+            : '';
+          return `
         <a href="${getFilmFilename(f)}" class="related-card">
           <span class="related-title">${escapeHtml(f.titleEnglish) || 'Untitled'}</span>
           <span class="related-meta">${f.year || '?'}${f.director ? ` · ${escapeHtml(f.director.split(',')[0].trim())}` : ''}</span>
-          ${hasWatchLinks(f) ? '<span class="related-watch">▶</span>' : ''}
-        </a>`).join('')}
+          ${indicator}
+        </a>`;
+        }).join('')}
       </div>
-    </div>`).join('')}
+    </div>`;
+
+  const extraHtml = extra.length > 0
+    ? `<details class="related-extra">
+        <summary class="related-extra-summary">+ More like this (${extra.length} more way${extra.length > 1 ? 's' : ''} to browse)</summary>
+        ${extra.map(renderSection).join('')}
+      </details>`
+    : '';
+
+  return `
+  <section class="related-films">
+    ${primary.map(renderSection).join('')}
+    ${extraHtml}
   </section>`;
 }
 
 function generateTableRows(filmList, basePath = '') {
   return filmList.map(film => {
-    const watchUrl = getWatchUrl(film);
     const directorHtml = getDirectorLink(film, basePath);
     const studioHtml = getStudioLink(film, basePath);
     return `
-    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${watchUrl ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}">
+    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}">
       <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
       <td><a href="${getFilmUrl(film, basePath)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
       <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
       <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
       <td class="table-runtime hide-mobile">${escapeHtml(film.runtime) || '—'}</td>
       <td class="hide-mobile"><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
-      <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
+      <td class="watch-cell">${renderWatchCell(film)}</td>
     </tr>`;
   }).join('\n');
 }
@@ -805,8 +1013,7 @@ ${FAVICON}
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateCollectionJsonLd()}</script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -861,7 +1068,7 @@ ${FAVICON}
   <main class="content" id="main-content">
     <div class="content-header"><div><h2 class="content-title">From the Collection</h2><span class="content-meta" id="results-count">${stats.total.toLocaleString()} films</span></div><div class="search-actions"><div class="search-box"><label for="search-input" class="visually-hidden">Search films</label><input type="text" id="search-input" placeholder="Search titles, directors..." aria-describedby="results-count" /></div><button class="mobile-filter-toggle" id="mobile-filter-toggle" aria-label="Open filters">FILTERS</button><button id="random-film-btn" class="random-btn" aria-label="Go to random film">🎲 Random</button></div><div class="keyboard-hints"><kbd>/</kbd> search <kbd>r</kbd> random <kbd>esc</kbd> clear</div></div>
     <div class="active-filters-bar" id="active-filters-bar"><span class="active-filters-label">Filtered:</span></div>
-    ${generateFilmOfTheDayCard(getFilmOfTheDay(films))}
+    ${generateFilmOfTheDayCard(getFilmOfTheDay(sortedFilms))}
     <div class="table-wrapper"><table class="film-table"><thead><tr><th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th><th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col">Director / Studio</th><th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col" style="width:70px" class="hide-mobile">Runtime</th><th scope="col" style="width:90px" class="hide-mobile">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
     <div id="no-results" class="no-results" style="display:none"><h3 class="no-results-title">No films match your criteria</h3><p class="no-results-message" id="no-results-detail">Try adjusting your search or filters.</p><button id="clear-all-btn" class="clear-all-btn" style="display:none">Clear All Filters</button></div>
     ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${sortedFilms.length}">Load More <span class="load-more-count">(${sortedFilms.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
@@ -880,8 +1087,12 @@ ${FAVICON}
 </section>
 <footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><a href="#" class="footer-random" id="footer-random-link">🎲 Random</a><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
 <button class="back-to-top" aria-label="Back to top">↑</button>
-<script src="${ASSET_URLS.filmsIndex}" defer></script>
+<script>window.__CATALOG_URL=${JSON.stringify('/' + ASSET_URLS.filmsIndex)}</script>
 <script src="${ASSET_URLS.app}" defer></script>
+<!-- Catalog (films-index.js, ~280KB gz) is now lazy-loaded by app.js on
+     first interaction or after 2s of idle — see ensureCatalog() in
+     generateJS(). Most homepage visitors browse the SSR'd 50 rows and
+     click into a film without needing the catalog at all. -->
 </body></html>`;
 }
 
@@ -904,7 +1115,12 @@ ${FAVICON}
  */
 function buildFilmsIndexJs(sortedFilms, studios, directorsData) {
   const slimFilms = sortedFilms.map(f => ({
-    id: f.id,
+    // Truncated to 8 chars (2026-04-26 perf trim): the only consumer of
+    // this id on the client is URL construction (`films/{slug}-{id8}.html`),
+    // and inequality dedup checks like `f.id !== currentFilm.id` work as
+    // long as both sides come from the slim catalog (both 8 chars).
+    // Saves ~63 KB raw / ~16 KB gzipped vs full UUIDs.
+    id: f.id.slice(0, 8),
     title: f.titleEnglish,
     original: f.originalTitle,
     year: f.year,
@@ -922,10 +1138,21 @@ function buildFilmsIndexJs(sortedFilms, studios, directorsData) {
       ? f.watchLinks.map(l => ({ url: l.url, platform: l.platform, status: l.status }))
       : [],
     hasSubtitles: f.hasSubtitles,
-    genres: f.genres || [],
-    keywords: f.keywords || [],
-    studioEntities: f.studioEntities || [],
-    directorEntities: f.directorEntities || []
+    genres: f.genres || []
+    // keywords lazy-loaded 2026-04-26 (perf trim): pulled out of the slim
+    // catalog (~111 KB raw / ~30 KB gz off the critical path) and emitted
+    // as ./dist/keywords-index.json. Client fetches it on first need
+    // (search keystroke or keyword-filter activation) — see loadKeywords()
+    // in generateJS. ~80% of users never trigger that path.
+    // studioEntities / directorEntities dropped 2026-04-26 (perf trim):
+    // ~339 KB raw / ~85 KB gz saved. Client-side getDirectorLinks /
+    // getStudioLinks already have a name-lookup fallback against
+    // STUDIOS_DATA / DIRECTORS_DATA, which handles every director/studio
+    // with a unique name (~99% of the catalog). Risk: same-named
+    // directors (~5-10 in audit-report.json) get the wrong entity link.
+    // Server-side templates (renderRow, related films, entity pages)
+    // continue using the full film object via the `films` module-level
+    // variable and are unaffected.
   }));
 
   const slimStudios = studios.map(s => ({
@@ -979,8 +1206,7 @@ ${film.year ? `<meta property="video:release_date" content="${film.year}">` : ''
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateFilmJsonLd(film)}</script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -1004,17 +1230,42 @@ ${generateBreadcrumb([
       ${film.originalTitle ? `<div class="detail-original" lang="und">${escapeHtml(film.originalTitle)}</div>` : ''}
       <div class="detail-credits">${getDirectorLink(film, '../') ? `Directed by <strong>${getDirectorLink(film, '../')}</strong><br>` : ''}${getStudioLink(film, '../') ? `Produced by <strong>${getStudioLink(film, '../')}</strong>` : ''}${film.runtime ? ` · ${escapeHtml(film.runtime)}` : ''}</div>
     </div>
-    <div class="detail-actions">${hasWatchLinks(film) ? `<a href="${escapeHtml(getWatchUrl(film) || '#')}" class="detail-watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶ WATCH NOW</a>${film.hasSubtitles ? '<span class="detail-subs">EN SUBTITLES AVAILABLE</span>' : ''}` : '<span class="detail-subs">NO WATCH LINK AVAILABLE</span>'}</div>
+    <div class="detail-actions">${(() => {
+      // Gated-aware CTA: same partitioning as renderRow (build-site.js
+      // WATCHABLE_STATUSES / GATED_STATUSES) so a Restricted Plex link
+      // doesn't render as a verified-playback "▶ WATCH NOW" promise.
+      // Inline lock SVG to dodge cross-OS emoji rendering inconsistency.
+      const link = getBestWatchLink(film);
+      if (!link) {
+        return `<a href="#report-form" class="detail-suggest-link" aria-label="Help us find a watch link for ${escapeHtml(film.titleEnglish || 'this film')}">Help us find a watch link →</a>`;
+      }
+      const lockSvg = `<svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0;margin-right:6px"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>`;
+      const gated = isGated(link);
+      const cls = gated ? 'detail-watch-btn detail-watch-btn-gated' : 'detail-watch-btn';
+      const label = gated
+        ? `${lockSvg}OPEN ON ${escapeHtml((link.platform || 'PLATFORM').toUpperCase())}`
+        : `▶ WATCH NOW`;
+      const aria = gated
+        ? `Open ${escapeHtml(film.titleEnglish || 'this film')} on ${escapeHtml(link.platform || 'platform')} — sign-in or subscription may be required (opens in new tab)`
+        : `Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)`;
+      const subs = (!gated && film.hasSubtitles) ? '<span class="detail-subs">EN SUBTITLES AVAILABLE</span>' : '';
+      return `<a href="${escapeHtml(link.url)}" class="${cls}" target="_blank" rel="noopener" aria-label="${aria}">${label}</a>${subs}`;
+    })()}</div>
   </div>
   <div class="detail-body">
     <div class="detail-content">
+      ${/* Watch links lifted above the prose 2026-04-25 — primary user
+            intent on a film page is "where can I watch this", not
+            "tell me about it". The card has its own visual treatment
+            (cream box, crimson left border) so it doesn't disrupt the
+            editorial rhythm of the prose sections below. */ ''}
+      ${generateWatchLinksSection(film)}
       ${film.synopsis ? `<h2>Synopsis</h2><p>${escapeHtml(film.synopsis)}</p>` : ''}
       ${film.historicalContext ? `<h2>Historical Context</h2><p>${escapeHtml(film.historicalContext)}</p>` : ''}
       ${film.keyCredits ? `<h2>Key Credits</h2><p>${escapeHtml(film.keyCredits)}</p>` : ''}
       ${film.notes ? `<h2>Notes</h2><p>${escapeHtml(film.notes)}</p>` : ''}
       ${film.researchSources ? `<div class="research-sources"><h2>Research Sources</h2><p class="sources-list">${escapeHtml(film.researchSources).split(',').map(s => s.trim()).filter(s => s).join(' · ')}</p></div>` : ''}
-      ${!film.synopsis && !film.historicalContext && !film.keyCredits && !film.notes ? '<p class="no-content">No detailed information available yet.</p>' : ''}
-      ${generateWatchLinksSection(film)}
+      ${!film.synopsis && !film.historicalContext && !film.keyCredits && !film.notes ? '<div class="empty-state"><p class="empty-state-message">No detailed information available yet.</p><a href="#report-form" class="empty-state-cta">Help us add details for this film →</a></div>' : ''}
       ${generateFilmTags(film)}
     </div>
     <aside class="detail-data-panel" aria-label="Film metadata">
@@ -1041,7 +1292,16 @@ ${generateFooter('../')}
 }
 
 function generateCSS() {
-  return `*{margin:0;padding:0;box-sizing:border-box}:root{--cream:#f8f6f1;--cream-dark:#eae6dd;--paper:#fffef9;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#78716c;--ink-faint:#6b6660;--rule:#d6d3d1;--rule-dark:#a8a29e;--accent:#9f1239;--data-bg:#f3f1ec;--mono:'JetBrains Mono',monospace}html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}a{color:inherit}.skip-link{position:absolute;top:-40px;left:0;background:var(--ink);color:var(--cream);padding:8px 16px;z-index:1000;font-family:var(--mono);font-size:12px;text-decoration:none}.skip-link:focus{top:0}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.masthead{background:var(--paper);border-bottom:1px solid var(--rule)}.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:10px 32px;border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.masthead-main{text-align:center;padding:28px 32px 24px}.masthead-title{font-family:'Playfair Display',serif;font-size:36px;font-weight:400;letter-spacing:.02em;margin-bottom:4px}.masthead-subtitle{font-family:'Source Serif 4',serif;font-size:13px;font-style:italic;color:var(--ink-muted)}.stats-bar{background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:12px;display:flex}.stat-block{flex:1;padding:16px 24px;border-right:1px solid rgba(255,255,255,.15);display:flex;justify-content:space-between;align-items:baseline}.stat-block:last-child{border-right:none}.stat-label{opacity:.6;text-transform:uppercase;letter-spacing:.1em;font-size:10px}.stat-value{font-size:18px;font-weight:600}.main-nav{display:flex;justify-content:center;gap:40px;padding:14px 32px;background:var(--cream);border-bottom:2px solid var(--ink)}.main-nav a{font-size:11px;letter-spacing:.15em;text-transform:uppercase;text-decoration:none;color:var(--ink-light);font-weight:500;transition:color .2s}.main-nav a:hover,.main-nav a.active{color:var(--accent)}.main-layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 200px)}.sidebar{background:var(--paper);border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px}.sidebar-group{border-bottom:1px solid var(--rule)}.sidebar-group-header{padding:12px 16px;background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:600}.browse-nav{display:flex;flex-direction:column}.browse-link{display:flex;align-items:center;padding:10px 16px;font-family:var(--mono);font-size:12px;color:var(--ink-light);text-decoration:none;border-bottom:1px solid var(--rule);transition:background .15s,color .15s}.browse-link:last-child{border-bottom:none}.browse-link:hover{background:var(--cream);color:var(--accent)}.browse-arrow{margin-right:8px;color:var(--ink-faint)}.browse-link:hover .browse-arrow{color:var(--accent)}.browse-link .count{margin-left:auto;color:var(--ink-faint);font-size:11px}.sidebar-section{border-bottom:1px solid var(--rule)}.sidebar-header{padding:12px 16px;background:var(--data-bg);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);display:flex;justify-content:space-between;border-bottom:1px solid var(--rule)}.query-display{padding:16px;background:var(--cream-dark);border-bottom:1px solid var(--rule)}.query-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;font-weight:600}.query-tags{display:flex;flex-wrap:wrap;gap:6px}.query-tag{background:var(--paper);border:1px solid var(--rule);padding:4px 10px;font-size:11px;display:flex;align-items:center;gap:8px}.query-tag .remove{color:var(--ink-faint);cursor:pointer;font-size:14px}.query-tag .remove:hover{color:var(--accent)}.filter-list{max-height:200px;overflow-y:auto}.filter-item{display:flex;justify-content:space-between;align-items:center;min-height:44px;padding:10px 16px;cursor:pointer;transition:background .15s;border-left:3px solid transparent}.filter-item:hover{background:var(--cream);border-left-color:var(--rule-dark)}.filter-item:focus{outline:2px solid var(--accent);outline-offset:-2px}.filter-item.active{background:var(--cream);border-left-color:var(--accent)}.filter-item .name{color:var(--ink-light)}.filter-item.active .name{color:var(--ink);font-weight:500}.filter-item .count{color:var(--ink-faint)}.content{background:var(--cream)}.content-header{display:flex;justify-content:space-between;align-items:center;padding:16px 32px;border-bottom:1px solid var(--rule);background:var(--paper)}.content-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:400}.content-meta{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.search-box input{padding:10px 16px;border:1px solid var(--rule);background:var(--cream);font-family:var(--mono);font-size:12px;width:280px}.search-box input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}.table-wrapper{overflow-x:auto}.film-table{width:100%;border-collapse:collapse;font-size:13px}.film-table thead{position:sticky;top:0;z-index:10;transition:box-shadow .2s}.film-table thead.is-sticky{box-shadow:0 2px 8px rgba(0,0,0,.1)}.film-table th{background:var(--data-bg);padding:12px 16px;text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);border-bottom:2px solid var(--rule-dark);font-weight:600}.film-table td{padding:16px;border-bottom:1px solid var(--rule);vertical-align:top;background:var(--paper)}.film-table tr:hover td{background:var(--cream)}.film-table tr.hidden{display:none}.table-year{font-family:'Playfair Display',serif;font-size:24px;font-weight:500;color:var(--ink);line-height:1}.table-country{font-family:var(--mono);font-size:10px;color:var(--ink-muted);margin-top:4px;letter-spacing:.05em}.table-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:500;margin-bottom:4px;line-height:1.3;text-decoration:none;display:block}.table-title:hover{color:var(--accent)}.table-title:focus{outline:2px solid var(--accent);outline-offset:2px}.table-original{font-family:'Source Serif 4',serif;font-size:13px;font-style:italic;color:var(--ink-muted)}.table-meta{font-size:12px;color:var(--ink-light);line-height:1.7}.table-meta strong{font-weight:500;color:var(--ink)}.table-technique{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:500}.table-runtime{font-family:var(--mono);font-size:12px;color:var(--ink-light)}.confidence-pips{font-family:var(--mono);font-size:14px;letter-spacing:2px}.confidence-pips .filled{color:var(--accent)}.confidence-pips .empty{color:var(--rule)}.watch-cell{text-align:right}.watch-btn{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:var(--cream);padding:10px 18px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.05em;text-decoration:none;transition:background .2s}.watch-btn:hover,.watch-btn:focus{background:var(--accent)}.subs-badge{display:block;margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--ink-muted)}.no-link{font-family:var(--mono);font-size:12px;color:var(--ink-faint)}.load-more-container{padding:32px;text-align:center;background:var(--paper);border-top:1px solid var(--rule)}.load-more-btn{background:var(--ink);color:var(--cream);border:none;padding:16px 40px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.1em;cursor:pointer;transition:background .2s}.load-more-btn:hover,.load-more-btn:focus{background:var(--accent);outline:none}.load-more-btn:disabled{background:var(--ink-muted);cursor:not-allowed}.load-more-count{opacity:.6;font-weight:400}.detail-page{padding:48px 32px;max-width:1200px;margin:0 auto}.detail-header{display:grid;grid-template-columns:180px 1fr auto;gap:40px;padding-bottom:40px;border-bottom:2px solid var(--ink);margin-bottom:40px}.detail-year-block{background:var(--data-bg);padding:32px;text-align:center;border:1px solid var(--rule)}.detail-year{font-family:'Playfair Display',serif;font-size:56px;font-weight:400;line-height:1;color:var(--ink)}.detail-country{font-family:var(--mono);font-size:12px;letter-spacing:.15em;color:var(--ink-muted);margin-top:12px}.detail-title-section{display:flex;flex-direction:column;justify-content:center}.detail-technique{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--accent);font-weight:600;margin-bottom:12px}.detail-title{font-family:'Playfair Display',serif;font-size:38px;font-weight:400;line-height:1.15;margin-bottom:8px}.detail-original{font-family:'Source Serif 4',serif;font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:20px}.detail-credits{font-size:15px;color:var(--ink-light);line-height:1.8}.detail-credits strong{font-weight:500;color:var(--ink)}.detail-actions{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:12px}.detail-watch-btn{display:flex;align-items:center;gap:12px;background:var(--ink);color:var(--cream);padding:18px 32px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.1em;text-decoration:none;transition:background .2s}.detail-watch-btn:hover,.detail-watch-btn:focus{background:var(--accent)}.detail-subs{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.detail-body{display:grid;grid-template-columns:1fr 280px;gap:60px}.detail-content h2{font-family:'Playfair Display',serif;font-size:22px;font-weight:400;margin-bottom:16px;margin-top:36px}.detail-content h2:first-child{margin-top:0}.detail-content p{font-family:'Source Serif 4',serif;font-size:16px;line-height:1.9;color:var(--ink-light);margin-bottom:20px}.detail-content .no-content{font-style:italic;color:var(--ink-muted)}.detail-data-panel{background:var(--data-bg);border:1px solid var(--rule);padding:24px;font-family:var(--mono);font-size:12px;height:fit-content}.data-panel-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule)}.data-list{display:block}.data-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--rule)}.data-row:last-of-type{border-bottom:none}.data-label{color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;font-size:10px}.data-value{color:var(--ink);text-align:right;font-weight:500}.data-links{margin-top:24px;padding-top:24px;border-top:1px solid var(--rule)}.data-link{display:block;padding:8px 0;color:var(--ink-light);text-decoration:none;transition:color .15s;border-bottom:1px solid var(--rule)}.data-link:last-child{border-bottom:none}.data-link:hover,.data-link:focus{color:var(--accent)}.data-link::before{content:'→';margin-right:8px;color:var(--ink-faint)}.about-section{background:var(--paper);border-top:2px solid var(--ink);padding:80px 32px}.about-inner{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px}.about-text h2{font-family:'Playfair Display',serif;font-size:32px;font-weight:400;line-height:1.3;margin-bottom:24px}.about-text h2 em{font-style:italic}.about-text p{font-family:'Source Serif 4',serif;font-size:15px;line-height:1.9;color:var(--ink-light);margin-bottom:16px}.about-data{background:var(--data-bg);border:1px solid var(--rule);padding:32px;font-family:var(--mono)}.about-data-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:24px}.about-stat-row{display:flex;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--rule);align-items:baseline}.about-stat-row:last-child{border-bottom:none}.about-stat-label{font-size:12px;color:var(--ink-light)}.about-stat-value{font-size:24px;font-weight:600;color:var(--ink)}.footer{background:var(--ink);color:var(--cream);padding:32px}.footer-inner{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}.footer-logo{font-family:'Playfair Display',serif;font-size:18px}.footer-timestamp{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.7)}/* Mobile filter toggle */
+  return `*{margin:0;padding:0;box-sizing:border-box}:root{--cream:#f8f6f1;--cream-dark:#eae6dd;--paper:#fffef9;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#6b655e;--ink-faint:#6b6660;--rule:#d6d3d1;--rule-dark:#a8a29e;--accent:#9f1239;--data-bg:#f3f1ec;--mono:'JetBrains Mono',monospace;
+/* Type scale — three semantic title roles. New page templates should use
+   these tokens instead of inventing px values. Existing selectors that
+   pre-date the tokens are migrated incrementally; one-off sizes
+   (.decade-name 56px display, .film-of-day-title 22px, .masthead-title 36px)
+   stay because they're intentional editorial choices. */
+--type-page-hero:42px;     /* top-of-page entity name (country, director, studio, series, tag, error) */
+--type-section-hero:22px;  /* h2-equivalent within content */
+--type-card-hero:18px;     /* card title in a grid of cards (country-card, entity-card, director-card, related) */
+}html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}a{color:inherit}.skip-link{position:absolute;top:-40px;left:0;background:var(--ink);color:var(--cream);padding:8px 16px;z-index:1000;font-family:var(--mono);font-size:12px;text-decoration:none}.skip-link:focus{top:0}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.masthead{background:var(--paper);border-bottom:1px solid var(--rule)}.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:10px 32px;border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.masthead-main{text-align:center;padding:28px 32px 24px}.masthead-title{font-family:'Playfair Display',serif;font-size:36px;font-weight:400;letter-spacing:.02em;margin-bottom:4px}.masthead-subtitle{font-family:'Source Serif 4',serif;font-size:13px;font-style:italic;color:var(--ink-muted)}.stats-bar{background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:11px;display:flex}.stat-block{flex:1;padding:8px 20px;border-right:1px solid rgba(255,255,255,.15);display:flex;justify-content:space-between;align-items:baseline;gap:12px}.stat-block:last-child{border-right:none}.stat-label{opacity:.6;text-transform:uppercase;letter-spacing:.1em;font-size:10px}.stat-value{font-size:13px;font-weight:600}.main-nav{display:flex;justify-content:center;gap:40px;padding:14px 32px;background:var(--cream);border-bottom:2px solid var(--ink)}.main-nav a{font-size:11px;letter-spacing:.15em;text-transform:uppercase;text-decoration:none;color:var(--ink-light);font-weight:500;transition:color .2s}.main-nav a:hover,.main-nav a.active{color:var(--accent)}.main-layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 200px)}.sidebar{background:var(--paper);border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px}.sidebar-group{border-bottom:1px solid var(--rule)}.sidebar-group-header{padding:12px 16px;background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:600}.browse-nav{display:flex;flex-direction:column}.browse-link{display:flex;align-items:center;padding:12px 16px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:12px;color:var(--ink-light);text-decoration:none;border-bottom:1px solid var(--rule);transition:background .15s,color .15s}.browse-link:last-child{border-bottom:none}.browse-link:hover{background:var(--cream);color:var(--accent)}.browse-link:focus{outline:2px solid var(--accent);outline-offset:-2px;color:var(--accent)}.browse-arrow{margin-right:8px;color:var(--ink-faint)}.browse-link:hover .browse-arrow{color:var(--accent)}.browse-link .count{margin-left:auto;color:var(--ink-faint);font-size:11px}.sidebar-section{border-bottom:1px solid var(--rule)}.sidebar-header{padding:12px 16px;background:var(--data-bg);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);display:flex;justify-content:space-between;border-bottom:1px solid var(--rule)}.query-display{padding:16px;background:var(--cream-dark);border-bottom:1px solid var(--rule)}.query-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;font-weight:600}.query-tags{display:flex;flex-wrap:wrap;gap:6px}.query-tag{background:var(--paper);border:1px solid var(--rule);padding:4px 10px;font-size:11px;display:flex;align-items:center;gap:8px}.query-tag .remove{color:var(--ink-faint);cursor:pointer;font-size:14px}.query-tag .remove:hover{color:var(--accent)}.filter-list{max-height:200px;overflow-y:auto}.filter-item{display:flex;justify-content:space-between;align-items:center;min-height:44px;padding:10px 16px;cursor:pointer;transition:background .15s;border-left:3px solid transparent}.filter-item:hover{background:var(--cream);border-left-color:var(--rule-dark)}.filter-item:focus{outline:2px solid var(--accent);outline-offset:-2px}.filter-item.active{background:var(--cream);border-left-color:var(--accent)}.filter-item .name{color:var(--ink-light)}.filter-item.active .name{color:var(--ink);font-weight:500}.filter-item .count{color:var(--ink-faint)}.content{background:var(--cream)}.content-header{display:flex;justify-content:space-between;align-items:center;padding:16px 32px;border-bottom:1px solid var(--rule);background:var(--paper)}.content-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:400}.content-meta{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.search-box input{padding:10px 16px;border:1px solid var(--rule);background:var(--cream);font-family:var(--mono);font-size:12px;width:280px}.search-box input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}.table-wrapper{overflow-x:auto}.film-table{width:100%;border-collapse:collapse;font-size:13px}.film-table thead{position:sticky;top:0;z-index:10;transition:box-shadow .2s}.film-table thead.is-sticky{box-shadow:0 2px 8px rgba(0,0,0,.1)}.film-table th{background:var(--data-bg);padding:12px 16px;text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);border-bottom:2px solid var(--rule-dark);font-weight:600}.film-table td{padding:16px;border-bottom:1px solid var(--rule);vertical-align:top;background:var(--paper)}.film-table tr:hover td{background:var(--cream)}.film-table tr.hidden{display:none}.table-year{font-family:'Playfair Display',serif;font-size:24px;font-weight:500;color:var(--ink);line-height:1}.table-country{font-family:var(--mono);font-size:10px;color:var(--ink-muted);margin-top:4px;letter-spacing:.05em}.table-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:500;margin-bottom:4px;line-height:1.3;text-decoration:none;display:block}.table-title:hover{color:var(--accent)}.table-title:focus{outline:2px solid var(--accent);outline-offset:2px}.table-original{font-family:'Source Serif 4',serif;font-size:13px;font-style:italic;color:var(--ink-muted)}.table-meta{font-size:12px;color:var(--ink-light);line-height:1.7}.table-meta strong{font-weight:500;color:var(--ink)}.table-technique{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:500}.table-runtime{font-family:var(--mono);font-size:12px;color:var(--ink-light)}.confidence-pips{font-family:var(--mono);font-size:14px;letter-spacing:2px}.confidence-pips .filled{color:var(--accent)}.confidence-pips .empty{color:var(--rule)}.watch-cell{text-align:right}.watch-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--ink);color:var(--cream);padding:10px 18px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.05em;text-decoration:none;transition:background .2s}.watch-btn:hover,.watch-btn:focus{background:var(--accent)}.subs-badge{display:block;margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--ink-muted)}.no-link{font-family:var(--mono);font-size:12px;color:var(--ink-faint)}.load-more-container{padding:32px;text-align:center;background:var(--paper);border-top:1px solid var(--rule)}.load-more-btn{background:var(--ink);color:var(--cream);border:none;padding:16px 40px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.1em;cursor:pointer;transition:background .2s}.load-more-btn:hover,.load-more-btn:focus{background:var(--accent);outline:none}.load-more-btn:disabled{background:var(--ink-muted);cursor:not-allowed}.load-more-count{opacity:.6;font-weight:400}.detail-page{padding:48px 32px;max-width:1200px;margin:0 auto}.detail-header{display:grid;grid-template-columns:180px 1fr auto;gap:40px;padding-bottom:40px;border-bottom:2px solid var(--ink);margin-bottom:40px}.detail-year-block{background:var(--data-bg);padding:32px;text-align:center;border:1px solid var(--rule)}.detail-year{font-family:'Playfair Display',serif;font-size:56px;font-weight:400;line-height:1;color:var(--ink)}.detail-country{font-family:var(--mono);font-size:12px;letter-spacing:.15em;color:var(--ink-muted);margin-top:12px}.detail-title-section{display:flex;flex-direction:column;justify-content:center}.detail-technique{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--accent);font-weight:600;margin-bottom:12px}.detail-title{font-family:'Playfair Display',serif;font-size:38px;font-weight:400;line-height:1.15;margin-bottom:8px}.detail-original{font-family:'Source Serif 4',serif;font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:20px}.detail-credits{font-size:15px;color:var(--ink-light);line-height:1.8}.detail-credits strong{font-weight:500;color:var(--ink)}.detail-actions{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:12px}.detail-watch-btn{display:flex;align-items:center;justify-content:center;gap:12px;background:var(--ink);color:var(--cream);padding:18px 32px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.1em;text-decoration:none;transition:background .2s}.detail-watch-btn:hover,.detail-watch-btn:focus{background:var(--accent)}/* Gated detail CTA — Restricted/Unverified status. Honest about the gating without making the page's primary button look broken. */.detail-watch-btn-gated{background:transparent;color:var(--ink);border:1.5px solid var(--ink);padding:16.5px 30.5px}.detail-watch-btn-gated:hover,.detail-watch-btn-gated:focus{background:var(--ink);color:var(--cream)}/* Empty-state CTA replacing the dead "NO WATCH LINK AVAILABLE" text. Encourages contribution rather than ending the journey. */.detail-suggest-link{display:inline-flex;align-items:center;font-family:var(--mono);font-size:12px;color:var(--ink-muted);text-decoration:underline;text-underline-offset:3px;padding:12px 0;min-height:44px;transition:color .15s}.detail-suggest-link:hover,.detail-suggest-link:focus{color:var(--accent)}.detail-subs{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}.detail-body{display:grid;grid-template-columns:1fr 280px;gap:60px}.detail-content h2{font-family:'Playfair Display',serif;font-size:var(--type-section-hero);font-weight:400;margin-bottom:16px;margin-top:36px}.detail-content h2:first-child{margin-top:0}.detail-content p{font-family:'Source Serif 4',serif;font-size:16px;line-height:1.9;color:var(--ink-light);margin-bottom:20px}.detail-content .no-content{font-style:italic;color:var(--ink-muted)}.detail-data-panel{background:var(--data-bg);border:1px solid var(--rule);padding:24px;font-family:var(--mono);font-size:12px;height:fit-content;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto}.data-panel-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule)}.data-list{display:block}.data-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--rule)}.data-row:last-of-type{border-bottom:none}.data-label{color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;font-size:10px}.data-value{color:var(--ink);text-align:right;font-weight:500}.data-links{margin-top:24px;padding-top:24px;border-top:1px solid var(--rule)}.data-link{display:flex;align-items:center;padding:12px 0;min-height:44px;box-sizing:border-box;color:var(--ink-light);text-decoration:none;transition:color .15s;border-bottom:1px solid var(--rule)}.data-link:last-child{border-bottom:none}.data-link:hover{color:var(--accent)}.data-link:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}.data-link::before{content:'→';margin-right:8px;color:var(--ink-faint)}.about-section{background:var(--paper);border-top:2px solid var(--ink);padding:80px 32px}.about-inner{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px}.about-text h2{font-family:'Playfair Display',serif;font-size:32px;font-weight:400;line-height:1.3;margin-bottom:24px}.about-text h2 em{font-style:italic}.about-text p{font-family:'Source Serif 4',serif;font-size:15px;line-height:1.9;color:var(--ink-light);margin-bottom:16px}.about-data{background:var(--data-bg);border:1px solid var(--rule);padding:32px;font-family:var(--mono)}.about-data-title{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:24px}.about-stat-row{display:flex;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--rule);align-items:baseline}.about-stat-row:last-child{border-bottom:none}.about-stat-label{font-size:12px;color:var(--ink-light)}.about-stat-value{font-size:24px;font-weight:600;color:var(--ink)}.footer{background:var(--ink);color:var(--cream);padding:32px}.footer-inner{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}.footer-logo{font-family:'Playfair Display',serif;font-size:18px}.footer-timestamp{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.7)}/* Mobile filter toggle */
 .mobile-filter-toggle{display:none;background:var(--ink);color:var(--cream);border:none;padding:10px 16px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .2s;white-space:nowrap}
 .mobile-filter-toggle:hover,.mobile-filter-toggle:focus{background:var(--accent)}
 .filter-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:var(--cream);border-radius:50%;width:18px;height:18px;font-size:10px;margin-left:6px}
@@ -1053,7 +1313,7 @@ function generateCSS() {
 .active-filters-bar.has-filters{display:flex}
 .active-filters-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:600}
 .active-filter-tag{background:var(--paper);border:1px solid var(--rule);padding:4px 10px;font-family:var(--mono);font-size:11px;display:inline-flex;align-items:center;gap:8px}
-.active-filter-tag .remove{color:var(--ink-light);cursor:pointer;font-size:16px;line-height:1;min-width:24px;min-height:24px;display:inline-flex;align-items:center;justify-content:center;padding:4px}
+.active-filter-tag .remove{color:var(--ink-light);cursor:pointer;font-size:16px;line-height:1;min-width:32px;min-height:32px;display:inline-flex;align-items:center;justify-content:center;padding:4px}
 .active-filter-tag .remove:hover{color:var(--accent)}
 .clear-filters-btn{background:none;border:none;font-family:var(--mono);font-size:10px;color:var(--ink-muted);cursor:pointer;text-decoration:underline;margin-left:auto}
 .clear-filters-btn:hover{color:var(--accent)}
@@ -1064,7 +1324,7 @@ function generateCSS() {
 .country-header{display:grid;grid-template-columns:auto 1fr auto;gap:32px;align-items:center;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:40px}
 .country-code-block{background:var(--ink);color:var(--cream);padding:24px 32px;text-align:center}
 .country-code-large{font-family:var(--mono);font-size:32px;font-weight:600;letter-spacing:.1em}
-.country-title-section h1.country-name{font-family:'Playfair Display',serif;font-size:42px;font-weight:400;margin-bottom:8px}
+.country-title-section h1.country-name{font-family:'Playfair Display',serif;font-size:var(--type-page-hero);font-weight:400;margin-bottom:8px}
 .country-subtitle{font-family:'Source Serif 4',serif;font-style:italic;color:var(--ink-muted);font-size:16px}
 .country-nav{text-align:right}
 .country-back-link{font-family:var(--mono);font-size:12px;color:var(--ink-muted);text-decoration:none;letter-spacing:.05em}
@@ -1200,10 +1460,13 @@ function generateCSS() {
 .film-of-day-technique{color:var(--ink-muted)}
 .film-of-day-synopsis{font-family:'Source Serif 4',serif;font-size:14px;color:var(--ink-light);margin:0;line-height:1.5}
 .film-of-day-actions{display:flex;gap:12px;flex-shrink:0}
-.film-of-day-details-btn{font-family:var(--mono);font-size:11px;padding:10px 16px;background:var(--cream);border:1px solid var(--rule);color:var(--ink);text-decoration:none;transition:border-color .2s}
-.film-of-day-details-btn:hover{border-color:var(--ink)}
-.film-of-day-watch-btn{font-family:var(--mono);font-size:11px;padding:10px 16px;background:var(--ink);color:var(--cream);text-decoration:none;transition:background .2s}
+.film-of-day-watch-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:11px;padding:10px 16px;background:var(--ink);color:var(--cream);text-decoration:none;transition:background .2s}
 .film-of-day-watch-btn:hover{background:var(--accent)}
+/* Gated FotD CTA — Restricted/Unverified status. Honest about the gating
+   without making the card look broken: muted ink instead of bright crimson
+   on hover, lock icon + platform name surfaces the actual ask. */
+.film-of-day-watch-btn-gated{background:transparent;color:var(--ink);border:1px solid var(--ink);font-weight:500}
+.film-of-day-watch-btn-gated:hover{background:var(--ink);color:var(--cream)}
 .footer-random{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.6);text-decoration:none;transition:color .2s}
 .footer-random:hover{color:var(--cream)}
 @media(max-width:900px){.search-actions{flex-direction:column;align-items:stretch;gap:8px}.search-box input{width:100%}.film-of-day{flex-direction:column;margin:20px 16px}.film-of-day-content{flex-direction:column;align-items:flex-start}.film-of-day-actions{width:100%;justify-content:flex-start}}
@@ -1212,35 +1475,66 @@ function generateCSS() {
 .related-section{margin-bottom:40px}
 .related-section:last-child{margin-bottom:0}
 .related-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule)}
-.related-header a{font-family:'Playfair Display',serif;font-size:22px;font-weight:400;text-decoration:none;color:var(--ink)}
+.related-header a{font-family:'Playfair Display',serif;font-size:var(--type-section-hero);font-weight:400;text-decoration:none;color:var(--ink)}
 .related-header a:hover{color:var(--accent)}
 .related-count{font-family:var(--mono);font-size:11px;color:var(--ink-muted);letter-spacing:.05em}
 .related-count:hover{color:var(--accent)}
 .related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
-.related-card{display:block;background:var(--paper);border:1px solid var(--rule);padding:16px;text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s;position:relative}
+.related-card{display:block;background:var(--paper);border:1px solid var(--rule);padding:16px;min-height:44px;box-sizing:border-box;text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s;position:relative}
 .related-card:hover{border-color:var(--ink);box-shadow:3px 3px 0 var(--rule)}
+.related-card:focus{outline:2px solid var(--accent);outline-offset:2px}
 .related-title{display:block;font-family:'Playfair Display',serif;font-size:15px;font-weight:500;line-height:1.3;margin-bottom:8px;color:var(--ink)}
 .related-meta{display:block;font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
 .related-watch{position:absolute;top:12px;right:12px;font-size:12px;color:var(--accent)}
+.related-watch-gated{color:var(--ink-muted)}
+/* Folded "More like this" expander — keeps Decade/Technique sections
+   accessible without dumping 25 cards on every detail page. */
+.related-extra{margin-top:24px;border-top:1px solid var(--rule);padding-top:24px}
+.related-extra-summary{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer;padding:12px 0;min-height:44px;display:flex;align-items:center;list-style:none;transition:color .15s}
+.related-extra-summary::-webkit-details-marker{display:none}
+.related-extra-summary::before{content:'▸';margin-right:8px;color:var(--ink-faint);transition:transform .15s}
+.related-extra[open] .related-extra-summary::before{transform:rotate(90deg);display:inline-block}
+.related-extra-summary:hover,.related-extra-summary:focus{color:var(--accent)}
+.related-extra[open] .related-extra-summary{margin-bottom:24px}
 @media(max-width:900px){.related-films{padding:32px 16px}.related-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.related-header{flex-direction:column;gap:8px}.related-header a{font-size:18px}}
 /* 404 Error Page */
 .error-page{display:flex;align-items:center;justify-content:center;min-height:60vh;padding:48px 32px}
 .error-content{text-align:center;max-width:500px}
 .error-code{font-family:var(--mono);font-size:120px;font-weight:600;color:var(--rule);line-height:1;margin-bottom:16px}
-.error-title{font-family:'Playfair Display',serif;font-size:36px;font-weight:400;margin-bottom:16px}
-.error-message{font-family:'Source Serif 4',serif;font-size:18px;color:var(--ink-muted);margin-bottom:32px}
+.error-title{font-family:'Playfair Display',serif;font-size:var(--type-page-hero);font-weight:400;margin-bottom:16px}
+.error-message{font-family:'Source Serif 4',serif;font-size:18px;color:var(--ink-muted);margin-bottom:24px}
+/* Echoes the URL the user actually tried — populated by inline JS on
+   the 404 page, hidden when JS is off (window.location unavailable to
+   the template). Sits above the search form as recovery context. */
+.error-path{font-family:var(--mono);font-size:12px;color:var(--ink-muted);margin-bottom:24px;word-break:break-all}
+.error-path code{background:var(--data-bg);padding:2px 6px;color:var(--ink);border-radius:2px}
+.error-search{display:flex;gap:0;justify-content:center;margin-bottom:24px;max-width:380px;margin-left:auto;margin-right:auto}
+.error-search-input{flex:1;padding:12px 16px;border:1px solid var(--rule);border-right:none;background:var(--paper);font-family:var(--mono);font-size:13px;min-height:44px;box-sizing:border-box}
+.error-search-input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}
+.error-search-btn{padding:12px 20px;border:1px solid var(--ink);background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;min-height:44px;box-sizing:border-box;transition:background .2s}
+.error-search-btn:hover,.error-search-btn:focus{background:var(--accent);border-color:var(--accent);outline:none}
 .error-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
-.error-btn{font-family:var(--mono);font-size:12px;font-weight:500;padding:14px 24px;text-decoration:none;transition:all .2s}
+.error-btn{font-family:var(--mono);font-size:12px;font-weight:500;padding:14px 24px;min-height:44px;box-sizing:border-box;display:inline-flex;align-items:center;text-decoration:none;transition:all .2s}
 .error-btn-primary{background:var(--ink);color:var(--cream)}
-.error-btn-primary:hover{background:var(--accent)}
+.error-btn-primary:hover,.error-btn-primary:focus{background:var(--accent);outline:none}
 .error-btn-secondary{background:var(--paper);color:var(--ink);border:1px solid var(--rule)}
-.error-btn-secondary:hover{border-color:var(--ink)}
+.error-btn-secondary:hover,.error-btn-secondary:focus{border-color:var(--ink);outline:none}
 /* Empty search state */
-.no-results{padding:48px 32px;text-align:center;background:var(--paper)}
-.no-results-title{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:12px}
+/* Shared empty-state pattern. Five "nothing here" surfaces share this:
+   .no-results (homepage filter→nothing), .no-content (detail page no
+   prose), .no-links (watch-links section all dead), and the 404 page's
+   .error-content. Pattern: centered text, muted color, optional CTA.
+   See generateFilmPage / generate404Page / generateIndexPage for usage. */
+.empty-state{text-align:center;color:var(--ink-muted);font-family:'Source Serif 4',serif;font-style:italic;font-size:15px;line-height:1.6}
+.empty-state-title{font-family:'Playfair Display',serif;font-style:normal;font-size:var(--type-section-hero);color:var(--ink);margin-bottom:12px}
+.empty-state-message{margin-bottom:16px}
+.empty-state-cta{display:inline-flex;align-items:center;font-family:var(--mono);font-style:normal;font-size:12px;color:var(--ink-muted);text-decoration:underline;text-underline-offset:3px;padding:12px 0;min-height:44px;transition:color .15s}
+.empty-state-cta:hover,.empty-state-cta:focus{color:var(--accent)}
+.no-results{padding:48px 32px;background:var(--paper);text-align:center;color:var(--ink-muted);font-family:'Source Serif 4',serif;font-style:italic;font-size:15px;line-height:1.6}
+.no-results-title{font-family:'Playfair Display',serif;font-style:normal;font-size:var(--type-section-hero);color:var(--ink);margin-bottom:12px}
 .no-results-message{font-family:'Source Serif 4',serif;color:var(--ink-muted);font-size:16px;margin-bottom:16px}
-.clear-all-btn{background:var(--ink);color:var(--cream);border:none;padding:12px 24px;font-family:var(--mono);font-size:12px;font-weight:500;cursor:pointer;transition:background .2s;margin-top:8px}
-.clear-all-btn:hover{background:var(--accent)}
+.clear-all-btn{background:var(--ink);color:var(--cream);border:none;padding:12px 24px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:12px;font-weight:500;cursor:pointer;transition:background .2s;margin-top:8px}
+.clear-all-btn:hover,.clear-all-btn:focus{background:var(--accent);outline:none}
 /* Sortable table headers */
 .sortable{cursor:pointer;user-select:none;transition:color .15s}
 .sortable:hover{color:var(--accent)}
@@ -1254,6 +1548,16 @@ function generateCSS() {
 .group-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-muted);margin:8px 0 4px}
 .watch-link-card{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:var(--ink);transition:border-color .2s,box-shadow .2s}
 .watch-link-card:hover{border-color:var(--ink);box-shadow:2px 2px 0 var(--rule);transform:translateY(-1px)}
+/* Gated card — Restricted/Unverified status. URL works but needs login,
+   region access, or paid subscription. Slightly desaturated so primary
+   "▶ WATCH" CTA still wins on rows with multiple links. */
+.watch-link-card-gated{background:color-mix(in srgb,var(--paper) 85%,var(--data-bg));border-color:var(--rule);opacity:.92}
+.watch-link-card-gated:hover{opacity:1}
+.link-gate-icon{display:inline-block;margin-left:4px;vertical-align:-1px;color:var(--ink-muted)}
+/* Row-level gated watch button. Applied via .watch-btn-gated next to .watch-btn
+   in the renderRow template — hex of the lock instead of the play triangle. */
+.watch-btn-gated{background:transparent;color:var(--ink-muted);border:1px solid var(--rule);font-weight:500}
+.watch-btn-gated:hover{background:var(--data-bg);color:var(--ink);border-color:var(--ink-muted)}
 .link-icon{font-size:1.3rem;flex-shrink:0;width:2rem;text-align:center}
 .link-info{display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex:1}
 .link-platform{font-family:'Source Serif 4',serif;font-size:15px;font-weight:600}
@@ -1274,7 +1578,7 @@ function generateCSS() {
 .tag-section{margin-bottom:16px}
 .tag-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);display:block;margin-bottom:8px}
 .tag-list{display:flex;flex-wrap:wrap;gap:8px}
-.tag{display:inline-block;padding:6px 12px;font-family:var(--mono);font-size:12px;text-decoration:none;border:1px solid var(--rule);transition:all .2s}
+.tag{display:inline-flex;align-items:center;padding:8px 12px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:12px;text-decoration:none;border:1px solid var(--rule);transition:all .2s}.tag:hover{border-color:var(--ink);color:var(--accent)}.tag:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}
 .tag:hover{border-color:var(--ink);background:var(--cream)}
 .genre-tag{background:var(--paper);color:var(--ink)}
 .keyword-tag{background:var(--data-bg);color:var(--ink-light)}
@@ -1282,7 +1586,7 @@ function generateCSS() {
 .entity-page{padding:48px 32px;max-width:1200px;margin:0 auto}
 .entity-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:32px}
 .entity-title-section{flex:1}
-.entity-name{font-family:'Playfair Display',serif;font-size:42px;font-weight:400;margin-bottom:8px}
+.entity-name{font-family:'Playfair Display',serif;font-size:var(--type-page-hero);font-weight:400;margin-bottom:8px}
 .entity-native-name{font-family:'Source Serif 4',serif;font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:8px}
 .entity-subtitle{font-family:'Source Serif 4',serif;color:var(--ink-light);font-size:16px;margin-bottom:4px}
 .entity-dates{font-family:var(--mono);font-size:13px;color:var(--ink-muted)}
@@ -1446,7 +1750,6 @@ ul.watch-order-list{list-style:disc}
 .footer-inner{flex-direction:column;gap:12px;text-align:center}
 .alphabet-link{min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}
 .tag-cloud-item{min-height:44px}
-.tag{min-height:44px;display:inline-flex;align-items:center}
 .load-more-btn{min-height:44px}
 .decade-card{grid-template-columns:60px 1fr}
 .decade-card-year{font-size:16px}
@@ -1468,8 +1771,74 @@ const activeQueryBox=document.getElementById('active-query');
 const queryTags=document.getElementById('query-tags');
 const filterItems=document.querySelectorAll('.filter-item');
 const loadMoreBtn=document.getElementById('load-more-btn');
-const allFilms=window.ALL_FILMS_DATA||[];
+// Catalog is lazy-loaded — see ensureCatalog() below. Until first
+// interaction (or 2s idle fallback), allFilms is empty and the SSR'd
+// 50 rows in the table are what the user sees. After load, mutated in
+// place so existing references (sortFilms, getFilteredFilms, FotD
+// rotation, etc.) automatically pick up the data.
+let allFilms=window.ALL_FILMS_DATA||[];
+let studioMap=new Map((window.STUDIOS_DATA||[]).map(s=>[s.id,s]));
+let directorMap=new Map((window.DIRECTORS_DATA||[]).map(d=>[d.id,d]));
+let studiosByName=new Map((window.STUDIOS_DATA||[]).map(s=>[s.name.toLowerCase().trim(),s]));
+let directorsByName=new Map((window.DIRECTORS_DATA||[]).map(d=>[d.name.toLowerCase().trim(),d]));
 let activeFilters={};
+
+// ===== Catalog lazy-load =====
+// 470KB gzipped pulled off the homepage critical path. Catalog ships only
+// when the user actually needs it — search keystroke, filter click, sort
+// click, load-more click, or after 2s idle (so first interaction feels
+// instant for most). FotD rotation and other catalog-dependent code is
+// re-fired in onCatalogReady().
+let catalogReady=allFilms.length>0;
+let catalogLoading=null;
+function ensureCatalog(){
+  if(catalogReady)return Promise.resolve();
+  if(catalogLoading)return catalogLoading;
+  const url=window.__CATALOG_URL||'/films-index.js';
+  catalogLoading=new Promise(function(resolve){
+    const s=document.createElement('script');
+    s.src=url;
+    s.async=true;
+    s.onload=function(){
+      allFilms=window.ALL_FILMS_DATA||[];
+      studioMap=new Map((window.STUDIOS_DATA||[]).map(s=>[s.id,s]));
+      directorMap=new Map((window.DIRECTORS_DATA||[]).map(d=>[d.id,d]));
+      studiosByName=new Map((window.STUDIOS_DATA||[]).map(s=>[s.name.toLowerCase().trim(),s]));
+      directorsByName=new Map((window.DIRECTORS_DATA||[]).map(d=>[d.name.toLowerCase().trim(),d]));
+      catalogReady=true;
+      // Re-fire deferred renderers: FotD rotation needs the catalog to
+      // pick today's film; loadedCount caps need real total to update
+      // the load-more button.
+      if(typeof rotateFilmOfDay==='function')rotateFilmOfDay();
+      if(loadMoreBtn)loadMoreBtn.dataset.total=allFilms.length;
+      resolve();
+    };
+    s.onerror=function(){catalogReady=true;resolve();};
+    document.head.appendChild(s);
+  });
+  return catalogLoading;
+}
+// Idle-load after 2s so first interaction (which usually comes within
+// 1-3s on engaged users) doesn't pay the catalog round-trip latency.
+// Users who never interact never pay either way — page is already
+// usable from the SSR'd rows.
+setTimeout(ensureCatalog, 2000);
+
+// Keywords lazy-loaded from /keywords-index.json on first need.
+// ~80% of users never trigger this fetch. ~30 KB gzipped off critical
+// path. See ensureCatalog() above for the same pattern at larger scale.
+let keywordsCache={};
+let keywordsLoaded=false;
+let keywordsLoading=null;
+function loadKeywords(){
+  if(keywordsLoaded)return Promise.resolve(keywordsCache);
+  if(keywordsLoading)return keywordsLoading;
+  keywordsLoading=fetch('/keywords-index.json',{cache:'force-cache'})
+    .then(r=>r.ok?r.json():{})
+    .then(data=>{keywordsCache=data||{};keywordsLoaded=true;return keywordsCache;})
+    .catch(()=>{keywordsLoaded=true;return keywordsCache;});
+  return keywordsLoading;
+}
 let loadedCount=parseInt(loadMoreBtn?.dataset.loaded||allFilms.length);
 const BATCH_SIZE=50;
 let currentSort={column:'year',direction:'desc'};
@@ -1479,14 +1848,21 @@ function getCC(c){return countryCodes[c]||c?.substring(0,3).toUpperCase()||'???'
 function escHtml(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function slugify(s){return(s||'untitled').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');}
 function confPips(c){const l={'★':1,'★★':2,'★★★':3,'★★★★':4,'★★★★★':5};const n=l[c]||0;return '<span class="filled">'+'■'.repeat(n)+'</span><span class="empty">'+'□'.repeat(5-n)+'</span>';}
-function getWatchUrl(wl){if(!wl||!Array.isArray(wl))return null;const a=wl.filter(l=>l.url&&l.status!=='Dead');return a.length>0?a[0].url:(wl.find(l=>l.url)||{}).url||null;}
-function hasWatchLinksClient(wl){return Array.isArray(wl)&&wl.some(l=>l.url&&l.status!=='Dead');}
+// Watch-link status partitioning, kept in sync with build-site.js
+// WATCHABLE_STATUSES / GATED_STATUSES / HIDDEN_STATUSES. A link is
+// "visible" if it's Watchable or Gated; gated links open with a lock icon.
+// See scripts/lib/platform-trust.js for the canonical Notion vocabulary.
+const WATCHABLE=new Set(['Verified']);
+const GATED=new Set(['Restricted','Unverified']);
+function isWatchable(l){return l&&l.url&&WATCHABLE.has(l.status);}
+function isGated(l){return l&&l.url&&GATED.has(l.status);}
+function getBestLink(wl){if(!wl||!Array.isArray(wl))return null;return wl.find(isWatchable)||wl.find(isGated)||null;}
+function getWatchUrl(wl){const l=getBestLink(wl);return l?l.url:null;}
+function hasWatchLinksClient(wl){return Array.isArray(wl)&&wl.some(l=>isWatchable(l)||isGated(l));}
 
 // Build lookup maps for studios and directors
-const studioMap=new Map((window.STUDIOS_DATA||[]).map(s=>[s.id,s]));
-const directorMap=new Map((window.DIRECTORS_DATA||[]).map(d=>[d.id,d]));
-const studiosByName=new Map((window.STUDIOS_DATA||[]).map(s=>[s.name.toLowerCase().trim(),s]));
-const directorsByName=new Map((window.DIRECTORS_DATA||[]).map(d=>[d.name.toLowerCase().trim(),d]));
+// (studioMap / directorMap / studiosByName / directorsByName declared
+//  earlier with let so they can be re-bound when the lazy catalog loads.)
 
 function getDirectorLinks(f){
   if(f.directorEntities&&f.directorEntities.length>0){
@@ -1552,7 +1928,25 @@ function renderRow(f){
     '<td class="table-technique hide-mobile">'+((f.technique&&f.technique[0])?f.technique[0].toUpperCase():'—')+'</td>'+
     '<td class="table-runtime hide-mobile">'+(escHtml(f.runtime)||'—')+'</td>'+
     '<td class="hide-mobile"><span class="confidence-pips">'+confPips(f.confidence)+'</span></td>'+
-    '<td class="watch-cell">'+(hasWatchLinksClient(f.watchLinks)?(function(){const url=getWatchUrl(f.watchLinks);return url?'<a href="'+escHtml(url)+'" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch '+escHtml(f.titleEnglish||'this film')+' (opens in new tab)">▶ WATCH</a>'+(f.hasSubtitles?'<span class="subs-badge">EN subs</span>':''):'<span class="no-link">—</span>';})():'<span class="no-link">—</span>')+'</td></tr>';
+    '<td class="watch-cell">'+(function(){
+      const link=getBestLink(f.watchLinks);
+      if(!link)return '<span class="no-link">—</span>';
+      const gated=isGated(link);
+      const cls=gated?'watch-btn watch-btn-gated':'watch-btn';
+      // Gated rows surface the platform name as the verb so the user
+      // knows what login/sub they would need ("Plex" / "Disney+" /
+      // "Netflix") instead of the opaque "OPEN". Inline SVG lock to
+      // dodge cross-OS emoji rendering.
+      const lockSvg=gated?'<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>':'';
+      const label=gated
+        ?lockSvg+'<span class="watch-btn-platform">'+escHtml((link.platform||'OPEN').toUpperCase())+'</span>'
+        :'▶ WATCH';
+      const aria=gated
+        ?'Open '+escHtml(f.title||'this film')+' on '+escHtml(link.platform||'platform')+' — sign-in or subscription may be required (opens in new tab)'
+        :'Watch '+escHtml(f.title||'this film')+' (opens in new tab)';
+      const subs=(!gated&&f.hasSubtitles)?'<span class="subs-badge">EN subs</span>':'';
+      return '<a href="'+escHtml(link.url)+'" class="'+cls+'" target="_blank" rel="noopener" aria-label="'+aria+'">'+label+'</a>'+subs;
+    })()+'</td></tr>';
 }
 
 function getFilteredFilms(){
@@ -1564,7 +1958,12 @@ function getFilteredFilms(){
       const d=(f.director||'').toLowerCase();
       const s=(f.studio||'').toLowerCase();
       const g=(f.genres||[]).join(' ').toLowerCase();
-      const k=(f.keywords||[]).join(' ').toLowerCase();
+      // Keywords lazy-loaded — once keywordsCache is populated this
+      // matches against them too. Until then, search just covers the
+      // SSR'd fields (title/original/director/studio/genres). Search
+      // input listener triggers loadKeywords() on first keystroke.
+      const fk=keywordsCache[f.id]||[];
+      const k=fk.length?fk.join(' ').toLowerCase():'';
       if(!t.includes(term)&&!o.includes(term)&&!d.includes(term)&&!s.includes(term)&&!g.includes(term)&&!k.includes(term))return false;
     }
     if(activeFilters.format&&f.format!==activeFilters.format)return false;
@@ -1575,8 +1974,8 @@ function getFilteredFilms(){
     if(activeFilters.subtitles&&!f.hasSubtitles)return false;
     if(activeFilters.director){const dirs=(f.director||'').split(',').map(d=>d.trim());if(!dirs.includes(activeFilters.director))return false;}
     if(activeFilters.genre&&!(f.genres||[]).includes(activeFilters.genre))return false;
-    if(activeFilters.keyword&&!(f.keywords||[]).includes(activeFilters.keyword))return false;
-    if(activeFilters.platform){var pf=activeFilters.platform;var wl=f.watchLinks||[];if(!wl.some(function(l){return l&&l.url&&l.platform===pf&&l.status!=='Dead';}))return false;}
+    if(activeFilters.keyword&&!(keywordsCache[f.id]||[]).includes(activeFilters.keyword))return false;
+    if(activeFilters.platform){var pf=activeFilters.platform;var wl=f.watchLinks||[];if(!wl.some(function(l){return l&&l.platform===pf&&(isWatchable(l)||isGated(l));}))return false;}
     return true;
   });
   return sortFilms(filtered,currentSort.column,currentSort.direction);
@@ -1635,7 +2034,15 @@ function updateQueryDisplay(){
   }
 }
 
-searchInput.addEventListener('input',updateDisplay);
+searchInput.addEventListener('input',function(){
+  // Search needs the full catalog AND the lazy keywords map. Both kick
+  // off in parallel; updateDisplay re-renders as each resolves. Until
+  // catalog is ready, the SSR'd 50 rows stay visible — the user sees
+  // their query reflected in the input but no row filtering yet.
+  ensureCatalog().then(function(){if(searchInput.value)updateDisplay();});
+  loadKeywords().then(function(){if(searchInput.value)updateDisplay();});
+  if(catalogReady)updateDisplay();
+});
 
 filterItems.forEach(item=>{
   item.setAttribute('tabindex','0');
@@ -1644,9 +2051,14 @@ filterItems.forEach(item=>{
     const type=this.dataset.filterType;
     let value=this.dataset.filterValue;
     if(type==='decade')value=parseInt(value.split('–')[0]);
+    // Filtering needs the full catalog. The visual selected state
+    // toggles immediately (instant feedback) but the row filtering
+    // waits for ensureCatalog to resolve.
+    ensureCatalog().then(updateDisplay);
+    if(type==='keyword')loadKeywords().then(updateDisplay);
     if(activeFilters[type]===value){delete activeFilters[type];this.classList.remove('active');this.setAttribute('aria-selected','false');}
     else{filterItems.forEach(fi=>{if(fi.dataset.filterType===type){fi.classList.remove('active');fi.setAttribute('aria-selected','false');}});activeFilters[type]=value;this.classList.add('active');this.setAttribute('aria-selected','true');}
-    updateDisplay();
+    if(catalogReady)updateDisplay();
   };
   item.addEventListener('click',handler);
   item.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();handler.call(this);}});
@@ -1822,6 +2234,102 @@ function updateActiveFiltersBar(){
   if(filterToggle){filterToggle.innerHTML='FILTERS'+(keys.length>0?'<span class="filter-badge">'+keys.length+'</span>':'');}
 }
 updateActiveFiltersBar();
+
+// ===== URL ?q= param → search prefill =====
+// Lets the 404 page's search form (and any future external link) deep-
+// link into a filtered catalog. e.g. /?q=spirited+away lands here with
+// the search box pre-populated and results filtered. Cleans the URL on
+// load so a refresh or share doesn't re-trigger.
+(function(){
+  if (!searchInput) return;
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var q = params.get('q');
+    if (q && q.length > 0) {
+      searchInput.value = q;
+      searchInput.dispatchEvent(new Event('input'));
+      // Strip the param from the URL so a refresh doesn't re-fire.
+      // Keeps the rest of the URL (e.g. fragments) intact.
+      if (window.history && window.history.replaceState) {
+        params.delete('q');
+        var qs = params.toString();
+        var newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  } catch (e) { /* malformed URL — ignore */ }
+})();
+
+// ===== Film of the Day — daily client rotation =====
+// The SSR card is the build-day pick. If the user's local date differs
+// from the build date (which it will for most visitors most of the time
+// — builds happen at most once per day, and only on a Notion data diff),
+// recompute today's deterministic index from window.ALL_FILMS_DATA and
+// swap the card. Same seed algorithm as the server (build-site.js
+// dateSeed()) so server and client agree on build day.
+//
+// Self-healing: works even if the cron has been failing for weeks. As
+// long as ALL_FILMS_DATA loads, the user always sees a film selected
+// for their local calendar date.
+// Hoisted to a named function so ensureCatalog().onload can re-fire it
+// once the catalog actually arrives. Initial call below runs immediately;
+// no-ops gracefully if catalog hasn't loaded yet.
+function rotateFilmOfDay(){
+  if(!Array.isArray(allFilms)||allFilms.length===0)return;
+  const mount=document.getElementById('film-of-day-mount');
+  if(!mount)return;
+  const buildDate=mount.dataset.buildDate;
+  const t=new Date();
+  const todayKey=t.getFullYear()+'-'+
+    String(t.getMonth()+1).padStart(2,'0')+'-'+
+    String(t.getDate()).padStart(2,'0');
+  if(todayKey===buildDate)return; // SSR card is correct, no swap needed
+  const seed=t.getFullYear()*10000+(t.getMonth()+1)*100+t.getDate();
+  const film=allFilms[seed%allFilms.length];
+  if(!film)return;
+  const url='films/'+slugify(film.title)+'-'+film.id.slice(0,8)+'.html';
+  const techniques=(film.technique||[]).join(', ')||'Unknown';
+  const link=getBestLink(film.watchLinks);
+  let watchHtml='';
+  if(link){
+    const gated=isGated(link);
+    // Surface the platform name in the gated CTA so the user knows what
+    // they'd be signing into. Lock SVG is inline to avoid the cross-OS
+    // emoji-rendering inconsistency (gold on Apple, grey on Windows, etc).
+    const lockSvg='<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0;margin-right:4px"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>';
+    const label=gated
+      ?lockSvg+'Open on '+escHtml(link.platform||'platform')
+      :'▶ Watch';
+    const aria=gated
+      ?'Open '+escHtml(film.title||'Film of the Day')+' on '+escHtml(link.platform||'platform')+' — sign-in or subscription may be required (opens in new tab)'
+      :'Watch '+escHtml(film.title||'Film of the Day')+' (opens in new tab)';
+    const cls=gated?'film-of-day-watch-btn film-of-day-watch-btn-gated':'film-of-day-watch-btn';
+    watchHtml='<a href="'+escHtml(link.url)+'" class="'+cls+'" target="_blank" rel="noopener" aria-label="'+aria+'">'+label+'</a>';
+  }
+  // Note: synopsis is intentionally omitted — the slim client catalog
+  // doesn't carry synopsis to keep films-index.js small. The SSR card
+  // has it; the client-rotated card trades synopsis for freshness.
+  mount.innerHTML='<div class="film-of-day">'+
+    '<div class="film-of-day-header">'+
+      '<span class="film-of-day-label">Film of the Day</span>'+
+      '<span class="film-of-day-date">'+todayKey+'</span>'+
+    '</div>'+
+    '<div class="film-of-day-content">'+
+      '<div class="film-of-day-info">'+
+        '<a href="'+url+'" class="film-of-day-title">'+(escHtml(film.title)||'Untitled')+'</a>'+
+        '<div class="film-of-day-meta">'+
+          '<span class="film-of-day-year">'+(film.year||'?')+'</span>'+
+          '<span class="film-of-day-country">'+getCC(film.country)+'</span>'+
+          '<span class="film-of-day-technique">'+escHtml(techniques)+'</span>'+
+        '</div>'+
+      '</div>'+
+      '<div class="film-of-day-actions">'+
+        watchHtml+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+rotateFilmOfDay();
 });`;
 }
 
@@ -1907,8 +2415,7 @@ ${FAVICON}
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateCountryJsonLd(country, countryFilms)}</script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2028,8 +2535,7 @@ ${FAVICON}
     "dateModified": BUILD_TIMESTAMP
   })}</script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2038,6 +2544,10 @@ ${FAVICON}
   <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Countries' }
+], '../')}
 <main class="countries-index" id="main-content">
   <div class="countries-header">
     <h1>Countries</h1>
@@ -2184,8 +2694,7 @@ ${FAVICON}
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateTechniqueJsonLd(technique, techniqueFilms)}</script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2262,18 +2771,17 @@ ${generateFooter('../')}
 // Table rows for technique pages (shows country instead of technique)
 function generateTechniqueTableRows(filmList) {
   return filmList.map(film => {
-    const watchUrl = getWatchUrl(film);
     const directorHtml = getDirectorLink(film, '../');
     const studioHtml = getStudioLink(film, '../');
     return `
-    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-watchable="${watchUrl ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
+    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
       <td><div class="table-year">${film.year || '—'}</div></td>
       <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
       <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
       <td class="table-country-cell hide-mobile"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
       <td class="table-runtime hide-mobile">${escapeHtml(film.runtime) || '—'}</td>
       <td class="hide-mobile"><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
-      <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
+      <td class="watch-cell">${renderWatchCell(film)}</td>
     </tr>`;
   }).join('\n');
 }
@@ -2324,8 +2832,7 @@ ${FAVICON}
     "dateModified": BUILD_TIMESTAMP
   })}</script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2334,6 +2841,10 @@ ${FAVICON}
   <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Techniques' }
+], '../')}
 <main class="techniques-index" id="main-content">
   <div class="techniques-header">
     <h1>Techniques</h1>
@@ -2452,8 +2963,7 @@ ${FAVICON}
     "dateModified": BUILD_TIMESTAMP
   })}</script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2462,6 +2972,10 @@ ${FAVICON}
   <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Directors' }
+], '../')}
 <main class="directors-index" id="main-content">
   <div class="directors-header">
     <h1>Directors</h1>
@@ -2563,18 +3077,17 @@ function generateDecadeJsonLd(decade, decadeFilms) {
 // Table rows for decade pages (shows country instead of year in first column)
 function generateDecadeTableRows(filmList) {
   return filmList.map(film => {
-    const watchUrl = getWatchUrl(film);
     const directorHtml = getDirectorLink(film, '../');
     const studioHtml = getStudioLink(film, '../');
     return `
-    <tr data-country="${escapeHtml(film.country || '')}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${watchUrl ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
+    <tr data-country="${escapeHtml(film.country || '')}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
       <td><div class="table-year">${film.year || '—'}</div></td>
       <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
       <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
       <td class="table-country-cell hide-mobile"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
       <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
       <td class="hide-mobile"><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
-      <td class="watch-cell">${watchUrl ? `<a href="${escapeHtml(watchUrl)}" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶ WATCH</a>${film.hasSubtitles ? '<span class="subs-badge">EN subs</span>' : ''}` : '<span class="no-link">—</span>'}</td>
+      <td class="watch-cell">${renderWatchCell(film)}</td>
     </tr>`;
   }).join('\n');
 }
@@ -2644,8 +3157,7 @@ ${FAVICON}
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateDecadeJsonLd(decade, decadeFilms)}</script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2767,8 +3279,7 @@ ${FAVICON}
     "dateModified": BUILD_TIMESTAMP
   })}</script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2777,6 +3288,10 @@ ${FAVICON}
   <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Decades' }
+], '../')}
 <main class="decades-index" id="main-content">
   <div class="decades-header">
     <h1>Decades</h1>
@@ -2872,8 +3387,7 @@ ${FAVICON}
 <meta property="og:url" content="${SITE_URL}/${getStudioUrl(studio)}">
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:image" content="${OG_IMAGE}">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -2976,7 +3490,7 @@ ${generateBreadcrumb([
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getDirectorLink(film, '../') || '—'}</td>
             <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-            <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶</a>` : ''; })()}</td>
+            <td class="watch-cell">${renderWatchCell(film, { compact: true })}</td>
           </tr>`).join('')}</tbody>
       </table>
     </div>
@@ -3007,8 +3521,7 @@ ${FAVICON}
 <meta property="og:type" content="website">
 <meta property="og:title" content="Studios — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -3017,6 +3530,10 @@ ${FAVICON}
   <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Studios' }
+], '../')}
 <main class="entity-index studios-index" id="main-content">
   <div class="entity-index-header">
     <h1>Studios</h1>
@@ -3087,8 +3604,7 @@ ${FAVICON}
 <meta property="og:type" content="profile">
 <meta property="og:title" content="${escapeHtml(director.name)} — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -3193,7 +3709,7 @@ ${generateBreadcrumb([
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getStudioLink(film, '../') || '—'}</td>
             <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-            <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶</a>` : ''; })()}</td>
+            <td class="watch-cell">${renderWatchCell(film, { compact: true })}</td>
           </tr>`).join('')}</tbody>
       </table>
     </div>
@@ -3253,8 +3769,7 @@ ${FAVICON}
 <meta property="og:type" content="website">
 <meta property="og:title" content="${escapeHtml(series.name)} — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -3323,7 +3838,7 @@ ${generateBreadcrumb([
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getDirectorLink(film, '../') || '—'}</td>
             <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
-            <td class="watch-cell">${(() => { const url = getWatchUrl(film); return url ? `<a href="${escapeHtml(url)}" class="watch-btn" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)">▶</a>` : ''; })()}</td>
+            <td class="watch-cell">${renderWatchCell(film, { compact: true })}</td>
           </tr>`).join('')}</tbody>
       </table>
     </div>
@@ -3349,8 +3864,7 @@ ${FAVICON}
 <meta property="og:type" content="website">
 <meta property="og:title" content="Series & Universes — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${FONT_HEAD}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -3359,6 +3873,10 @@ ${FAVICON}
   <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Series' }
+], '../')}
 <main class="entity-index series-index" id="main-content">
   <div class="entity-index-header">
     <h1>Series & Universes</h1>
@@ -3471,8 +3989,13 @@ function generatePlatformPages() {
       const links = Array.isArray(film.watchLinks) ? film.watchLinks : [];
       const set = new Set();
       for (const l of links) {
-        if (!l || !l.platform || !l.url) continue;
-        if (l.status === 'Dead') continue;
+        if (!l || !l.platform) continue;
+        // Use the partitioned status helpers so a platform appears in the
+        // facet only when at least one of its links is actually surfaced
+        // to users (Watchable or Gated). Hidden statuses — Broken, Dead
+        // (legacy), Unavailable, Redirect (legacy) — would otherwise
+        // populate platform pages with films that show no working link.
+        if (!isVisible(l)) continue;
         set.add(l.platform);
       }
       return [...set];
@@ -3630,21 +4153,79 @@ ${urls.map(u => `  <url>
 }
 
 function generate404Page() {
-  // Pick a random film for the footer
-  const randomFilm = films[Math.floor(Math.random() * films.length)];
+  // Pre-pick a pool of random film URLs so the click-handler can rotate
+  // without loading the full 1.85MB films-index.js on a 404. Pool size 50
+  // gives plenty of variety per page-load while keeping the inline script
+  // payload tiny (~3KB). The fallback href on the Random link uses the
+  // first candidate so users with JS disabled still get a working button.
+  const POOL_SIZE = 50;
+  const pool = [];
+  const seen = new Set();
+  while (pool.length < Math.min(POOL_SIZE, films.length) && seen.size < films.length) {
+    const idx = Math.floor(Math.random() * films.length);
+    if (seen.has(idx)) continue;
+    seen.add(idx);
+    pool.push('/' + getFilmUrl(films[idx]));
+  }
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Film Not Found — Global Animation Archive</title>
-<meta name="description" content="The page you're looking for doesn't exist. Return to the Global Animation Archive collection.">
+<title>Page Not Found — Global Animation Archive</title>
+<meta name="description" content="The page you're looking for doesn't exist in the Global Animation Archive. Browse the collection or search for what you were trying to find.">
 ${FAVICON}
 <meta name="robots" content="noindex">
 
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css">
+${FONT_HEAD}
+<style>
+/* Inline error-page styles — ~3KB. Replaces a full styles.css fetch (48KB)
+   on what should be the lightest page on the site. Keeps in sync with the
+   .error-* + .empty-state + .breadcrumb + .masthead + .footer rules in
+   the main CSS — if those change, mirror here. */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--cream:#f8f6f1;--paper:#fffef9;--ink:#1c1917;--ink-light:#44403c;--ink-muted:#6b655e;--rule:#d6d3d1;--accent:#9f1239;--data-bg:#f3f1ec;--mono:'JetBrains Mono',monospace;--type-page-hero:42px}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.skip-link{position:absolute;top:-40px;left:0;background:var(--ink);color:var(--cream);padding:8px 16px;z-index:1000;font-family:var(--mono);font-size:12px;text-decoration:none}
+.skip-link:focus{top:0}
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.masthead{background:var(--paper);border-bottom:1px solid var(--rule)}
+.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:10px 32px;border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
+.masthead-main{text-align:center;padding:28px 32px 24px}
+.masthead-title{font-family:'Playfair Display',serif;font-size:36px;font-weight:400;letter-spacing:.02em;margin-bottom:4px}
+.breadcrumb{padding:12px 32px;background:var(--paper);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink-muted);letter-spacing:.05em}
+.breadcrumb a{color:var(--ink-muted);text-decoration:none;transition:color .15s}
+.breadcrumb a:hover,.breadcrumb a:focus{color:var(--accent)}
+.breadcrumb-sep{margin:0 8px;color:var(--ink-faint,#6b6660)}
+.error-page{display:flex;align-items:center;justify-content:center;min-height:60vh;padding:48px 32px}
+.error-content{text-align:center;max-width:500px}
+.error-code{font-family:var(--mono);font-size:120px;font-weight:600;color:var(--rule);line-height:1;margin-bottom:16px}
+.error-title{font-family:'Playfair Display',serif;font-size:var(--type-page-hero);font-weight:400;margin-bottom:16px}
+.error-message{font-family:'Source Serif 4',serif;font-size:18px;color:var(--ink-muted);margin-bottom:24px}
+.error-path{font-family:var(--mono);font-size:12px;color:var(--ink-muted);margin-bottom:24px;word-break:break-all}
+.error-path code{background:var(--data-bg);padding:2px 6px;color:var(--ink);border-radius:2px}
+.error-search{display:flex;gap:0;justify-content:center;margin:0 auto 24px;max-width:380px}
+.error-search-input{flex:1;padding:12px 16px;border:1px solid var(--rule);border-right:none;background:var(--paper);font-family:var(--mono);font-size:13px;min-height:44px;box-sizing:border-box}
+.error-search-input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}
+.error-search-btn{padding:12px 20px;border:1px solid var(--ink);background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;min-height:44px;box-sizing:border-box;transition:background .2s}
+.error-search-btn:hover,.error-search-btn:focus{background:var(--accent);border-color:var(--accent);outline:none}
+.error-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.error-btn{font-family:var(--mono);font-size:12px;font-weight:500;padding:14px 24px;min-height:44px;box-sizing:border-box;display:inline-flex;align-items:center;text-decoration:none;transition:all .2s}
+.error-btn-primary{background:var(--ink);color:var(--cream)}
+.error-btn-primary:hover,.error-btn-primary:focus{background:var(--accent);outline:none}
+.error-btn-secondary{background:var(--paper);color:var(--ink);border:1px solid var(--rule)}
+.error-btn-secondary:hover,.error-btn-secondary:focus{border-color:var(--ink);outline:none}
+.footer{background:var(--ink);color:var(--cream);padding:32px}
+.footer-inner{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap}
+.footer-logo{font-family:'Playfair Display',serif;font-size:18px}
+.footer-links{display:flex;gap:24px}
+.footer-random,.footer-report{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.6);text-decoration:none;transition:color .2s}
+.footer-random:hover,.footer-report:hover{color:var(--cream)}
+.footer-timestamp{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.7)}
+@media(max-width:600px){.error-code{font-size:72px}.error-title{font-size:28px}.error-message{font-size:16px}.error-actions{flex-direction:column}.error-btn{width:100%;justify-content:center}}
+</style>
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -3652,18 +4233,55 @@ ${FAVICON}
   <div class="masthead-top"><span><a href="/" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
+${generateBreadcrumb([
+  { label: 'Home', url: 'index.html' },
+  { label: 'Page Not Found' }
+], '/')}
 <main class="error-page" id="main-content">
   <div class="error-content">
-    <div class="error-code">404</div>
-    <h1 class="error-title">Film Not Found</h1>
-    <p class="error-message">This reel seems to be missing from the archive.</p>
-    <div class="error-actions">
+    <div class="error-code" aria-hidden="true">404</div>
+    <h1 class="error-title">Page Not Found</h1>
+    <p class="error-message">This page isn't in the archive. It may have been moved, mistyped, or never existed.</p>
+    <p class="error-path" id="error-path" hidden>You tried: <code id="error-path-value"></code></p>
+    <form class="error-search" action="/" method="get" role="search" aria-label="Search the archive">
+      <label for="error-search-input" class="visually-hidden">Search films, directors, studios</label>
+      <input type="search" name="q" id="error-search-input" class="error-search-input" placeholder="Search films, directors, studios…" autocomplete="off" />
+      <button type="submit" class="error-search-btn">Search</button>
+    </form>
+    <nav class="error-actions" aria-label="Recovery options">
       <a href="/" class="error-btn error-btn-primary">Back to Collection</a>
-      <a href="/${getFilmUrl(randomFilm)}" class="error-btn error-btn-secondary">🎲 Random Film</a>
-    </div>
+      <a href="${escapeHtml(pool[0] || '/')}" class="error-btn error-btn-secondary" id="error-random-btn">Random Film</a>
+    </nav>
   </div>
 </main>
-<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+${generateFooter('/')}
+<script>
+// Random Film click rotation — picks fresh from a pre-rendered pool on
+// every click instead of locking everyone to the build-time pick.
+// Same architectural fix as the FotD client rotation (see generateJS()
+// rotateFilmOfDay block). Pool is server-rendered into the constant
+// below so we don't need to load films-index.js (1.85MB) on a 404.
+(function(){
+  var pool = ${JSON.stringify(pool)};
+  var btn = document.getElementById('error-random-btn');
+  if (btn && pool.length > 0) {
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      var pick = pool[Math.floor(Math.random() * pool.length)];
+      window.location.href = pick;
+    });
+  }
+  // Echo the URL the user actually tried to reach. Hidden by default so
+  // it doesn't render at all when JS is off (where window.location is
+  // unavailable to us at template time).
+  var pathEl = document.getElementById('error-path');
+  var pathVal = document.getElementById('error-path-value');
+  if (pathEl && pathVal && window.location.pathname && window.location.pathname !== '/404.html') {
+    pathVal.textContent = window.location.pathname + (window.location.search || '');
+    pathEl.hidden = false;
+  }
+})();
+</script>
 </body></html>`;
 }
 
@@ -3685,6 +4303,26 @@ function build() {
   console.log('🔨 Building static site...');
   mkdirSync('./dist', { recursive: true });
   mkdirSync('./dist/films', { recursive: true });
+
+  // Copy self-hosted fonts (added 2026-04-26 perf round). Source dir
+  // `./fonts/` is checked into the repo so the build is self-contained
+  // — no Google Fonts CDN dependency at runtime. See FONT_HEAD constant
+  // and netlify.toml /fonts/* immutable cache headers.
+  const fontsSrc = './fonts';
+  const fontsDst = './dist/fonts';
+  if (fs.existsSync(fontsSrc)) {
+    mkdirSync(fontsDst, { recursive: true });
+    let fontCount = 0;
+    for (const file of fs.readdirSync(fontsSrc)) {
+      if (file.endsWith('.woff2')) {
+        try {
+          fs.copyFileSync(`${fontsSrc}/${file}`, `${fontsDst}/${file}`);
+          fontCount++;
+        } catch (e) { /* file may already exist with same content */ }
+      }
+    }
+    console.log(`  ✓ ${fontCount} fonts copied to dist/fonts/ (self-hosted, immutable cache)`);
+  }
 
   // ----- Batch D2: hash + emit JS assets BEFORE index.html -----
   // We need hashed filenames baked into the <script src> tags, so build
@@ -3712,6 +4350,20 @@ function build() {
   writeFileSync(`./dist/${ASSET_URLS.app}`, appJsSource);
   console.log(`  ✓ ${ASSET_URLS.filmsIndex} (immutable, external catalog)`);
   console.log(`  ✓ ${ASSET_URLS.app} (immutable)`);
+
+  // Lazy-loaded keywords map (perf trim 2026-04-26): keywords pulled out
+  // of the slim catalog (~111 KB raw / ~30 KB gz off the critical path)
+  // and emitted as a separate JSON the client fetches on first interaction
+  // that needs them (search keystroke OR keyword filter open). Keyed by
+  // the same 8-char id used elsewhere on the client.
+  const keywordsIndex = {};
+  for (const f of sortedFilmsForIndex) {
+    if (Array.isArray(f.keywords) && f.keywords.length > 0) {
+      keywordsIndex[f.id.slice(0, 8)] = f.keywords;
+    }
+  }
+  writeFileSync('./dist/keywords-index.json', JSON.stringify(keywordsIndex));
+  console.log(`  ✓ keywords-index.json (${Object.keys(keywordsIndex).length} films, lazy-loaded)`);
 
   writeFileSync('./dist/index.html', generateIndexPage());
   console.log('  ✓ index.html (paginated, first ' + FILMS_PER_PAGE + ' films)');

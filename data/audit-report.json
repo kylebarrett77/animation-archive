@@ -1,0 +1,1054 @@
+{
+  "generatedAt": "2026-04-14T11:38:10.998Z",
+  "totalFilms": 2330,
+  "missingData": {
+    "noTitle": [],
+    "noYear": [],
+    "noCountry": [],
+    "noTechnique": [
+      {
+        "id": "71e22b68-b3a7-4c30-8e66-c3ab8d37765b",
+        "title": "Zak Tales",
+        "year": 1990
+      }
+    ],
+    "noDirector": [],
+    "noSynopsis": 0
+  },
+  "uniqueValues": {
+    "countries": [
+      "Argentina",
+      "Australia",
+      "Belgium",
+      "Brazil",
+      "Bulgaria",
+      "Canada",
+      "Chile",
+      "China",
+      "Colombia",
+      "Croatia",
+      "Cuba",
+      "Czech Republic",
+      "Czechoslovakia",
+      "Denmark",
+      "East Germany",
+      "Egypt",
+      "Estonia",
+      "Finland",
+      "France",
+      "Germany",
+      "Hong Kong",
+      "Hungary",
+      "Iceland",
+      "India",
+      "Indonesia",
+      "Iran",
+      "Ireland",
+      "Israel",
+      "Italy",
+      "Japan",
+      "Kenya",
+      "Latvia",
+      "Malaysia",
+      "Mexico",
+      "Montenegro",
+      "Netherlands",
+      "Nigeria",
+      "Norway",
+      "Other",
+      "Philippines",
+      "Poland",
+      "Portugal",
+      "Romania",
+      "Russia",
+      "Saudi Arabia",
+      "Serbia",
+      "Singapore",
+      "South Africa",
+      "South Korea",
+      "Spain",
+      "Sweden",
+      "Switzerland",
+      "Taiwan",
+      "Thailand",
+      "Turkey",
+      "UAE",
+      "UK",
+      "USA",
+      "USSR",
+      "Vietnam",
+      "Yugoslavia",
+      "Zambia"
+    ],
+    "techniques": [
+      "2D Cel",
+      "2D Digital",
+      "CGI",
+      "Clay",
+      "Cutout",
+      "Direct on Film",
+      "Documentary",
+      "Experimental",
+      "Ink-Wash",
+      "Mixed",
+      "Paint on Glass",
+      "Paper Cut",
+      "Pixilation",
+      "Puppet",
+      "Rotoscope",
+      "Sand",
+      "Silhouette",
+      "Stop Motion"
+    ],
+    "directors": 1630,
+    "formats": {
+      "Series": 1016,
+      "Feature": 598,
+      "Short": 694,
+      "Segment": 21,
+      "Unknown": 1
+    },
+    "confidence": {
+      "★★★★": 1139,
+      "★★★": 524,
+      "★★★★★": 664,
+      "★★": 2,
+      "★": 1
+    }
+  },
+  "potentialDuplicates": [
+    {
+      "film1": {
+        "id": "f298ffb2-78e4-4879-8919-96a6109fb4aa",
+        "title": "Estab Life: Great Escape",
+        "year": 2022,
+        "country": "Japan"
+      },
+      "film2": {
+        "id": "8030c847-93e4-43e6-8903-b7baa5be06e4",
+        "title": "Estab-Life: Great Escape",
+        "year": 2022,
+        "country": "Japan"
+      }
+    }
+  ],
+  "directorVariations": [
+    [
+      "Bong Joon-ho",
+      "Dongwoo Ko"
+    ],
+    [
+      "Unknown",
+      "Unknown (Studio Gale)",
+      "Unknown (Boulder Media)",
+      "Unknown (staff credits incomplete)",
+      "Unknown (uncredited)"
+    ],
+    [
+      "Mamoru Oshii",
+      "Mamoru Hosoda",
+      "Mamoru Oshii (eps 1–106)"
+    ],
+    [
+      "Neko B",
+      "Wei Qi",
+      "Te Wei",
+      "etc.)",
+      "Te Wei (特伟)"
+    ],
+    [
+      "Ilya Maksimov",
+      "N. Maksimov"
+    ],
+    [
+      "Shoji Kawamori",
+      "Shōji Kawamori"
+    ],
+    [
+      "Xu Zao",
+      "TBA",
+      "Gu Jie",
+      "Li Yao (李耀)",
+      "Su Da",
+      "Yu Yang",
+      "Yu Miao",
+      "Ou Xiao",
+      "A Da",
+      "Ugarov",
+      "Nazarov",
+      "Yue Lu",
+      "Xi Jin"
+    ],
+    [
+      "Shūkō Murase",
+      "Shukō Murase"
+    ],
+    [
+      "Heo Pyeong-gang",
+      "Ho Pyeon-gang"
+    ],
+    [
+      "Katsuichi Nakayama (chief)",
+      "Katsuichi Nakayama",
+      "Katsuichi Nakayama (IV)"
+    ],
+    [
+      "Moko-chan",
+      "Mao Qichao",
+      "Ma Kexuan"
+    ],
+    [
+      "Zhou Chen (周琨)",
+      "Zhang Chun",
+      "Zhou Keqin"
+    ],
+    [
+      "Masako Sato",
+      "Momoko Seto",
+      "Tatsuo Sato",
+      "Takao Kato"
+    ],
+    [
+      "Kristina Đuković",
+      "Kristina Dufková"
+    ],
+    [
+      "Nedeljko Kovačić",
+      "Nedeljko Dragić"
+    ],
+    [
+      "Yasuhiro Aoki",
+      "Yasuhiro Irie",
+      "Yasunao Aoki"
+    ],
+    [
+      "Seth Scriver",
+      "Peter Scriver"
+    ],
+    [
+      "Sano Yuta (佐野雄太)",
+      "Mankyuu",
+      "Sam Kuwa",
+      "Sato Ōkura"
+    ],
+    [
+      "Xiong Ke",
+      "Xiong Ke (Season 1)",
+      "Bob Goe"
+    ],
+    [
+      "Han Ji-won",
+      "Pan Jiyao"
+    ],
+    [
+      "Masashi Koizuka",
+      "Masahiko Otsuka",
+      "Masahiko Ōtsuka",
+      "Masahiko Ōkura"
+    ],
+    [
+      "Tomoyuki Shimoyama",
+      "Tomohisa Shimoyama"
+    ],
+    [
+      "Mel Zwyer",
+      "Ken Boyer"
+    ],
+    [
+      "Gorō Taniguchi",
+      "Goro Taniguchi"
+    ],
+    [
+      "Masami Ōbari",
+      "Masami Anno"
+    ],
+    [
+      "Joung Yumi",
+      "John Grusd"
+    ],
+    [
+      "Priit Pärn",
+      "Jérémie Périn",
+      "Rintaro",
+      "Rintarō"
+    ],
+    [
+      "Brothers Quay",
+      "Brothers Quay (Stephen Quay",
+      "others)"
+    ],
+    [
+      "Su Chun-Hsu",
+      "Chun-Hsu Su"
+    ],
+    [
+      "Masashi Kudō",
+      "Masashi Ando",
+      "Masashi Abe",
+      "Masashi Ikeda"
+    ],
+    [
+      "Lina Han",
+      "Nina Gantz",
+      "Yūji Nara",
+      "Ervin Han",
+      "Liang Xuan",
+      "Liu Huai",
+      "Ling Shu",
+      "Cha Kan",
+      "Călin Cazan",
+      "Picha",
+      "Lê Minh Hiền"
+    ],
+    [
+      "Simin He",
+      "VIVINOS"
+    ],
+    [
+      "Chris Sanders",
+      "Chris Landreth",
+      "Chris Marker"
+    ],
+    [
+      "Xie Junwei",
+      "Liu Wei"
+    ],
+    [
+      "Zou Jing",
+      "Leon Ding",
+      "Song Qing",
+      "Xu Jingda",
+      "Wu Qiang",
+      "Hồ Quảng"
+    ],
+    [
+      "Hiroaki Andō",
+      "Hideaki Anno",
+      "Hiroaki Ando",
+      "Hiroaki Sato"
+    ],
+    [
+      "Various (10 African directors: Ahmed Teilab",
+      "Various",
+      "various"
+    ],
+    [
+      "Shofela Coker",
+      "Shane Acker"
+    ],
+    [
+      "Ryōji Masuyama",
+      "Yōji Fukuyama"
+    ],
+    [
+      "Shōjirō Nishimi",
+      "Shojiro Nishimi"
+    ],
+    [
+      "Pablo Berger",
+      "Pablo Holcer"
+    ],
+    [
+      "Yu Shui",
+      "Shi Yi",
+      "You Lei"
+    ],
+    [
+      "Liu Yi)",
+      "Ei Aoki",
+      "Li Wei",
+      "Jin Xi",
+      "Liu Huiyi (刘蕙仪)"
+    ],
+    [
+      "Kenji Mutō",
+      "Kōji Itō"
+    ],
+    [
+      "Sarolta Szabó",
+      "Szabolcs Szabó"
+    ],
+    [
+      "Yuki Watanabe",
+      "Ayumu Watanabe",
+      "Sumio Watanabe"
+    ],
+    [
+      "Tetsurō Araki",
+      "Tetsurō Amino"
+    ],
+    [
+      "Wang Xin",
+      "Sung Shin",
+      "Wang Genfa",
+      "Bardin",
+      "Wan Guchan",
+      "Fang Ming"
+    ],
+    [
+      "Zhao Ji",
+      "G.B. Hajim"
+    ],
+    [
+      "Masayuki Miyaji",
+      "Masayuki"
+    ],
+    [
+      "Mitsuo Iso",
+      "Mitsuko Kase",
+      "Mitsuyo Seo"
+    ],
+    [
+      "Lin Minghao (林铭浩)",
+      "Lin Wenxiao"
+    ],
+    [
+      "Shinji Aramaki",
+      "Shin Itagaki"
+    ],
+    [
+      "Koji Yamamura",
+      "Kenji Nakamura"
+    ],
+    [
+      "Atsushi Takahashi",
+      "Atsushi Takeuchi"
+    ],
+    [
+      "Hiroyuki Seshita",
+      "Hiroyuki Morita"
+    ],
+    [
+      "Jun'ichi Wada",
+      "Jun'ichi Satō",
+      "Jun'ichi Sakata"
+    ],
+    [
+      "Brad Rau",
+      "Alê Abreu",
+      "Brad Bird",
+      "Brad Rader"
+    ],
+    [
+      "Kōbun Shizuno",
+      "Kobun Shizuno"
+    ],
+    [
+      "Masahiko Murata (S1)",
+      "Masahiko Murata"
+    ],
+    [
+      "Stephen Quay",
+      "Stephen Hahn"
+    ],
+    [
+      "Amp Wong",
+      "Gary Wang"
+    ],
+    [
+      "Rémi Chayé",
+      "Ram Mohan"
+    ],
+    [
+      "Cheng Teng",
+      "Chen Bo'er"
+    ],
+    [
+      "Tomm Moore",
+      "Tom Root",
+      "Herb Moore"
+    ],
+    [
+      "Masaomi Ando",
+      "Masaomi Ando (eps 10-24)"
+    ],
+    [
+      "Tensho",
+      "TSR)"
+    ],
+    [
+      "Ha Huy Hoang",
+      "Hu Yihong"
+    ],
+    [
+      "Tomohiko Itō",
+      "Tomoki Kyoda"
+    ],
+    [
+      "Keisuke Ide",
+      "Kōnosuke Uda"
+    ],
+    [
+      "ZiFeng Li",
+      "Kim Eun-gi"
+    ],
+    [
+      "Naoyuki Itō",
+      "Naoyuki Onda"
+    ],
+    [
+      "Genndy Tartakovsky",
+      "Genndy Tartakovsky (creator/showrunner S1-2); Chris Savino (showrunner S3-4)"
+    ],
+    [
+      "MTJJ (木头)",
+      "4°F"
+    ],
+    [
+      "Max Lang",
+      "Mao Lamdo"
+    ],
+    [
+      "Kazuya Murata",
+      "Kazuya Nomura"
+    ],
+    [
+      "Katsuyuki Motohiro",
+      "Katsuyuki Motohiro (chief)"
+    ],
+    [
+      "Shunsuke Tada",
+      "Shinsuke Sato"
+    ],
+    [
+      "Yōhei Suzuki",
+      "Iku Suzuki"
+    ],
+    [
+      "Tatsuo Satō",
+      "Takuya Satō"
+    ],
+    [
+      "Shūhei Yabuta (chief director: Keiichi Satō)",
+      "Eiichi Satō"
+    ],
+    [
+      "José Alejandro García Muñoz (Series Director)",
+      "José Alejandro García Muñoz"
+    ],
+    [
+      "Takayuki Inagaki",
+      "Takayuki Inagaki (eps 1-9)"
+    ],
+    [
+      "Duke Johnson",
+      "Mike Johnson"
+    ],
+    [
+      "Takayuki Hirao",
+      "Takayuki Hamana"
+    ],
+    [
+      "Michael Arias",
+      "Michael Maliani"
+    ],
+    [
+      "Takashi Watanabe",
+      "Hiroshi Watanabe"
+    ],
+    [
+      "Keiichi Hara",
+      "Keiichi Satou",
+      "Keiichi Sato",
+      "Koichi Ohata"
+    ],
+    [
+      "Kō Matsuo",
+      "Kou Matsuo"
+    ],
+    [
+      "Tatsuyuki Nagai",
+      "Tatsuyuki Tanaka"
+    ],
+    [
+      "Yoshikazu Yasuhiko (chief director)",
+      "Yoshikazu Yasuhiko"
+    ],
+    [
+      "Takashi Imanishi (director)",
+      "Takashi Imanishi"
+    ],
+    [
+      "Christopher Nolan",
+      "Christopher Nielsen"
+    ],
+    [
+      "Ryōtarō Makihara",
+      "Ryūtarō Nakamura"
+    ],
+    [
+      "Shouji Saeki",
+      "Shoji Saeki"
+    ],
+    [
+      "Goro Miyazaki",
+      "Hayao Miyazaki"
+    ],
+    [
+      "Hiroshi Hamasaki (S1)",
+      "Hiroshi Hamasaki"
+    ],
+    [
+      "Sam Liu",
+      "Sam Fell",
+      "Sun Lijun",
+      "Ray Lee"
+    ],
+    [
+      "Shinji Ishihira",
+      "Shinji Ushiro"
+    ],
+    [
+      "Hajime Katoki",
+      "Hajime Kamegaki"
+    ],
+    [
+      "Ari Folman",
+      "Gary Goldman"
+    ],
+    [
+      "Shōji Kawamori (chief director)",
+      "Shōji Kawamori (chief)"
+    ],
+    [
+      "Ryosuke Takahashi",
+      "Ryōsuke Takahashi",
+      "Ryousuke Takahashi",
+      "Motosuke Takahashi"
+    ],
+    [
+      "Yutaka Yamamoto",
+      "Yasutaka Yamamoto",
+      "Yusaku Sakamoto"
+    ],
+    [
+      "Toshiyuki Katō",
+      "Toshiyuki Kanno"
+    ],
+    [
+      "Umanosuke Iida",
+      "Umanosuke Iida (ep. 7–12)"
+    ],
+    [
+      "Takeshi Mori (co-director)",
+      "Takeshi Mori"
+    ],
+    [
+      "Cai Mingqin",
+      "Tsai Ming-Chin"
+    ],
+    [
+      "Jun Awazu",
+      "Jun Kawagoe"
+    ],
+    [
+      "Michael Chang",
+      "Michael Schaack"
+    ],
+    [
+      "Koji Morimoto",
+      "Kōji Morimoto"
+    ],
+    [
+      "Hidekazu Satō",
+      "Hidekazu Sato",
+      "Hidekazu Ohara"
+    ],
+    [
+      "Ichirō Itano",
+      "Ichiro Itano"
+    ],
+    [
+      "Hiroshi Nagahama",
+      "Hiroshi Sasagawa"
+    ],
+    [
+      "Noboru Ishiguro",
+      "Noboru Ishiguro (supervising)",
+      "Noboru Ishiguro (original); Leiji Matsumoto (concept)"
+    ],
+    [
+      "Yoshiaki Kawajiri",
+      "Yoshiaki Kawajiri (b. 1950)"
+    ],
+    [
+      "Satoshi Kon",
+      "Satoshi Saga"
+    ],
+    [
+      "Osamu Yamazaki",
+      "Osamu Dezaki",
+      "Kazuo Yamazaki"
+    ],
+    [
+      "Philippe Vidal",
+      "Philippe Caza"
+    ],
+    [
+      "Fumihiko Sori",
+      "Kunihiro Mori"
+    ],
+    [
+      "Hiroyuki Tanaka",
+      "Hiroyuki Yamaga"
+    ],
+    [
+      "various episode directors",
+      "Lou Scheimer (producer); various episode directors"
+    ],
+    [
+      "Hiroshi Nishikiori",
+      "Hiroshi Ishiodori"
+    ],
+    [
+      "Hiroyuki Kakudō",
+      "Hiroyuki Kitakubo"
+    ],
+    [
+      "Tim Burton",
+      "Tom Burton"
+    ],
+    [
+      "Katsuhito Akiyama",
+      "Katsumi Akiyama"
+    ],
+    [
+      "David Lane",
+      "Dai Tielang"
+    ],
+    [
+      "Karen Hyden",
+      "Karen Hydendahl (supervising)"
+    ],
+    [
+      "Dan Riba",
+      "Dan Riba (animation)"
+    ],
+    [
+      "Masahiko Kubo",
+      "Masahiko Ohta"
+    ],
+    [
+      "Various (created by Aleksandr Tatarsky)",
+      "Aleksandr Tatarsky"
+    ],
+    [
+      "Koichi Mashimo",
+      "Kōichi Mashimo"
+    ],
+    [
+      "Hiroshi Negishi (Chief Director: Jun Takada)",
+      "Hiroshi Negishi"
+    ],
+    [
+      "Morio Asaka",
+      "Mori Masaki"
+    ],
+    [
+      "Koichi Chigira",
+      "Koichi Chigira (S1)",
+      "Kōichi Chigira"
+    ],
+    [
+      "Juan Padrón",
+      "Audu Paden"
+    ],
+    [
+      "Yuri Norstein",
+      "Yuriy Norshteyn"
+    ],
+    [
+      "Isao Takahata",
+      "Iwao Takamoto"
+    ],
+    [
+      "Bretislav Pojar",
+      "Břetislav Pojar"
+    ],
+    [
+      "Jeff Allen",
+      "Jeff Hale"
+    ],
+    [
+      "Chris Savino",
+      "Craig McCracken (creator/showrunner S1-4); Chris Savino (showrunner S5-6)"
+    ],
+    [
+      "Will Meugniot",
+      "Camille Prinele; Will Meugniot (supervising director)"
+    ],
+    [
+      "John Musker",
+      "John Hubley"
+    ],
+    [
+      "Akitaro Daichi",
+      "Akitarō Daichi"
+    ],
+    [
+      "Don Bluth",
+      "Don Lusk"
+    ],
+    [
+      "Toshihiko Masuda",
+      "Toshio Masuda"
+    ],
+    [
+      "Richard Rich",
+      "Rich Rudish"
+    ],
+    [
+      "Andrew Duncan",
+      "Andrew Chan"
+    ],
+    [
+      "Ron Myrick",
+      "Ron Myrick (season 1)"
+    ],
+    [
+      "Joe Pearson",
+      "Ian Pearson"
+    ],
+    [
+      "John Fox",
+      "John Korty"
+    ],
+    [
+      "Hisayuki Toriumi (original anime)",
+      "Hisayuki Toriumi"
+    ],
+    [
+      "Takeyuki Kanda (ep. 1–6)",
+      "Takeyuki Kanda"
+    ],
+    [
+      "Yan Shanchun",
+      "Wan Chaochen"
+    ],
+    [
+      "Katsumi Minokuchi",
+      "Katsumi Minoguchi"
+    ],
+    [
+      "Yoriyasu Kogawa",
+      "Noriyasu Ogami"
+    ],
+    [
+      "Yoram Gross (1926-2015)",
+      "Yoram Gross"
+    ],
+    [
+      "Peter Chung (creator)",
+      "Peter Chung"
+    ],
+    [
+      "John Grace",
+      "John Gibbs"
+    ],
+    [
+      "Kent Butterworth",
+      "Kent Butterworth (S6)"
+    ],
+    [
+      "Chuck Patton",
+      "Chuck Patton (S2)"
+    ],
+    [
+      "Robert Alvarez (director)",
+      "Robert Alvarez"
+    ],
+    [
+      "Jean Chalopin (creator/producer)",
+      "Jean Chalopin",
+      "Jean Chalopin (creator)"
+    ],
+    [
+      "Masayuki Oozeki",
+      "Masayuki Akehi"
+    ],
+    [
+      "Yefim Gamburg",
+      "Efim Gamburg"
+    ],
+    [
+      "Stephan Martinière",
+      "Stéphane Martinière"
+    ],
+    [
+      "Hu Jinqing",
+      "Qu Jianfang"
+    ],
+    [
+      "Joseph Barbera",
+      "William Hanna & Joseph Barbera (executive producers)",
+      "Joseph Barbera (directors); Doug Wildey (creator/designer)"
+    ],
+    [
+      "William Hanna (Hanna-Barbera); created by David Kirschner",
+      "William Hanna"
+    ],
+    [
+      "Pat Griffiths",
+      "Keith Griffiths"
+    ],
+    [
+      "Ray Patterson (supervising director)",
+      "Ray Patterson",
+      "Ray Patterson (supervising directors)"
+    ],
+    [
+      "Bill Hutten",
+      "Bill Hutton"
+    ],
+    [
+      "Tony Love",
+      "Tony Bell"
+    ],
+    [
+      "Carl Urbano",
+      "Carl Urbano (Season 1); Oscar Dufau"
+    ],
+    [
+      "Jules Bass",
+      "Jules Bass (executive producers)"
+    ],
+    [
+      "Gennady Sokolsky",
+      "Gennadiy Sokolskiy",
+      "Sokolsky"
+    ],
+    [
+      "Mikhail Titov",
+      "Mikhail Botov"
+    ],
+    [
+      "Charles A. Nichols",
+      "Charles A. Nichols (S1-5)",
+      "Charles A. Nichols (director)"
+    ],
+    [
+      "John Kimball",
+      "John Kimball (S1)"
+    ],
+    [
+      "Tomoharu Katsumata",
+      "Tomoharu Katsumata et al."
+    ],
+    [
+      "Satoshi Dezaki",
+      "Satoshi Dezaki (#1–15)"
+    ],
+    [
+      "Seiji Okuda",
+      "Seiji Endō"
+    ],
+    [
+      "Raymond Jafelice",
+      "Raymond Jafelice (Nelvana pilot); no director credited for DIC series"
+    ],
+    [
+      "Wang Borong",
+      "Wang Bairong"
+    ],
+    [
+      "Steven Hahn",
+      "Steve Clark)"
+    ],
+    [
+      "Luis Ballester Bustos",
+      "Luis Ballester"
+    ],
+    [
+      "Toyoo Ashida (1944-2011)",
+      "Toyoo Ashida"
+    ],
+    [
+      "Rudy Larriva (S1-3)",
+      "Rudy Larriva",
+      "Rudy Larriva)"
+    ],
+    [
+      "Various (Hal Sutherland",
+      "Hal Sutherland"
+    ],
+    [
+      "Gwen Wetzler",
+      "Gwen Wetzler (animation director)"
+    ],
+    [
+      "George Gordon",
+      "George Gordon (Season 2)"
+    ],
+    [
+      "Qian Jiajun",
+      "Qian Jiaxin"
+    ],
+    [
+      "Katsuhiko Taguchi",
+      "Takeyuki Kanda (eps 1-10) / Katsuhiko Taguchi (eps 11-50)"
+    ],
+    [
+      "Eric Brown",
+      "Dick Brown"
+    ],
+    [
+      "Tadao Nagahama",
+      "Katsutoshi Sasaki / Tadao Nagahama (chief director)"
+    ],
+    [
+      "Seitaro Hara",
+      "Seitarō Hara"
+    ],
+    [
+      "Yugo Serikawa",
+      "Yūgo Serikawa"
+    ],
+    [
+      "Leonid Nosyrev",
+      "Nosyrev"
+    ],
+    [
+      "Vladimir Popov",
+      "Vladimir Pekar"
+    ],
+    [
+      "József Haui",
+      "József Nepp"
+    ],
+    [
+      "Alina Kotowska",
+      "Anna Kotowska"
+    ],
+    [
+      "Abe Levitow",
+      "Various (Abe Levitow"
+    ],
+    [
+      "Jiří Trnka",
+      "Jiří Krejčík"
+    ],
+    [
+      "Bingjun Xia",
+      "Bingduo Xu"
+    ],
+    [
+      "Dave Fleischer",
+      "Max Fleischer"
+    ],
+    [
+      "Nikolai Khodatayev",
+      "Nikolay Khodataev"
+    ]
+  ],
+  "countryVariations": [
+    [
+      "USSR",
+      "Russia"
+    ],
+    [
+      "Czechoslovakia",
+      "Czech Republic"
+    ]
+  ],
+  "techniqueVariations": []
+}

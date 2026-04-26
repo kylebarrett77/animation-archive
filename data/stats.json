@@ -1,0 +1,1056 @@
+{
+  "total": 2330,
+  "countries": {
+    "France": 104,
+    "India": 16,
+    "South Korea": 44,
+    "China": 143,
+    "Japan": 812,
+    "Chile": 9,
+    "Russia": 22,
+    "Nigeria": 6,
+    "USA": 444,
+    "Serbia": 2,
+    "Mexico": 29,
+    "Turkey": 4,
+    "Canada": 71,
+    "Australia": 14,
+    "Taiwan": 6,
+    "Brazil": 12,
+    "Spain": 12,
+    "Malaysia": 16,
+    "Germany": 13,
+    "Montenegro": 1,
+    "Croatia": 5,
+    "Latvia": 6,
+    "Czech Republic": 11,
+    "Estonia": 24,
+    "Portugal": 1,
+    "UK": 69,
+    "Other": 7,
+    "Belgium": 10,
+    "Hungary": 29,
+    "Kenya": 4,
+    "South Africa": 10,
+    "Colombia": 5,
+    "Ireland": 14,
+    "Zambia": 1,
+    "Netherlands": 3,
+    "UAE": 5,
+    "Saudi Arabia": 2,
+    "Switzerland": 1,
+    "Vietnam": 3,
+    "Singapore": 2,
+    "Egypt": 3,
+    "Iran": 5,
+    "Poland": 42,
+    "Norway": 2,
+    "Italy": 11,
+    "Thailand": 5,
+    "Romania": 5,
+    "Philippines": 5,
+    "Indonesia": 1,
+    "Argentina": 7,
+    "Israel": 4,
+    "Denmark": 5,
+    "Sweden": 3,
+    "Finland": 1,
+    "Cuba": 5,
+    "Hong Kong": 1,
+    "Czechoslovakia": 53,
+    "USSR": 108,
+    "Bulgaria": 2,
+    "Yugoslavia": 67,
+    "East Germany": 2,
+    "Iceland": 1
+  },
+  "techniques": {
+    "CGI": 300,
+    "2D Digital": 587,
+    "Mixed": 159,
+    "2D Cel": 1183,
+    "Stop Motion": 153,
+    "Cutout": 90,
+    "Experimental": 103,
+    "Rotoscope": 24,
+    "Puppet": 98,
+    "Clay": 14,
+    "Paint on Glass": 9,
+    "Documentary": 7,
+    "Sand": 3,
+    "Pixilation": 5,
+    "Ink-Wash": 6,
+    "Paper Cut": 10,
+    "Silhouette": 7,
+    "Direct on Film": 17
+  },
+  "formats": {
+    "Series": 1016,
+    "Feature": 598,
+    "Short": 694,
+    "Segment": 21
+  },
+  "decades": {
+    "1910": 4,
+    "1920": 11,
+    "1930": 30,
+    "1940": 52,
+    "1950": 122,
+    "1960": 187,
+    "1970": 231,
+    "1980": 385,
+    "1990": 293,
+    "2000": 367,
+    "2010": 350,
+    "2020": 298
+  },
+  "genres": {
+    "Adventure": 1070,
+    "Drama": 689,
+    "Comedy": 672,
+    "Cosmic Horror": 14,
+    "Mecha": 193,
+    "Military Sci-Fi": 101,
+    "Cyberpunk": 83,
+    "Thriller": 185,
+    "Post-Apocalyptic": 71,
+    "Philosophical": 250,
+    "Noir": 32,
+    "Space Opera": 202,
+    "Dystopia": 89,
+    "Hard Sci-Fi": 102,
+    "Documentary": 40,
+    "Horror": 148,
+    "Anthology": 48,
+    "Experimental": 293,
+    "Satire": 218,
+    "First Contact": 13,
+    "Psychedelic": 36,
+    "Utopia": 7,
+    "Planetary Romance": 24,
+    "Biopunk": 7
+  },
+  "keywords": {
+    "Robots": 345,
+    "AI": 146,
+    "Megacity": 168,
+    "Earth (Future)": 307,
+    "What Is Human": 61,
+    "Humanity": 23,
+    "Childhood": 488,
+    "War": 469,
+    "Gods": 89,
+    "Violent": 178,
+    "Underwater": 37,
+    "Coexistence": 33,
+    "Spaceship": 172,
+    "Survival": 363,
+    "Memory": 70,
+    "Isolation": 91,
+    "Bleak": 251,
+    "Mecha": 172,
+    "Family": 374,
+    "Freedom": 157,
+    "Hopeful": 631,
+    "Space": 335,
+    "Aliens": 393,
+    "Cyborgs": 76,
+    "Corporations": 72,
+    "Class": 142,
+    "Identity": 410,
+    "Androids": 42,
+    "Wasteland": 54,
+    "Virtual World": 46,
+    "Simulation": 18,
+    "Parallel Dimension": 52,
+    "Surreal": 442,
+    "Loneliness": 40,
+    "Connection": 215,
+    "Ecological": 77,
+    "Rebellion": 180,
+    "Government": 149,
+    "Psychological": 47,
+    "Detective": 23,
+    "Extinction": 22,
+    "Genetic Engineering": 28,
+    "School": 53,
+    "Consciousness": 90,
+    "Death": 217,
+    "Alien Planet": 149,
+    "Monsters": 189,
+    "Control": 187,
+    "Time Loop": 13,
+    "Reincarnation": 6,
+    "Time Travel": 73,
+    "Invasion": 106,
+    "Earth (Alternate)": 203,
+    "Colonization": 31,
+    "Religion": 41,
+    "Dreamlike": 123,
+    "Escape": 52,
+    "Wordless": 86,
+    "Meditative": 180,
+    "Immortality": 27,
+    "Erotic": 23,
+    "Mars": 23,
+    "Dimensional Travel": 17,
+    "Moon": 17,
+    "Uplifted Animals": 159,
+    "Pandemic": 7,
+    "First Contact": 27,
+    "Surveillance": 39,
+    "Murder": 12,
+    "Ghosts": 39,
+    "Underground": 20,
+    "Nature vs Technology": 52,
+    "Dreams": 56,
+    "Nuclear": 23,
+    "Mutants": 36,
+    "Machine Consciousness": 22,
+    "Music": 41,
+    "Clones": 21,
+    "Space Station": 19,
+    "Labor": 22,
+    "Evolution": 26,
+    "Nanotechnology": 7,
+    "Communication": 26,
+    "Terraforming": 2,
+    "Teleportation": 1,
+    "Faster Than Light": 10,
+    "Cryogenics": 3
+  },
+  "watchable": 1601,
+  "withSubtitles": 269,
+  "byConfidence": {
+    "★★★★": 1139,
+    "★★★": 524,
+    "★★★★★": 664,
+    "★★": 2,
+    "★": 1
+  },
+  "studioCount": 783,
+  "directorCount": 1172,
+  "seriesCount": 57,
+  "countriesSorted": [
+    {
+      "name": "Japan",
+      "count": 812
+    },
+    {
+      "name": "USA",
+      "count": 444
+    },
+    {
+      "name": "China",
+      "count": 143
+    },
+    {
+      "name": "USSR",
+      "count": 108
+    },
+    {
+      "name": "France",
+      "count": 104
+    },
+    {
+      "name": "Canada",
+      "count": 71
+    },
+    {
+      "name": "UK",
+      "count": 69
+    },
+    {
+      "name": "Yugoslavia",
+      "count": 67
+    },
+    {
+      "name": "Czechoslovakia",
+      "count": 53
+    },
+    {
+      "name": "South Korea",
+      "count": 44
+    },
+    {
+      "name": "Poland",
+      "count": 42
+    },
+    {
+      "name": "Mexico",
+      "count": 29
+    },
+    {
+      "name": "Hungary",
+      "count": 29
+    },
+    {
+      "name": "Estonia",
+      "count": 24
+    },
+    {
+      "name": "Russia",
+      "count": 22
+    },
+    {
+      "name": "India",
+      "count": 16
+    },
+    {
+      "name": "Malaysia",
+      "count": 16
+    },
+    {
+      "name": "Australia",
+      "count": 14
+    },
+    {
+      "name": "Ireland",
+      "count": 14
+    },
+    {
+      "name": "Germany",
+      "count": 13
+    },
+    {
+      "name": "Brazil",
+      "count": 12
+    },
+    {
+      "name": "Spain",
+      "count": 12
+    },
+    {
+      "name": "Czech Republic",
+      "count": 11
+    },
+    {
+      "name": "Italy",
+      "count": 11
+    },
+    {
+      "name": "Belgium",
+      "count": 10
+    },
+    {
+      "name": "South Africa",
+      "count": 10
+    },
+    {
+      "name": "Chile",
+      "count": 9
+    },
+    {
+      "name": "Other",
+      "count": 7
+    },
+    {
+      "name": "Argentina",
+      "count": 7
+    },
+    {
+      "name": "Nigeria",
+      "count": 6
+    },
+    {
+      "name": "Taiwan",
+      "count": 6
+    },
+    {
+      "name": "Latvia",
+      "count": 6
+    },
+    {
+      "name": "Croatia",
+      "count": 5
+    },
+    {
+      "name": "Colombia",
+      "count": 5
+    },
+    {
+      "name": "UAE",
+      "count": 5
+    },
+    {
+      "name": "Iran",
+      "count": 5
+    },
+    {
+      "name": "Thailand",
+      "count": 5
+    },
+    {
+      "name": "Romania",
+      "count": 5
+    },
+    {
+      "name": "Philippines",
+      "count": 5
+    },
+    {
+      "name": "Denmark",
+      "count": 5
+    },
+    {
+      "name": "Cuba",
+      "count": 5
+    },
+    {
+      "name": "Turkey",
+      "count": 4
+    },
+    {
+      "name": "Kenya",
+      "count": 4
+    },
+    {
+      "name": "Israel",
+      "count": 4
+    },
+    {
+      "name": "Netherlands",
+      "count": 3
+    },
+    {
+      "name": "Vietnam",
+      "count": 3
+    },
+    {
+      "name": "Egypt",
+      "count": 3
+    },
+    {
+      "name": "Sweden",
+      "count": 3
+    },
+    {
+      "name": "Serbia",
+      "count": 2
+    },
+    {
+      "name": "Saudi Arabia",
+      "count": 2
+    },
+    {
+      "name": "Singapore",
+      "count": 2
+    },
+    {
+      "name": "Norway",
+      "count": 2
+    },
+    {
+      "name": "Bulgaria",
+      "count": 2
+    },
+    {
+      "name": "East Germany",
+      "count": 2
+    },
+    {
+      "name": "Montenegro",
+      "count": 1
+    },
+    {
+      "name": "Portugal",
+      "count": 1
+    },
+    {
+      "name": "Zambia",
+      "count": 1
+    },
+    {
+      "name": "Switzerland",
+      "count": 1
+    },
+    {
+      "name": "Indonesia",
+      "count": 1
+    },
+    {
+      "name": "Finland",
+      "count": 1
+    },
+    {
+      "name": "Hong Kong",
+      "count": 1
+    },
+    {
+      "name": "Iceland",
+      "count": 1
+    }
+  ],
+  "techniquesSorted": [
+    {
+      "name": "2D Cel",
+      "count": 1183
+    },
+    {
+      "name": "2D Digital",
+      "count": 587
+    },
+    {
+      "name": "CGI",
+      "count": 300
+    },
+    {
+      "name": "Mixed",
+      "count": 159
+    },
+    {
+      "name": "Stop Motion",
+      "count": 153
+    },
+    {
+      "name": "Experimental",
+      "count": 103
+    },
+    {
+      "name": "Puppet",
+      "count": 98
+    },
+    {
+      "name": "Cutout",
+      "count": 90
+    },
+    {
+      "name": "Rotoscope",
+      "count": 24
+    },
+    {
+      "name": "Direct on Film",
+      "count": 17
+    },
+    {
+      "name": "Clay",
+      "count": 14
+    },
+    {
+      "name": "Paper Cut",
+      "count": 10
+    },
+    {
+      "name": "Paint on Glass",
+      "count": 9
+    },
+    {
+      "name": "Documentary",
+      "count": 7
+    },
+    {
+      "name": "Silhouette",
+      "count": 7
+    },
+    {
+      "name": "Ink-Wash",
+      "count": 6
+    },
+    {
+      "name": "Pixilation",
+      "count": 5
+    },
+    {
+      "name": "Sand",
+      "count": 3
+    }
+  ],
+  "decadesSorted": [
+    {
+      "decade": 1910,
+      "count": 4
+    },
+    {
+      "decade": 1920,
+      "count": 11
+    },
+    {
+      "decade": 1930,
+      "count": 30
+    },
+    {
+      "decade": 1940,
+      "count": 52
+    },
+    {
+      "decade": 1950,
+      "count": 122
+    },
+    {
+      "decade": 1960,
+      "count": 187
+    },
+    {
+      "decade": 1970,
+      "count": 231
+    },
+    {
+      "decade": 1980,
+      "count": 385
+    },
+    {
+      "decade": 1990,
+      "count": 293
+    },
+    {
+      "decade": 2000,
+      "count": 367
+    },
+    {
+      "decade": 2010,
+      "count": 350
+    },
+    {
+      "decade": 2020,
+      "count": 298
+    }
+  ],
+  "genresSorted": [
+    {
+      "name": "Adventure",
+      "count": 1070
+    },
+    {
+      "name": "Drama",
+      "count": 689
+    },
+    {
+      "name": "Comedy",
+      "count": 672
+    },
+    {
+      "name": "Experimental",
+      "count": 293
+    },
+    {
+      "name": "Philosophical",
+      "count": 250
+    },
+    {
+      "name": "Satire",
+      "count": 218
+    },
+    {
+      "name": "Space Opera",
+      "count": 202
+    },
+    {
+      "name": "Mecha",
+      "count": 193
+    },
+    {
+      "name": "Thriller",
+      "count": 185
+    },
+    {
+      "name": "Horror",
+      "count": 148
+    },
+    {
+      "name": "Hard Sci-Fi",
+      "count": 102
+    },
+    {
+      "name": "Military Sci-Fi",
+      "count": 101
+    },
+    {
+      "name": "Dystopia",
+      "count": 89
+    },
+    {
+      "name": "Cyberpunk",
+      "count": 83
+    },
+    {
+      "name": "Post-Apocalyptic",
+      "count": 71
+    },
+    {
+      "name": "Anthology",
+      "count": 48
+    },
+    {
+      "name": "Documentary",
+      "count": 40
+    },
+    {
+      "name": "Psychedelic",
+      "count": 36
+    },
+    {
+      "name": "Noir",
+      "count": 32
+    },
+    {
+      "name": "Planetary Romance",
+      "count": 24
+    },
+    {
+      "name": "Cosmic Horror",
+      "count": 14
+    },
+    {
+      "name": "First Contact",
+      "count": 13
+    },
+    {
+      "name": "Utopia",
+      "count": 7
+    },
+    {
+      "name": "Biopunk",
+      "count": 7
+    }
+  ],
+  "keywordsSorted": [
+    {
+      "name": "Hopeful",
+      "count": 631
+    },
+    {
+      "name": "Childhood",
+      "count": 488
+    },
+    {
+      "name": "War",
+      "count": 469
+    },
+    {
+      "name": "Surreal",
+      "count": 442
+    },
+    {
+      "name": "Identity",
+      "count": 410
+    },
+    {
+      "name": "Aliens",
+      "count": 393
+    },
+    {
+      "name": "Family",
+      "count": 374
+    },
+    {
+      "name": "Survival",
+      "count": 363
+    },
+    {
+      "name": "Robots",
+      "count": 345
+    },
+    {
+      "name": "Space",
+      "count": 335
+    },
+    {
+      "name": "Earth (Future)",
+      "count": 307
+    },
+    {
+      "name": "Bleak",
+      "count": 251
+    },
+    {
+      "name": "Death",
+      "count": 217
+    },
+    {
+      "name": "Connection",
+      "count": 215
+    },
+    {
+      "name": "Earth (Alternate)",
+      "count": 203
+    },
+    {
+      "name": "Monsters",
+      "count": 189
+    },
+    {
+      "name": "Control",
+      "count": 187
+    },
+    {
+      "name": "Rebellion",
+      "count": 180
+    },
+    {
+      "name": "Meditative",
+      "count": 180
+    },
+    {
+      "name": "Violent",
+      "count": 178
+    },
+    {
+      "name": "Spaceship",
+      "count": 172
+    },
+    {
+      "name": "Mecha",
+      "count": 172
+    },
+    {
+      "name": "Megacity",
+      "count": 168
+    },
+    {
+      "name": "Uplifted Animals",
+      "count": 159
+    },
+    {
+      "name": "Freedom",
+      "count": 157
+    },
+    {
+      "name": "Government",
+      "count": 149
+    },
+    {
+      "name": "Alien Planet",
+      "count": 149
+    },
+    {
+      "name": "AI",
+      "count": 146
+    },
+    {
+      "name": "Class",
+      "count": 142
+    },
+    {
+      "name": "Dreamlike",
+      "count": 123
+    },
+    {
+      "name": "Invasion",
+      "count": 106
+    },
+    {
+      "name": "Isolation",
+      "count": 91
+    },
+    {
+      "name": "Consciousness",
+      "count": 90
+    },
+    {
+      "name": "Gods",
+      "count": 89
+    },
+    {
+      "name": "Wordless",
+      "count": 86
+    },
+    {
+      "name": "Ecological",
+      "count": 77
+    },
+    {
+      "name": "Cyborgs",
+      "count": 76
+    },
+    {
+      "name": "Time Travel",
+      "count": 73
+    },
+    {
+      "name": "Corporations",
+      "count": 72
+    },
+    {
+      "name": "Memory",
+      "count": 70
+    },
+    {
+      "name": "What Is Human",
+      "count": 61
+    },
+    {
+      "name": "Dreams",
+      "count": 56
+    },
+    {
+      "name": "Wasteland",
+      "count": 54
+    },
+    {
+      "name": "School",
+      "count": 53
+    },
+    {
+      "name": "Parallel Dimension",
+      "count": 52
+    },
+    {
+      "name": "Escape",
+      "count": 52
+    },
+    {
+      "name": "Nature vs Technology",
+      "count": 52
+    },
+    {
+      "name": "Psychological",
+      "count": 47
+    },
+    {
+      "name": "Virtual World",
+      "count": 46
+    },
+    {
+      "name": "Androids",
+      "count": 42
+    },
+    {
+      "name": "Religion",
+      "count": 41
+    },
+    {
+      "name": "Music",
+      "count": 41
+    },
+    {
+      "name": "Loneliness",
+      "count": 40
+    },
+    {
+      "name": "Surveillance",
+      "count": 39
+    },
+    {
+      "name": "Ghosts",
+      "count": 39
+    },
+    {
+      "name": "Underwater",
+      "count": 37
+    },
+    {
+      "name": "Mutants",
+      "count": 36
+    },
+    {
+      "name": "Coexistence",
+      "count": 33
+    },
+    {
+      "name": "Colonization",
+      "count": 31
+    },
+    {
+      "name": "Genetic Engineering",
+      "count": 28
+    },
+    {
+      "name": "Immortality",
+      "count": 27
+    },
+    {
+      "name": "First Contact",
+      "count": 27
+    },
+    {
+      "name": "Evolution",
+      "count": 26
+    },
+    {
+      "name": "Communication",
+      "count": 26
+    },
+    {
+      "name": "Humanity",
+      "count": 23
+    },
+    {
+      "name": "Detective",
+      "count": 23
+    },
+    {
+      "name": "Erotic",
+      "count": 23
+    },
+    {
+      "name": "Mars",
+      "count": 23
+    },
+    {
+      "name": "Nuclear",
+      "count": 23
+    },
+    {
+      "name": "Extinction",
+      "count": 22
+    },
+    {
+      "name": "Machine Consciousness",
+      "count": 22
+    },
+    {
+      "name": "Labor",
+      "count": 22
+    },
+    {
+      "name": "Clones",
+      "count": 21
+    },
+    {
+      "name": "Underground",
+      "count": 20
+    },
+    {
+      "name": "Space Station",
+      "count": 19
+    },
+    {
+      "name": "Simulation",
+      "count": 18
+    },
+    {
+      "name": "Dimensional Travel",
+      "count": 17
+    },
+    {
+      "name": "Moon",
+      "count": 17
+    },
+    {
+      "name": "Time Loop",
+      "count": 13
+    },
+    {
+      "name": "Murder",
+      "count": 12
+    },
+    {
+      "name": "Faster Than Light",
+      "count": 10
+    },
+    {
+      "name": "Pandemic",
+      "count": 7
+    },
+    {
+      "name": "Nanotechnology",
+      "count": 7
+    },
+    {
+      "name": "Reincarnation",
+      "count": 6
+    },
+    {
+      "name": "Cryogenics",
+      "count": 3
+    },
+    {
+      "name": "Terraforming",
+      "count": 2
+    },
+    {
+      "name": "Teleportation",
+      "count": 1
+    }
+  ]
+}

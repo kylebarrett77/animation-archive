@@ -1,0 +1,121 @@
+{
+  "timestamp": "2026-04-14T02:29:48.186Z",
+  "watchLinksTotal": 1762,
+  "filmsTotal": 2330,
+  "sanitization": {
+    "emptyUrl": {
+      "count": 105,
+      "samples": [
+        {
+          "id": "f2429044-285e-4220-a70d-304ce32b133c",
+          "label": "Crunchyroll - Argento Soma",
+          "platform": "Crunchyroll"
+        },
+        {
+          "id": "02d5af7b-f873-4d62-a7b8-e4d1617b0890",
+          "label": "HIDIVE - Majestic Prince",
+          "platform": "HIDIVE"
+        },
+        {
+          "id": "3a9622ee-19be-4e26-9537-6cbc711b6ddf",
+          "label": "Crunchyroll - Cross Ange",
+          "platform": "Crunchyroll"
+        }
+      ]
+    },
+    "emptyPlatform": {
+      "count": 0,
+      "samples": []
+    },
+    "invalidStatus": {
+      "count": 0,
+      "samples": []
+    },
+    "duplicateUrls": {
+      "count": 37,
+      "samples": [
+        {
+          "url": "https://www.youtube.com/",
+          "count": 2
+        },
+        {
+          "url": "https://archive.org/",
+          "count": 2
+        },
+        {
+          "url": "https://www.hidive.com/tv/rahxephon",
+          "count": 2
+        }
+      ]
+    }
+  },
+  "filmsWithoutLinks": {
+    "count": 750,
+    "samples": [
+      {
+        "id": "dd752d7a-ee26-46fc-bd77-b1b8b913d0e7",
+        "title": "Astro Boy Reboot (2027)",
+        "year": 2027,
+        "country": "France"
+      },
+      {
+        "id": "1acf387b-6c5c-48df-b5af-4d99aa8f29d7",
+        "title": "Baahubali: The Eternal War – Part 1",
+        "year": 2027,
+        "country": "India"
+      },
+      {
+        "id": "d2897d9f-6dcc-4a28-aa8d-79a4ce504419",
+        "title": "The Valley",
+        "year": 2027,
+        "country": "South Korea"
+      },
+      {
+        "id": "372eed33-5cef-4aa8-98d9-1ed294cbeabd",
+        "title": "Abyssal Embers",
+        "year": 2026,
+        "country": "China"
+      },
+      {
+        "id": "643bcaa9-0b61-480b-9299-6f2420aad3e2",
+        "title": "Armored Trooper VOTOMS: Die Graue Hexe",
+        "year": 2026,
+        "country": "Japan"
+      }
+    ]
+  },
+  "platformDistribution": {
+    "YouTube": 484,
+    "Crunchyroll": 198,
+    "Other": 157,
+    "Netflix": 147,
+    "Internet Archive": 142,
+    "Tubi": 125,
+    "Animatsiya.net": 77,
+    "Amazon Prime": 63,
+    "NFB": 50,
+    "Disney+": 38,
+    "Hulu": 38,
+    "Apple TV": 31,
+    "Kanopy": 30,
+    "Vimeo": 27,
+    "Plex": 25,
+    "Dailymotion": 20,
+    "Bilibili": 19,
+    "Criterion Channel": 17,
+    "Pluto TV": 14,
+    "MUBI": 13,
+    "HBO Max": 13,
+    "HIDIVE": 6,
+    "Paramount+": 6,
+    "Google Play": 5,
+    "iQIYI": 4,
+    "Peacock": 4,
+    "Shahid": 3,
+    "Fawesome": 2,
+    "Korean Streaming": 1,
+    "UNIT9 Archive": 1,
+    "Giloo": 1,
+    "Short of the Week": 1
+  }
+}

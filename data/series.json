@@ -1,0 +1,1090 @@
+[
+  {
+    "id": "3429fae4-b254-81cf-aa13-df608c1e1a67",
+    "url": "https://app.notion.com/p/Eureka-Seven-3429fae4b25481cfaa13df608c1e1a67",
+    "name": "Eureka Seven",
+    "type": "Franchise",
+    "description": "Bones studio's mecha/coming-of-age franchise following Renton Thurston and Eureka across the Scub Coral phenomenon. Includes the original 50-episode TV series (2005) and the Hi-Evolution theatrical trilogy (2017-2021).",
+    "watchOrder": "Eureka Seven (2005 TV) → Hi-Evolution 1 (2017) → Anemone (2018) → Eureka (2021). Note: Hi-Evolution trilogy is a reboot/reimagining.",
+    "totalEntries": 2,
+    "yearsActive": "2005–2021",
+    "country": "Japan",
+    "studioRelation": [],
+    "filmRelations": [
+      "c261bffa-66fd-4327-a84b-a451aabb50e8",
+      "007cc610-3ea1-464e-9d0d-8676418d2859"
+    ]
+  },
+  {
+    "id": "1e7f7d3d-1d0d-4d8a-91db-8c525d5b5e39",
+    "url": "https://app.notion.com/p/SF-Saiyuki-Starzinger-1e7f7d3d1d0d4d8a91db8c525d5b5e39",
+    "name": "SF Saiyuki Starzinger",
+    "type": "Duology",
+    "description": "Space opera retelling of Journey to the West by Leiji Matsumoto. Princess Aurora and her cyborg guardians travel through space to reach the Great Planet to restore cosmic energy. Two TV series with continuous narrative.",
+    "watchOrder": "1. SF Saiyuki Starzinger (1978-79, 64 eps)\n2. SF Saiyuki Starzinger II (1979, 9 eps) — direct continuation",
+    "totalEntries": 2,
+    "yearsActive": "1978–1979",
+    "country": "Japan",
+    "studioRelation": [
+      "539526ca-00f1-44db-96e7-8997abe5e7e0"
+    ],
+    "filmRelations": [
+      "d49d2de0-6985-420b-9d22-856fc1d952f7",
+      "934aa63b-0d3f-4ecc-8784-c4382b56433c"
+    ]
+  },
+  {
+    "id": "36a8fd8f-a256-408e-a678-6b5bea8f3830",
+    "url": "https://app.notion.com/p/hack-36a8fd8fa256408ea6786b5bea8f3830",
+    "name": ".hack",
+    "type": "Franchise",
+    "description": "Multimedia franchise set in a fictional MMORPG called 'The World.' Multiple anime series (.hack//SIGN, .hack//Roots, .hack//Quantum), OVAs, films, and games share the same fictional universe. Currently only .hack//SIGN is in the Films DB.",
+    "watchOrder": "Project .hack (The World):\n1. .hack//SIGN (2002, 26 eps) — foundation series\n2. .hack//Liminality (2002, 4 OVAs) — parallel real-world story\n3. .hack//Legend of the Twilight (2003, 12 eps)\n\nG.U. Arc (The World R:2):\n4. .hack//Roots (2006, 26 eps) — prequel to G.U. games\n5. .hack//G.U. Trilogy (2008, film) — recap of G.U. games\n6. .hack//G.U. Returner (2007, OVA)\n\nPost-G.U.:\n7. .hack//Quantum (2010-11, 3 OVAs)\n8. .hack//The Movie: Sekai no Mukou ni (2012)",
+    "totalEntries": 1,
+    "yearsActive": "2002–present",
+    "country": "Japan",
+    "studioRelation": [
+      "f459f592-2c74-47f7-be88-43f2c04e0871"
+    ],
+    "filmRelations": [
+      "3c0ab7d5-daa5-42ee-b86e-ef1c080f1892"
+    ]
+  },
+  {
+    "id": "52188e7c-5cc6-4d1e-8a78-d1dc20b72a13",
+    "url": "https://app.notion.com/p/Appleseed-52188e7c5cc64d1e8a78d1dc20b72a13",
+    "name": "Appleseed",
+    "type": "Franchise",
+    "description": "Masamune Shirow's sci-fi manga adapted into multiple animated productions set in the utopian city of Olympus after a devastating world war. Films DB entries: Appleseed (1988 OVA, Gainax), Appleseed Ex Machina (2007, Digital Frontier/John Woo), Appleseed XIII (2011, Production I.G).",
+    "watchOrder": "1. Appleseed (1988 OVA, Gainax)\n2. Appleseed (2004 CGI film, Aramaki — not in DB)\n3. Appleseed Ex Machina (2007, Digital Frontier)\n4. Appleseed XIII (2011, Production I.G)\n5. Appleseed Alpha (2014, prequel — not in DB)\n\nNote: The 2004/2007/2014 CGI films form their own continuity. XIII is a separate retelling. The 1988 OVA stands alone.",
+    "totalEntries": 3,
+    "yearsActive": "1988–2014",
+    "country": "Japan",
+    "studioRelation": [
+      "8852accf-fbc2-4014-b928-6fb5a14e1ae2"
+    ],
+    "filmRelations": [
+      "c1bdaf33-d5fc-46f2-8c65-9266ba3f10fa",
+      "150974f7-8b09-471f-aaac-30f87162efe2",
+      "2e827d08-8d5c-4c2f-9b67-1f856e6516d1"
+    ]
+  },
+  {
+    "id": "61b22c6a-9412-4748-94c9-68adaeb29c0f",
+    "url": "https://app.notion.com/p/Gundam-Alternate-Universes-61b22c6a9412474894c968adaeb29c0f",
+    "name": "Gundam (Alternate Universes)",
+    "type": "Shared Universe",
+    "description": "Gundam productions set outside the Universal Century timeline. Each series occupies its own alternate timeline (Future Century, After Colony, Correct Century, Cosmic Era excluded as separate entry, Anno Domini, Post Disaster, Ad Stella, etc.) but all share the core Gundam franchise DNA of mobile suit warfare and political conflict. Grouped here as a shared universe rather than individual entries since each AU timeline currently has only one entry in DB.",
+    "watchOrder": "By Timeline (release order):\n1. Mobile Fighter G Gundam (1994-95, 49 eps) — Future Century\n2. Gundam Wing (1995-96, 49 eps + Endless Waltz) — After Colony\n3. After War Gundam X (1996, 39 eps) — After War\n4. ∀ Gundam / Turn A (1999-2000, 50 eps) — Correct Century\n5. Gundam 00 (2007-09, 50 eps + 2010 film) — Anno Domini\n6. Gundam: Iron-Blooded Orphans (2015-17, 50 eps) — Post Disaster\n7. Gundam Build Fighters (2013-14) — hobby AU\n8. Gundam: The Witch from Mercury (2022-23, 24 eps) — Ad Stella\n\nNote: Each timeline is fully independent. Watch in any order of interest.",
+    "totalEntries": 9,
+    "yearsActive": "1994–present",
+    "country": "Japan",
+    "studioRelation": [
+      "798ac11d-8d8e-4c52-b044-beaf2807977b"
+    ],
+    "filmRelations": [
+      "388e56b2-db52-4462-a89e-38b1003dc0e8",
+      "3c0a28e2-5491-45bb-9860-510d1ff408c5",
+      "d8c6767a-91d5-4563-8cfb-ada7a0b99f3e",
+      "fde55e71-e9da-43b5-933a-a569451ab0e2",
+      "800849e1-6230-4781-bab4-8d68e9ba216d",
+      "37b07378-d07a-41c8-9ee2-486172bc3674",
+      "3023dfbd-a77d-487e-b339-7486740281bc",
+      "1ec4762f-8eb0-4c9a-b23b-c1865232e23f",
+      "fec51692-7d9c-44c3-bf06-d8052b466741"
+    ]
+  },
+  {
+    "id": "d206a2b9-c590-4291-93f3-496c54ebbc4f",
+    "url": "https://app.notion.com/p/Watchmen-Animated-d206a2b9c590429193f3496c54ebbc4f",
+    "name": "Watchmen (Animated)",
+    "type": "Duology",
+    "description": "Animated adaptation of Alan Moore and Dave Gibbons' graphic novel, released as a two-part film. Chapter I (2024) is in DB; Chapter II expected.",
+    "watchOrder": "1. Watchmen Chapter I (2024)\n2. Watchmen Chapter II (2025)",
+    "totalEntries": 1,
+    "yearsActive": "2024–2025",
+    "country": "USA",
+    "studioRelation": [
+      "4a3b4869-7d1f-4bae-a085-c6cf569a5924"
+    ],
+    "filmRelations": [
+      "6d719e87-cec7-43ea-bac5-33d6b8f83057"
+    ]
+  },
+  {
+    "id": "57ed8175-9031-4cea-ac10-2234d1eaa9c4",
+    "url": "https://app.notion.com/p/Aquarion-57ed817590314ceaac102234d1eaa9c4",
+    "name": "Aquarion",
+    "type": "Franchise",
+    "description": "Mecha franchise by Shoji Kawamori involving the fusion of human pilots with the legendary mecha Aquarion to battle alien threats. Each series is set in a different era but shares mythology and reincarnation themes.",
+    "watchOrder": "1. Genesis of Aquarion (2005, 26 eps)\n2. Aquarion EVOL (2012, 26 eps) — set 12,000 years later, reincarnation sequel\n3. Aquarion Logos (2015, 26 eps) — standalone, same mythology\n\nNote: Each series is set in a different era with shared reincarnation themes. Watch in release order.",
+    "totalEntries": 2,
+    "yearsActive": "2005–2025",
+    "country": "Japan",
+    "studioRelation": [
+      "8af040b3-97d9-46f6-855c-fcef972c6d7f"
+    ],
+    "filmRelations": [
+      "34112cc7-be1d-43e7-8b34-0892324fb4f7",
+      "52b07675-9241-49a5-b99d-74e675834dcd"
+    ]
+  },
+  {
+    "id": "69d297cf-e26c-45aa-98de-a144d41d2145",
+    "url": "https://app.notion.com/p/Gundam-SEED-Cosmic-Era-69d297cfe26c45aa98dea144d41d2145",
+    "name": "Gundam SEED (Cosmic Era)",
+    "type": "Franchise",
+    "description": "Cosmic Era alternate Gundam timeline. Follows Kira Yamato and the conflicts between Naturals and Coordinators across three productions with continuous narrative.",
+    "watchOrder": "1. Mobile Suit Gundam SEED (2002-03, 50 eps)\n2. Mobile Suit Gundam SEED Destiny (2004-05, 50 eps)\n3. Mobile Suit Gundam SEED Freedom (2024, film)\n\nNote: Direct sequential continuity. Watch in order.",
+    "totalEntries": 3,
+    "yearsActive": "2002–2024",
+    "country": "Japan",
+    "studioRelation": [
+      "798ac11d-8d8e-4c52-b044-beaf2807977b"
+    ],
+    "filmRelations": [
+      "97cb486e-7089-420d-9040-027bc402853f",
+      "687b8450-7594-4c66-bfe1-f1f6a8cfde82",
+      "61c67850-49e2-468f-8e26-a4ad16b9a322"
+    ]
+  },
+  {
+    "id": "790e2eab-ca33-42c1-bf2e-964741d68ba8",
+    "url": "https://app.notion.com/p/Code-Geass-790e2eabca3342c1bf2e964741d68ba8",
+    "name": "Code Geass",
+    "type": "Franchise",
+    "description": "Alternate history mecha franchise set in a world where the Holy Britannian Empire dominates. Lelouch of the Rebellion (2006) is the main series; Akito the Exiled (2012) is a side story set in the same world. Additional compilation films and sequel film Lelouch of the Re;surrection may not yet be in DB.",
+    "watchOrder": "Main Storyline:\n1. Code Geass: Lelouch of the Rebellion (2006-07, 25 eps)\n2. Code Geass: Lelouch of the Rebellion R2 (2008, 25 eps)\n\nSide Story:\n3. Code Geass: Akito the Exiled (2012-16, 5 OVAs) — European front, set between R1 and R2\n\nSequel (compilation film continuity):\n4. Code Geass: Lelouch of the Re;surrection (2019, film)\n\nNote: Re;surrection follows the compilation film trilogy's alternate ending, not the TV series directly.",
+    "totalEntries": 2,
+    "yearsActive": "2006–2019",
+    "country": "Japan",
+    "studioRelation": [
+      "798ac11d-8d8e-4c52-b044-beaf2807977b"
+    ],
+    "filmRelations": [
+      "0197156b-9083-4853-a7b6-d8789a6e6929",
+      "f581fa6a-f3f0-4093-bac4-1e0dee2b0a14"
+    ]
+  },
+  {
+    "id": "89bfbb81-765e-40c3-805a-2d69c191a4f2",
+    "url": "https://app.notion.com/p/Getter-Robo-89bfbb81765e40c3805a2d69c191a4f2",
+    "name": "Getter Robo",
+    "type": "Franchise",
+    "description": "Super robot franchise created by Go Nagai and Ken Ishikawa. Multiple series and OVAs spanning decades, featuring the combining robot Getter Robo and its pilots battling the Dinosaur Empire and other threats. Getter Robo Arc (2021) may be missing from DB.",
+    "watchOrder": "TV Continuity:\n1. Getter Robo (1974-75, 51 eps)\n2. Getter Robo G (1975-76, 39 eps)\n\nOVA Continuities (each standalone):\n3. Getter Robo: Armageddon (1998-99, 13 eps)\n4. Shin Getter Robo vs. Neo Getter Robo (2000-01, 4 eps)\n5. New Getter Robo (2004, 13 eps)\n6. Getter Robo Arc (2021, 13 eps) — adapts final manga arc\n\nNote: Each OVA is a separate continuity. The original TV series pair is the only direct sequel chain.",
+    "totalEntries": 2,
+    "yearsActive": "1974–2021",
+    "country": "Japan",
+    "studioRelation": [
+      "539526ca-00f1-44db-96e7-8997abe5e7e0"
+    ],
+    "filmRelations": [
+      "408593f1-ac1f-4ed8-b276-a3e2ef7eb178",
+      "98c98b53-56da-402b-8a63-261912ea2613"
+    ]
+  },
+  {
+    "id": "909b554f-3637-4120-8e78-6ddd8c168f0c",
+    "url": "https://app.notion.com/p/Trigun-909b554f363741208e786ddd8c168f0c",
+    "name": "Trigun",
+    "type": "Franchise",
+    "description": "Follows Vash the Stampede across the desert planet Gunsmoke. Original 1998 series adapted Yasuhiro Nightow's manga; Stampede (2023) and Stargaze (2026) are a CGI reboot retelling with new continuity.",
+    "watchOrder": "Original Continuity:\n1. Trigun (1998, 26 eps, Madhouse)\n\nReboot Continuity (CGI):\n2. Trigun Stampede (2023, 12 eps, Orange)\n3. Trigun Stargaze (2026, Orange)\n\nNote: Stampede/Stargaze are a CGI reboot with new continuity, not a sequel to the 1998 series. Badlands Rumble (2010, Madhouse) is a standalone side story in the original continuity — may not yet be in DB.",
+    "totalEntries": 3,
+    "yearsActive": "1998–2026",
+    "country": "Japan",
+    "studioRelation": [
+      "d3e08f36-9754-4480-b121-e274ce1e073f",
+      "e6f909e1-f932-4188-8b47-cff81848d080"
+    ],
+    "filmRelations": [
+      "c8de2d29-a99e-4929-98ed-7e41ca820f21",
+      "992412dd-401e-46ae-a221-f7d9c382b702",
+      "5a429f2a-0a39-4a49-9ebb-96034809675c"
+    ]
+  },
+  {
+    "id": "99aef20a-728c-4de2-b9fb-cb3904d59d6c",
+    "url": "https://app.notion.com/p/Stille-Nacht-Quay-Brothers-99aef20a728c4de2b9fbcb3904d59d6c",
+    "name": "Stille Nacht (Quay Brothers)",
+    "type": "Series",
+    "description": "Series of short experimental stop-motion films by the Brothers Quay, each a dark, dreamlike miniature set to or inspired by music. Numbered I through IV.",
+    "watchOrder": "1. Stille Nacht I: Dramolet (1988, 1 min)\n2. Stille Nacht II: Are We Still Married? (1991, 4 min)\n3. Stille Nacht III: Tales from Vienna Woods (1992, 4 min)\n4. Stille Nacht IV: Can't Go Wrong Without You (1993, 3 min)\n\nNote: Numbered series of experimental stop-motion shorts. II and IV double as music videos for His Name is Alive.",
+    "totalEntries": 4,
+    "yearsActive": "1988–1993",
+    "country": "UK",
+    "studioRelation": [
+      "6b92f7ad-d4d4-41b9-8a06-22325c288937"
+    ],
+    "filmRelations": [
+      "ef8fd72c-e6b0-4fcc-b750-5613aa6683c7",
+      "73ac7f51-22bb-4b15-a151-2fe5b9475bb3",
+      "cc6f8417-9b96-4edb-8e6c-e6d6b56c66da",
+      "49508496-ed67-4831-bd91-1bb3915b5725"
+    ]
+  },
+  {
+    "id": "a5cbb45b-fb3c-4e73-9c96-41d8f82b9581",
+    "url": "https://app.notion.com/p/Cowboy-Bebop-a5cbb45bfb3c4e739c9641d8f82b9581",
+    "name": "Cowboy Bebop",
+    "type": "Duology",
+    "description": "Bounty hunters aboard the spaceship Bebop chase criminals across the solar system. The 1998 TV series and 2001 theatrical film share the same characters, world, and continuity.",
+    "watchOrder": "1. Cowboy Bebop (1998, 26 eps)\n2. Cowboy Bebop: Knockin' on Heaven's Door (2001, film) — set between episodes 22 and 23",
+    "totalEntries": 2,
+    "yearsActive": "1998–2001",
+    "country": "Japan",
+    "studioRelation": [
+      "798ac11d-8d8e-4c52-b044-beaf2807977b"
+    ],
+    "filmRelations": [
+      "f85be8d9-ea54-4359-a883-dfe045949627",
+      "89ed63e3-e50f-4ad6-aa6d-2633f44fe416"
+    ]
+  },
+  {
+    "id": "f9151b58-b507-4b00-8eec-e1a0700dd15b",
+    "url": "https://app.notion.com/p/Astro-Boy-f9151b58b5074b008eece1a0700dd15b",
+    "name": "Astro Boy",
+    "type": "Franchise",
+    "description": "Osamu Tezuka's foundational manga/anime franchise about the robot boy Atom (Astro Boy). Multiple TV series (1963, 1980, 2003), a 2009 CGI film, and a 2027 reboot. One of the most important anime franchises in history.",
+    "watchOrder": "1. Astro Boy (1963, 193 eps, Mushi Production) — Tezuka's original\n2. Astro Boy (1980, 52 eps, Tezuka Productions)\n3. Astro Boy (2003, 50 eps, Tezuka Productions/Sony)\n4. Astro Boy (2009, CGI film, Imagi Animation Studios)\n5. Astro Boy Reboot (2027)\n\nNote: Each is a standalone retelling. No viewing prerequisites.",
+    "totalEntries": 2,
+    "yearsActive": "1963–2027",
+    "country": "Japan",
+    "studioRelation": [
+      "9f05be28-6f12-4a09-8c74-005e748218a6",
+      "e8e89e38-9e6a-49ea-b09c-b8bd04bbcf01"
+    ],
+    "filmRelations": [
+      "2233d2d0-2587-4e76-b2c0-fd2145c2a722",
+      "dd752d7a-ee26-46fc-bd77-b1b8b913d0e7"
+    ]
+  },
+  {
+    "id": "033291cd-f0f3-4c19-b75e-9d9f8e03677d",
+    "url": "https://app.notion.com/p/White-Snake-033291cdf0f34c19b75e9d9f8e03677d",
+    "name": "White Snake",
+    "type": "Duology",
+    "description": "Light Chaser Animation's fantasy duology based on the Legend of the White Snake, one of China's Four Great Folk Tales. White Snake (2019) follows Blanca and Xuan's romance 500 years before the classic tale. White Snake 2: Green Snake (2021) is a direct sequel following Xiao Qing (Green Snake) as she fights to free her trapped sister Blanca. Same characters, continuous narrative, same fictional world. Note: Separate continuity from Light Chaser's New Gods films.",
+    "watchOrder": "1. White Snake (2019)\n2. White Snake 2: Green Snake (2021)",
+    "totalEntries": 2,
+    "yearsActive": "2019-2021",
+    "country": "China",
+    "studioRelation": [
+      "880c7f47-9857-4820-ab2a-7e50a0a39792"
+    ],
+    "filmRelations": [
+      "2f49fae4-b254-818d-88cc-c47e0b3657f0",
+      "5ead31b4-7fd2-4e1a-923f-c62eae424013"
+    ]
+  },
+  {
+    "id": "29a33520-ed2d-4543-9c20-e67ebc95878c",
+    "url": "https://app.notion.com/p/Transformers-29a33520ed2d45439c20e67ebc95878c",
+    "name": "Transformers",
+    "type": "Franchise",
+    "description": "Hasbro's Autobots-vs-Decepticons franchise spanning multiple animated continuities, all sharing the fictional world of Cybertron and core characters (Optimus Prime, Megatron, Bumblebee). G1 (1984) established the mythology; the Aligned continuity (Prime → Beast Hunters → Robots in Disguise) forms a direct sequel chain; War for Cybertron Trilogy is a separate Netflix continuity. Different eras and casts but all share the Cybertronian war narrative.",
+    "watchOrder": "Generation 1 Continuity:\n1. The Transformers (1984-87, 98 eps)\n\nAligned Continuity:\n2. Transformers Prime Beast Hunters: Predacons Rising (2013)\n3. Transformers: Robots in Disguise (2015-17, 71 eps)\n\nNetflix Continuity:\n4. Transformers: War for Cybertron Trilogy (2020-21, 24 eps)",
+    "totalEntries": 4,
+    "yearsActive": "1984-present",
+    "country": "USA",
+    "studioRelation": [
+      "539526ca-00f1-44db-96e7-8997abe5e7e0"
+    ],
+    "filmRelations": [
+      "c016faf7-9619-4f52-b81d-af03ca4e4a13",
+      "92cb47f4-96ca-4a94-9475-1689521e684e",
+      "1b487806-1f20-4c0d-a574-ba5ba36cf1c4",
+      "677c392b-1f00-405a-b7ed-d0123d67f1b4"
+    ]
+  },
+  {
+    "id": "7ba05498-6abb-4b84-bf55-6ff5d862cff1",
+    "url": "https://app.notion.com/p/The-Animatrix-7ba054986abb4b84bf556ff5d862cff1",
+    "name": "The Animatrix",
+    "type": "Shared Universe",
+    "description": "Anthology of animated shorts set in the Matrix universe, produced by Studio 4°C and other Japanese studios. All share the Matrix fictional world — machines, the simulated reality, and the human-machine war. Trinity appears in A Detective Story; Kid's Story introduces The Kid who appears in Matrix Reloaded/Revolutions; The Second Renaissance provides official Matrix backstory (written by the Wachowskis). Each segment expands different corners of the Matrix mythology.",
+    "watchOrder": "Chronological (in-universe):\n1. The Second Renaissance (backstory of machine war)\n2. A Detective Story (pre-Matrix era)\n3. Beyond (during Matrix era)\n4. Kid's Story (bridges to Matrix Reloaded)\n\nNote: Order doesn't strongly matter — these are standalone vignettes in a shared world.",
+    "totalEntries": 4,
+    "yearsActive": "2003",
+    "country": "Japan",
+    "studioRelation": [
+      "e8d873b5-6a3e-4211-a76b-54418f6cf7df",
+      "d3e08f36-9754-4480-b121-e274ce1e073f"
+    ],
+    "filmRelations": [
+      "2ce5144c-6bdd-415a-8477-8cb85c1c523c",
+      "ec812f11-0637-43c5-9afd-ef97e787ab8c",
+      "a119b864-46fa-484b-b3b7-5ad518d24ef1",
+      "717b8f9b-bea4-4339-bddf-8fcc0948957a"
+    ]
+  },
+  {
+    "id": "bea94f20-5ab6-4b28-9ddf-e8dc00e10b70",
+    "url": "https://app.notion.com/p/Space-Battleship-Yamato-bea94f205ab64b289ddfe8dc00e10b70",
+    "name": "Space Battleship Yamato",
+    "type": "Franchise",
+    "description": "Yoshinobu Nishizaki and Leiji Matsumoto's landmark space opera franchise following the crew of the battleship Yamato across multiple interstellar wars. Same core characters (Kodai/Wildstar, Yuki, Dessler) and continuous storyline spanning the original 1974 series through sequels and the Star Blazers US adaptation. Leijiverse entry explicitly notes Yamato exists in its own separate timeline from the broader Leijiverse.",
+    "watchOrder": "1. Star Blazers / Space Battleship Yamato (1974-75, 26 eps) — original series\n2. Space Battleship Yamato 2 (1978-79, 26 eps) — Comet Empire arc\n3. Space Battleship Yamato: The New Voyage (1979) — bridge to Be Forever Yamato",
+    "totalEntries": 4,
+    "yearsActive": "1974-present",
+    "country": "Japan",
+    "studioRelation": [
+      "2a54fe95-3ca1-47de-b292-582bcd0c6d35",
+      "e11412f6-0614-4fa7-a33c-4c2c52d01a55"
+    ],
+    "filmRelations": [
+      "b9c16bd7-e0bf-43de-8354-01aff9762175",
+      "2e59fae4-b254-814c-a25a-dd8d16ea8931",
+      "dfbc7f85-29de-493f-b5b3-353e40088089",
+      "3bb0e3bd-2f5c-4e7f-a254-08cf40332e8f"
+    ]
+  },
+  {
+    "id": "c0e20e56-b553-431d-94cb-f051c5d16feb",
+    "url": "https://app.notion.com/p/Star-Wars-Animated-c0e20e56b553431d94cbf051c5d16feb",
+    "name": "Star Wars (Animated)",
+    "type": "Franchise",
+    "description": "Animated entries set in the Star Wars galaxy, sharing its fictional world, Force mythology, Jedi/Sith conflict, and in some cases direct characters from the films. Droids features C-3PO and R2-D2 between Episodes III and IV. Resistance connects to the sequel trilogy via Poe Dameron and the First Order. Visions shorts are standalone stories set in the Star Wars universe using Japanese animation studios' interpretations of the world.",
+    "watchOrder": "Canon Continuity:\n1. Star Wars: Droids (1985, 13 eps + special)\n2. Star Wars Resistance (2018-20, 40 eps)\n\nStar Wars: Visions (standalone shorts, any order):\n3. The Twins (Trigger)\n4. T0-B1 (Science SARU)\n5. The Elder (Trigger)\n6. Akakiri (Science SARU)",
+    "totalEntries": 8,
+    "yearsActive": "1985-present",
+    "country": "USA",
+    "studioRelation": [
+      "f8e3f66a-71fd-4df2-9eb6-fe795e08e5d7",
+      "fc999451-8f98-4d54-8a24-36073f394711"
+    ],
+    "filmRelations": [
+      "36667bc7-2d58-400f-9240-652c4263d001",
+      "962db324-5ffd-45d3-8a67-f67a813009b9",
+      "c3b602b9-4974-46f7-a991-de6bafe77ebe",
+      "80601406-5d19-4786-bb2e-191950a5db4f",
+      "2c24271e-54f5-41e8-a124-dbeebdc7d590",
+      "a1992753-0a68-465b-ae14-ab41dac6bf1d",
+      "6a071c0c-2259-4249-9a61-e32b18cc9a2d",
+      "ea8be265-e583-451b-bbec-89f804d236ff"
+    ]
+  },
+  {
+    "id": "cd241a77-8483-4879-9e5d-edf5f9247fd5",
+    "url": "https://app.notion.com/p/Crest-of-the-Stars-Banner-of-the-Stars-cd241a77848348799e5dedf5f9247fd5",
+    "name": "Crest of the Stars / Banner of the Stars",
+    "type": "Series",
+    "description": "Sunrise adaptation of Hiroyuki Morioka's space opera novels following human Jinto Linn and Abh princess Lafiel across an interstellar war between the Abh Empire and the United Mankind. Same characters, continuous storyline, and shared fictional world with its fully constructed Baronh language. Crest of the Stars introduces the characters; Banner of the Stars continues their story across three sequel seasons.",
+    "watchOrder": "1. Crest of the Stars (1999, 13 eps)\n2. Banner of the Stars I (2000, 13 eps)\n3. Banner of the Stars II (2001, 10 eps)\n4. Banner of the Stars III (2005, 2 eps)",
+    "totalEntries": 2,
+    "yearsActive": "1999-2005",
+    "country": "Japan",
+    "studioRelation": [
+      "798ac11d-8d8e-4c52-b044-beaf2807977b"
+    ],
+    "filmRelations": [
+      "3cbcabd4-e33d-4237-9d85-ad037e6feadf",
+      "1dabdbc1-8f5e-43c1-bd6c-c337441ff6eb"
+    ]
+  },
+  {
+    "id": "25e622ad-dcad-40f3-8a80-7ba8cc35732f",
+    "url": "https://app.notion.com/p/Tales-of-Arcadia-25e622addcad40f38a807ba8cc35732f",
+    "name": "Tales of Arcadia",
+    "type": "Shared Universe",
+    "description": "Guillermo del Toro's animated fantasy universe for DreamWorks Animation. Three interconnected TV series sharing characters and mythology—Trollhunters (2016-2018, 3 seasons), 3Below (2018-2019, 2 seasons), and Wizards (2020, 1 season)—culminating in the feature film Trollhunters: Rise of the Titans (2021). Total runtime of the entire saga exceeds 36 hours.",
+    "watchOrder": "1. Trollhunters: Tales of Arcadia (2016-2018)\n2. 3Below: Tales of Arcadia (2018-2019)\n3. Wizards: Tales of Arcadia (2020)\n4. Trollhunters: Rise of the Titans (2021)",
+    "totalEntries": 4,
+    "yearsActive": "2016-2021",
+    "country": "USA",
+    "studioRelation": [
+      "c83ac4eb-997d-4906-b633-8a6d42801717"
+    ],
+    "filmRelations": [
+      "3407cfa7-867a-43fc-8f02-9c478bfe6716"
+    ]
+  },
+  {
+    "id": "4bc01de7-de7b-421a-9c84-0b51ec7b2ac6",
+    "url": "https://app.notion.com/p/Shaun-the-Sheep-4bc01de7de7b421a9c840b51ec7b2ac6",
+    "name": "Shaun the Sheep",
+    "type": "Franchise",
+    "description": "Aardman Animations stop-motion franchise spun off from Wallace & Gromit's A Close Shave (1995). Features the adventures of Shaun, a clever sheep, and his flock on Mossy Bottom Farm. Known for wordless, slapstick comedy accessible to all ages. As of 2025: 7 series totaling 190 episodes, 2 feature films (both Oscar-nominated for Best Animated Feature), plus specials. A third film, The Beast of Mossy Bottom, is in development. Part of the broader Aardman universe that includes Wallace & Gromit.",
+    "watchOrder": "TV Series:\n1. Shaun the Sheep (2007-present) - 7 series, 190 episodes\n\nFeature Films:\n2. Shaun the Sheep Movie (2015) - Oscar-nominated\n3. A Shaun the Sheep Movie: Farmageddon (2019) - Oscar-nominated\n\nSpecials:\n- The Farmer's Llamas (2015)\n- The Flight Before Christmas (2021)\n\nUpcoming:\n- The Beast of Mossy Bottom (TBA)",
+    "totalEntries": 5,
+    "yearsActive": "2007-present",
+    "country": "UK",
+    "studioRelation": [
+      "5e603609-0b7e-43df-8b33-04e829c9dae3"
+    ],
+    "filmRelations": [
+      "04669a52-3acc-4074-a6cb-4f4543875edc"
+    ]
+  },
+  {
+    "id": "d913cd9d-da9d-43b0-bd41-230d218f5f3c",
+    "url": "https://app.notion.com/p/Big-Hero-6-d913cd9dda9d43b0bd41230d218f5f3c",
+    "name": "Big Hero 6",
+    "type": "Franchise",
+    "description": "Disney/Marvel animated franchise set in the fictional city of San Fransokyo. Originated with the 2014 Oscar-winning feature film, expanded into a TV series (2017-2021) and Disney+ spinoffs. Centered on robotics prodigy Hiro Hamada and his healthcare companion robot Baymax. Big Hero 6 (2014) won Academy Award for Best Animated Feature.",
+    "watchOrder": "1. Big Hero 6 (2014) - Oscar winner\n2. Big Hero 6: The Series (2017-2021) - 3 seasons\n3. Baymax & Mochi (2019) - shorts\n4. Baymax! (2022) - Disney+ series",
+    "totalEntries": 4,
+    "yearsActive": "2014-present",
+    "country": "USA",
+    "studioRelation": [
+      "3257f37a-389e-446e-85bd-cd830d68d189"
+    ],
+    "filmRelations": [
+      "a13e4145-d01c-424f-87b8-3c04ed9e2f42"
+    ]
+  },
+  {
+    "id": "fc271d9c-5996-43f9-ba37-ce93f1e41630",
+    "url": "https://app.notion.com/p/Bubblegum-Crisis-fc271d9c599643f9ba37ce93f1e41630",
+    "name": "Bubblegum Crisis",
+    "type": "Shared Universe",
+    "description": "Cyberpunk anime franchise set in MegaTokyo 2032-2034. The Knight Sabers, an all-female mercenary team in powered armor, battle rogue Boomers (androids). Original 8-episode OVA (1987-1991) was cut short due to legal disputes between Artmic and Youmex. Includes the prequel AD Police Files exploring the police force that handles Boomer crimes. Influential in establishing 1980s-90s cyberpunk anime aesthetics alongside Akira and Ghost in the Shell.",
+    "watchOrder": "OVA/Movie Continuity:\n1. AD Police Files (1990) - 3 OVAs, prequel\n2. Bubblegum Crisis (1987-1991) - 8 OVAs\n3. Bubblegum Crash (1991) - 3 OVAs, sequel\n\nTV Continuity (alternate timeline):\n4. AD Police (1999) - 12-episode TV series\n5. Bubblegum Crisis Tokyo 2040 (1998-1999) - 26 episodes, reimagining",
+    "totalEntries": 5,
+    "yearsActive": "1987-1999",
+    "country": "Japan",
+    "studioRelation": [
+      "b617d7f0-b7fa-499e-ac63-e9ca9631e12c"
+    ],
+    "filmRelations": [
+      "bc936b36-8269-472a-a52c-f0c14e557d2d",
+      "28cdb254-90e8-4859-adb9-d34953e32a78"
+    ]
+  },
+  {
+    "id": "29a1fced-8e94-4668-80d5-298bba320a89",
+    "url": "https://app.notion.com/p/Cyborg-009-Modern-Films-29a1fced8e94466880d5298bba320a89",
+    "name": "Cyborg 009 (Modern Films)",
+    "type": "Franchise",
+    "description": "Modern CGI theatrical films based on Shotaro Ishinomori's legendary manga (1964-present) about nine cyborg warriors who fight for justice. 009 RE:CYBORG (2012) by Kenji Kamiyama is a philosophical standalone reimagining, while Cyborg 009: Call of Justice (2016) is a CGI trilogy (also edited into 12 Netflix episodes). Both feature Production I.G's distinctive 3D cel-shaded animation. Note: The classic Cyborg 009 franchise includes the 1966 film, 1968 TV series (26 eps), 1979-80 TV series (50 eps), 1980 Legend of the Super Galaxy film, and 2001-02 TV series (51 eps).",
+    "watchOrder": "Modern Films (standalone):\n1. 009 RE:CYBORG (2012) - Kenji Kamiyama\n2. Cyborg 009 vs Devilman (2015) - crossover OVA\n3. Cyborg 009: Call of Justice (2016) - trilogy/12 eps\n\nClassic Series (for completists):\n- Cyborg 009 (1966 film)\n- Cyborg 009 TV (1968) - 26 eps\n- Cyborg 009 TV (1979-80) - 50 eps\n- Legend of the Super Galaxy (1980)\n- Cyborg 009: The Cyborg Soldier (2001-02) - 51 eps",
+    "totalEntries": 3,
+    "yearsActive": "2012-2016",
+    "country": "Japan",
+    "studioRelation": [
+      "44c7018a-7db6-4717-a152-92c5e2c15989"
+    ],
+    "filmRelations": [
+      "5110cd18-7c9e-4708-9809-8ab6cc9eed6b",
+      "e7881155-76b1-4288-93f9-ff8b4f14fe88"
+    ]
+  },
+  {
+    "id": "37642607-e4bf-4a88-ba1d-0863deb1e3ba",
+    "url": "https://app.notion.com/p/Fleischer-Superman-Cartoons-37642607e4bf4a88ba1d0863deb1e3ba",
+    "name": "Fleischer Superman Cartoons",
+    "type": "Series",
+    "description": "Groundbreaking theatrical Superman shorts produced by Fleischer Studios (1941-42) and Famous Studios (1942-43). 17 shorts total: 9 by Fleischer, 8 by Famous Studios. Legendary for film noir-influenced visuals, rotoscoped action, and lavish production values ($50,000+ per episode—four times typical cartoon budgets). Directed primarily by Dave Fleischer. Set the template for superhero animation and influenced countless adaptations. The pilot 'Superman' (aka 'The Mad Scientist') was nominated for an Academy Award.",
+    "watchOrder": "Release order recommended:\n\nFleischer Studios (9 shorts):\n1. Superman / The Mad Scientist (1941) - Oscar nominated\n2. The Mechanical Monsters (1941)\n3. Billion Dollar Limited (1942)\n4. The Arctic Giant (1942)\n5. The Bulleteers (1942)\n6. The Magnetic Telescope (1942)\n7. Electric Earthquake (1942)\n8. Volcano (1942)\n9. Terror on the Midway (1942)\n\nFamous Studios (8 shorts):\n10. Japoteurs (1942)\n11. Showdown (1942)\n12. Eleventh Hour (1942)\n13. Destruction Inc. (1942)\n14. The Mummy Strikes (1943)\n15. Jungle Drums (1943)\n16. The Underground World (1943)\n17. Secret Agent (1943)",
+    "totalEntries": 17,
+    "yearsActive": "1941-1943",
+    "country": "USA",
+    "studioRelation": [
+      "7a2a03c3-1861-4a25-8af8-4660a1634c54"
+    ],
+    "filmRelations": [
+      "a66beb23-7f15-4ee1-bc41-02403a49cdcb",
+      "414b5312-62fe-40a2-8409-40862e5cf278",
+      "2fa896e5-653b-4b26-88a5-127e3aec610e",
+      "ba304956-68b9-46ee-aca4-29eaf414f6de",
+      "0cea1da2-a244-43df-b78a-895af3d097f2",
+      "b631f2cc-6679-430c-b1c1-af5ea9d3190c",
+      "52462aeb-491f-40fb-87e1-cb2e19a90216",
+      "312ef821-f6e9-4ccd-8efb-ae50a3a8e030",
+      "ac373185-8857-4f1c-9297-e08626d30c5e"
+    ]
+  },
+  {
+    "id": "b6fd3f4d-20b6-4164-887d-51158370d738",
+    "url": "https://app.notion.com/p/Christopher-Crumpet-b6fd3f4d20b64164887d51158370d738",
+    "name": "Christopher Crumpet",
+    "type": "Duology",
+    "description": "UPA theatrical shorts featuring Christopher Crumpet, a spoiled child whose tantrums cause fantastical transformations. Directed by Robert Cannon with designs by T. Hee. The original 'Christopher Crumpet' (1953) was nominated for an Academy Award. Followed by 'Christopher Crumpet's Playmate' the same year.",
+    "watchOrder": "1. Christopher Crumpet (1953) - Oscar-nominated\n2. Christopher Crumpet's Playmate (1953)",
+    "totalEntries": 2,
+    "yearsActive": "1953",
+    "country": "USA",
+    "studioRelation": [
+      "a62fc4ef-f967-4c45-861c-ea61275d3923"
+    ],
+    "filmRelations": [
+      "2f49fae4-b254-8158-a24e-df0c7a5e14c9",
+      "d8f0b6a4-84cf-455d-aea4-45b56477ae11"
+    ]
+  },
+  {
+    "id": "7c8475a0-fd04-4724-93b6-1d4966f6015e",
+    "url": "https://app.notion.com/p/Blood-7c8475a0fd04472493b61d4966f6015e",
+    "name": "Blood",
+    "type": "Franchise",
+    "description": "Production I.G's vampire action franchise following various incarnations of Saya, a sword-wielding warrior who hunts Chiropteran monsters. Each entry is an alternate universe reimagining—Blood: The Last Vampire (2000), Blood+ (2005-06 TV series), Blood-C (2011), and Blood-C: The Last Dark (2012). Same core concept, different continuities.",
+    "watchOrder": "Each is standalone. Release order:\n1. Blood: The Last Vampire (2000) - original film\n2. Blood+ (2005-06) - 50-episode TV series, alternate universe\n3. Blood-C (2011) - 12-episode TV series, separate continuity\n4. Blood-C: The Last Dark (2012) - film sequel to Blood-C",
+    "totalEntries": 4,
+    "yearsActive": "2000-2012",
+    "country": "Japan",
+    "studioRelation": [
+      "44c7018a-7db6-4717-a152-92c5e2c15989"
+    ],
+    "filmRelations": [
+      "759793ac-4ce9-485c-a334-fdf49e005548",
+      "5619d633-f861-4172-a463-370a74c00613"
+    ]
+  },
+  {
+    "id": "16d43fae-44df-4eee-b0e4-21e9e9e08195",
+    "url": "https://app.notion.com/p/Light-Chaser-New-Gods-16d43fae44df4eeeb0e421e9e9e08195",
+    "name": "Light Chaser: New Gods",
+    "type": "Duology",
+    "description": "Light Chaser Animation's cinematic universe reimagining Chinese mythology with cyberpunk/steampunk aesthetics. Films loosely based on the Ming dynasty novel 'Investiture of the Gods' (Fengshen Yanyi), featuring gods reincarnated in a retro-futuristic industrial China. Part of China's 'guo man' (national animation) movement rivaling Hollywood quality. Note: The White Snake series is a separate continuity from the same studio, not part of the New Gods universe.",
+    "watchOrder": "New Gods Series:\n1. New Gods: Nezha Reborn (2021)\n2. New Gods: Yang Jian (2022)\n\nBoth films work as standalones but share the same universe.\n\nNote: Light Chaser's White Snake films (2019, 2021, 2024) are a separate franchise.",
+    "totalEntries": 2,
+    "yearsActive": "2021-2022",
+    "country": "China",
+    "studioRelation": [
+      "880c7f47-9857-4820-ab2a-7e50a0a39792"
+    ],
+    "filmRelations": [
+      "2f49fae4-b254-81f1-8029-d858c4f8b7e6",
+      "2f49fae4-b254-816e-b163-edf200f67f13"
+    ]
+  },
+  {
+    "id": "00937943-72a7-4b1e-bdf2-9ba143774c16",
+    "url": "https://app.notion.com/p/Mobile-Suit-Gundam-Universal-Century-0093794372a74b1ebdf29ba143774c16",
+    "name": "Mobile Suit Gundam (Universal Century)",
+    "type": "Franchise",
+    "description": "Yoshiyuki Tomino's original Gundam timeline spanning the One Year War (UC 0079) and beyond. Defined the 'real robot' genre with its realistic depiction of mechanized warfare. The Universal Century is the most expansive of Gundam's multiple timelines, encompassing over 20 animated works including TV series, OVAs, and films. Explores war's human cost, the cycle of conflict, and the evolution of humanity (Newtypes). Recent additions include the Unicorn saga and ongoing Hathaway's Flash trilogy.",
+    "watchOrder": "One Year War Era (UC 0079):\n1. Mobile Suit Gundam (1979) or trilogy films\n2. The 08th MS Team (1996-99)\n3. MS IGLOO (2004-09)\n4. 0080: War in the Pocket (1989)\n5. Thunderbolt (2015-17)\n\nPost-OYW Era:\n6. 0083: Stardust Memory (1991)\n7. Zeta Gundam (1985)\n8. ZZ Gundam (1986)\n9. Char's Counterattack (1988)\n\nUC 0096-0105:\n10. Unicorn (2010-14)\n11. Narrative (2018)\n12. Hathaway's Flash (2021-ongoing)\n\nLate UC:\n13. F91 (1991)\n14. Victory Gundam (1993)",
+    "totalEntries": 20,
+    "yearsActive": "1979-present",
+    "country": "Japan",
+    "studioRelation": [
+      "798ac11d-8d8e-4c52-b044-beaf2807977b"
+    ],
+    "filmRelations": [
+      "2094ef8f-2723-4c59-a132-31d1f0f81579",
+      "0c51cf4e-2efc-4d90-b5eb-9d8fb8975513",
+      "eff51a48-5037-4d36-8f02-7df124e1526c",
+      "0d8946aa-d445-4d7c-b861-57170ad9335a",
+      "6af7acbe-027e-43d7-8dcc-b824f1d83058",
+      "2f8ee58c-0da4-474f-ad88-a0e1c75efab7",
+      "9475d679-9c76-46e6-9430-f4fc7589e942",
+      "7350fe85-a50c-4e5a-8abb-2aa572494429",
+      "971de154-200c-4e4e-956f-9853ed3e5300",
+      "5873640b-c227-4135-9fa7-f24bb0794343",
+      "b41349d1-b75a-4866-9f37-3e44d4b7fcf8"
+    ]
+  },
+  {
+    "id": "1f2c99e4-4dc7-4ea6-96ca-e04b7033985c",
+    "url": "https://app.notion.com/p/Leijiverse-1f2c99e44dc74ea696cae04b7033985c",
+    "name": "Leijiverse",
+    "type": "Shared Universe",
+    "description": "Leiji Matsumoto's interconnected sci-fi universe with loose continuity—characters and settings cross over between series. Encompasses Galaxy Express 999, Captain Harlock, Queen Emeraldas, Queen Millennia, The Galaxy Railways, Gun Frontier, and Cosmo Warrior Zero. Defined Japanese space opera with melancholic themes of honor, sacrifice, mortality, and humanity's expansion to the stars. Matsumoto (1938-2023) was known for his distinctive elongated character designs and romantic fatalism. Note: Space Battleship Yamato shares some connections but exists in its own separate timeline.",
+    "watchOrder": "No strict order—loose shared universe. Major entry points:\n\nGalaxy Express 999:\n- TV series (1978-81) - 113 eps\n- Films: Galaxy Express 999 (1979), Adieu (1981)\n- Eternal Fantasy (1998)\n\nCaptain Harlock:\n- TV (1978-79) - 42 eps\n- Arcadia of My Youth (1982)\n- SSX (1982-83)\n- Endless Odyssey (2002-03)\n- Space Pirate Captain Harlock (2013 CGI)\n\nQueen Emeraldas: OVA (1998-99)\nQueen Millennia: TV (1981-82)\nGalaxy Railways: (2003-07)\nGun Frontier: (2002)\nCosmo Warrior Zero: (2001)",
+    "totalEntries": 20,
+    "yearsActive": "1974-2024",
+    "country": "Japan",
+    "studioRelation": [
+      "539526ca-00f1-44db-96e7-8997abe5e7e0"
+    ],
+    "filmRelations": [
+      "32c1bb2b-dcca-4ba7-a55c-11f7f8c6e187",
+      "e7765c4c-e92f-41bf-afa1-d53e44c33d46",
+      "692a45a7-84d1-4b0b-b94d-5e527b7b66c6",
+      "44b25a83-273c-4620-b43d-c1686b917162",
+      "935ba64c-6f25-4ea5-b478-1b95a35e5e6a",
+      "a695dca5-f477-4628-80dc-19d0ffe9e40b",
+      "0284a2de-623a-41ee-8c78-c4c54dbcf00d",
+      "a42dab8d-bcb4-4ea9-bc6b-5b66794ec67e",
+      "38d91def-9d19-4103-83ee-6561cb813fe2",
+      "c8a1696b-a995-4028-97b0-9d6a0e3426f3",
+      "d407af2b-673e-4a9b-bf94-bdab33fe44eb",
+      "0b22dc88-5abb-4110-a2e3-22271400b3b2",
+      "71eab3e0-1957-4260-8a19-6c10e9cda15f",
+      "64c64463-65ea-4227-b842-b21ed43cb91d",
+      "85a53c59-db46-4fde-851c-97f00d2879a4",
+      "78148e6b-35ae-4db5-88fe-9531b020ab4b",
+      "f34ce103-08b7-4c98-90d0-72981a17583e"
+    ]
+  },
+  {
+    "id": "2cc58505-b04a-47e2-bbd7-9f48cc6e0ddf",
+    "url": "https://app.notion.com/p/Macross-2cc58505b04a47e2bbd79f48cc6e0ddf",
+    "name": "Macross",
+    "type": "Franchise",
+    "description": "Shōji Kawamori's space opera franchise combining mecha battles, pop music, and love triangles. Created with Studio Nue in 1982. 'Do You Remember Love?' (1984) set new animation standards. Franchise explores music as a force for peace and understanding across species. Also basis for Western adaptation 'Robotech' (using first series). Features include variable fighters (transforming mecha) and idol singers. Multiple timelines spanning decades with Frontier (2008) and Delta (2016) revitalizing the franchise.",
+    "watchOrder": "Original Timeline:\n- Super Dimension Fortress Macross (1982-83)\n- Do You Remember Love? (1984) - alternate film\n- Flashback 2012 (1987)\n\nLater entries (standalone-friendly):\n- Macross Plus (1994-95)\n- Macross 7 (1994-95)\n- Macross Zero (2002-04) - prequel\n- Macross Frontier (2008)\n- Macross Delta (2016)",
+    "totalEntries": 15,
+    "yearsActive": "1982-present",
+    "country": "Japan",
+    "studioRelation": [
+      "fa3b9644-97a1-4eb2-8526-04a8aafdad5f",
+      "82771494-7fee-437a-9011-938704ca50f4"
+    ],
+    "filmRelations": [
+      "10b95200-740c-4772-97de-3f52acca6228",
+      "6b8f3bad-8059-4cfb-a5d2-fd84cf31fd38",
+      "d7947a2b-8f34-4a45-a63d-9c8458546167",
+      "1b899ca3-7cfc-42f5-a0e2-b3975d5eea23",
+      "415f5b09-21a9-4e1a-8dee-586f2a6807d9"
+    ]
+  },
+  {
+    "id": "74d5a8b9-6de6-4cbe-818b-d3a82f612fb0",
+    "url": "https://app.notion.com/p/Patlabor-74d5a8b96de64cbe818bd3a82f612fb0",
+    "name": "Patlabor",
+    "type": "Franchise",
+    "description": "Headgear collective's mecha police drama—a pioneering 'media mix' project with no single source material. Features two separate continuities: OVA/movie timeline (Early Days OVA 1988, three films) and TV timeline (47-episode series 1989, New Files OVA 1990-92). Mamoru Oshii's increasingly philosophical films explore terrorism, media manipulation, and Japan's pacifist constitution. A live-action follow-up 'The Next Generation' (2014-15) continues the movie timeline.",
+    "watchOrder": "OVA/Movie Timeline:\n1. Patlabor: Early Days (1988-89) - 7 OVAs\n2. Patlabor: The Movie (1989)\n3. Patlabor 2: The Movie (1993)\n4. WXIII: Patlabor 3 (2002)\n\nTV Timeline (separate continuity):\n1. Patlabor TV Series (1989-90) - 47 eps\n2. Patlabor: New Files (1990-92) - 16 OVAs",
+    "totalEntries": 7,
+    "yearsActive": "1988-2015",
+    "country": "Japan",
+    "studioRelation": [
+      "44c7018a-7db6-4717-a152-92c5e2c15989"
+    ],
+    "filmRelations": [
+      "6c1365d6-a60e-43ad-84f5-ba33b20ff9bb",
+      "b9b88106-e1b5-40d3-a8bd-04322da9eb64",
+      "2523036c-ecae-43ec-92a6-a539b04212ac",
+      "626cb56c-e238-4496-afe0-5489725b3274",
+      "25b070f6-3a9c-41ca-a69a-a9abaed4ca16"
+    ]
+  },
+  {
+    "id": "917a4f20-f690-4318-9ad6-b5991e8b399b",
+    "url": "https://app.notion.com/p/Gunbuster-Diebuster-917a4f20f69043189ad6b5991e8b399b",
+    "name": "Gunbuster / Diebuster",
+    "type": "Duology",
+    "description": "Gainax's landmark mecha duology exploring time dilation and cosmic warfare. Gunbuster (1988) follows Noriko Takaya training to fight alien space monsters; Diebuster (2004) is an official sequel set ~12,000 years later in the same universe, commemorating Gainax's 20th anniversary. Both influenced by 'The Forever War' and established iconic tropes (Gainax Pose, Gainax Bounce). Also known as 'Aim for the Top!' and 'Aim for the Top 2!'",
+    "watchOrder": "1. Gunbuster (1988) - 6 OVA episodes\n2. Diebuster (2004) - 6 OVA episodes\n\nWatch Gunbuster first as Diebuster is a distant sequel.",
+    "totalEntries": 2,
+    "yearsActive": "1988-2004",
+    "country": "Japan",
+    "studioRelation": [
+      "8852accf-fbc2-4014-b928-6fb5a14e1ae2"
+    ],
+    "filmRelations": [
+      "2f49fae4-b254-81a5-931a-ce4ae8b49cc0",
+      "0b218559-d6ce-4ef1-849d-97f52ff14979"
+    ]
+  },
+  {
+    "id": "b4274fe2-971b-4591-9f5a-9c26d101a75a",
+    "url": "https://app.notion.com/p/Neon-Genesis-Evangelion-b4274fe2971b45919f5a9c26d101a75a",
+    "name": "Neon Genesis Evangelion",
+    "type": "Franchise",
+    "description": "Hideaki Anno's landmark psychological mecha anime. TV series (1995-96) redefined the medium with its deconstruction of mecha tropes and exploration of depression, trauma, and human connection. Original Gainax production followed by two theatrical endings (1997). The Rebuild of Evangelion tetralogy (2007-2021), produced by Anno's studio Khara, serves as both retelling and meta-sequel. EVANGELION:30; 30th Anniversary celebration event scheduled for February 2026 at Yokohama Arena, featuring a new 13-minute animated short film.",
+    "watchOrder": "Original Continuity:\n1. TV Series (1995-96) - 26 episodes\n2. Death & Rebirth (1997) - recap + new footage\n3. The End of Evangelion (1997) - definitive ending\n\nRebuild of Evangelion (alternate continuity):\n4. Evangelion: 1.11 You Are (Not) Alone (2007)\n5. Evangelion: 2.22 You Can (Not) Advance (2009)\n6. Evangelion: 3.33 You Can (Not) Redo (2012)\n7. Evangelion: 3.0+1.0 Thrice Upon a Time (2021)\n\nWatch TV series first, then either original films OR Rebuild tetralogy.",
+    "totalEntries": 7,
+    "yearsActive": "1995-present",
+    "country": "Japan",
+    "studioRelation": [
+      "8852accf-fbc2-4014-b928-6fb5a14e1ae2"
+    ],
+    "filmRelations": [
+      "ff267c82-8ef5-4770-9ab9-62b89936e1b7",
+      "b9247d74-bcf1-428b-a28c-e2673e76a2c7",
+      "fd906ee3-ca02-40b1-841f-9a0f6f9c3121"
+    ]
+  },
+  {
+    "id": "1ce47ca3-8010-4f1b-affd-ddeea15d5f75",
+    "url": "https://app.notion.com/p/Adventures-of-Sanmao-the-Orphan-1ce47ca380104f1baffdddeea15d5f75",
+    "name": "Adventures of Sanmao the Orphan",
+    "type": "Series",
+    "description": "Shanghai Animation Film Studio adaptation of Zhang Leping's beloved comic strip about a homeless orphan in 1930s-40s Shanghai. Sanmao is recognizable by his three strands of hair. Important cultural work depicting pre-revolutionary hardship.",
+    "watchOrder": "Episodes in release order.",
+    "totalEntries": 1,
+    "yearsActive": "1984-2006",
+    "country": "China",
+    "studioRelation": [
+      "d0f70f3c-bad3-45a7-8b5b-ebb27487e571"
+    ],
+    "filmRelations": [
+      "2e49fae4-b254-8152-9047-e334cbfd60c5"
+    ]
+  },
+  {
+    "id": "523843bf-754f-4738-9f02-84fd49626e45",
+    "url": "https://app.notion.com/p/Big-Ear-Tutu-523843bf754f47389f0284fd49626e45",
+    "name": "Big Ear Tutu",
+    "type": "Series",
+    "description": "Popular contemporary Chinese animated series about Hu Tutu, a young boy with large ears. Light-hearted family entertainment representing modern Chinese children's animation, often compared to Crayon Shin-chan. 6 seasons with 26 episodes each (156 total). Nominated for the 23rd Golden Eagle Awards. Features distinctive flat design with warm color palette from Shanghai Animation Film Studio. Popular among preschool children in China.",
+    "watchOrder": "Episodes can be watched in any order.",
+    "totalEntries": 1,
+    "yearsActive": "2004-2016",
+    "country": "China",
+    "studioRelation": [
+      "da10aab8-92cc-471e-98b6-b9ede95601df"
+    ],
+    "filmRelations": [
+      "47da4c96-5cf3-4593-abc9-08895426c125"
+    ]
+  },
+  {
+    "id": "56aed522-f381-47d6-8d39-ca42e56a80a5",
+    "url": "https://app.notion.com/p/Gustavus-56aed522f38147d68d39ca42e56a80a5",
+    "name": "Gustavus",
+    "type": "Series",
+    "description": "Hungarian animated series following the adventures of Gustavus, a small rotund character. Distinctive Eastern European animation style. Popular throughout Hungary and exported internationally.",
+    "watchOrder": "Episodes can be watched in any order.",
+    "totalEntries": 1,
+    "yearsActive": "1964-1977",
+    "country": "Hungary",
+    "studioRelation": [
+      "e195f56f-eba3-4009-9ee1-c5ca51e182df"
+    ],
+    "filmRelations": [
+      "d3085618-5716-47cd-a49c-9d4cfc4bc073"
+    ]
+  },
+  {
+    "id": "92f81810-c73a-4c15-b6ec-208a7c5860fa",
+    "url": "https://app.notion.com/p/Attack-on-Titan-92f81810c73a4c15b6ec208a7c5860fa",
+    "name": "Attack on Titan",
+    "type": "Franchise",
+    "description": "Wit Studio/MAPPA adaptation of Hajime Isayama's manga phenomenon. Humanity's last survivors live within walls protecting them from man-eating Titans. Known for intense ODM gear action sequences, complex political intrigue, and shocking revelations that recontextualize the entire narrative. Cultural phenomenon that defined 2010s anime—praised for exploring themes of freedom, fascism, cycles of violence, and the horror of war. 94 episodes across 4 seasons (with Final Season split into multiple parts). Controversial but acclaimed ending in 2023. A compilation film 'The Last Attack' was released combining the final specials.",
+    "watchOrder": "Main Series (chronological):\n1. Season 1 (2013) - 25 episodes\n2. Season 2 (2017) - 12 episodes\n3. Season 3 Part 1 (2018) - 12 episodes\n4. Season 3 Part 2 (2019) - 10 episodes\n5. Final Season Part 1 (2020-21) - 16 eps\n6. Final Season Part 2 (2022) - 12 eps\n7. Final Season Part 3 (2023) - 2 specials\n\nOADs are optional supplementary content.",
+    "totalEntries": 2,
+    "yearsActive": "2013-2023",
+    "country": "Japan",
+    "studioRelation": [
+      "cde3fa9c-8577-4555-bd57-c7d48dcde9ac",
+      "e2a45a95-96a8-499f-a864-30613d39e902"
+    ],
+    "filmRelations": [
+      "91ee8893-9c3a-4810-aff1-8048a0af3350"
+    ]
+  },
+  {
+    "id": "971f9fcf-53ab-4205-a2d0-ddd2eead5cf5",
+    "url": "https://app.notion.com/p/Adventures-of-Captain-Wrongel-971f9fcf53ab4205a2d0ddd2eead5cf5",
+    "name": "Adventures of Captain Wrongel",
+    "type": "Series",
+    "description": "Soviet animated adaptation of Andrei Nekrasov's comic novel about the misadventures of a hapless sea captain and his yacht 'Donut' (Победа/Victory with letters fallen off). 13 episodes of nautical comedy and satire.",
+    "watchOrder": "13 episodes in release order (1976-1979).",
+    "totalEntries": 1,
+    "yearsActive": "1976-1979",
+    "country": "USSR",
+    "studioRelation": [
+      "6865582c-8f9c-4a50-8ebe-843ff30d1e28"
+    ],
+    "filmRelations": [
+      "2db9fae4-b254-8105-a7e9-e0413fa1cbee"
+    ]
+  },
+  {
+    "id": "985510f5-ad3c-466e-ad42-f18ed492a286",
+    "url": "https://app.notion.com/p/FLCL-985510f5ad3c466ead42f18ed492a286",
+    "name": "FLCL",
+    "type": "Series",
+    "description": "Gainax's wild, surrealist coming-of-age OVA series. Directed by Kazuya Tsurumaki as a protégé project after Evangelion. Known for frenetic pacing, iconic soundtrack by The Pillows, and visual experimentation mixing animation styles mid-scene. Original 6 episodes (2000-2001) became a cult classic. Adult Swim co-produced sequel seasons Progressive and Alternative (2018, 6 episodes each) at Production I.G, followed by mini-seasons Grunge and Shoegaze (2023, 3 episodes each). Total: 24 episodes across 5 seasons.",
+    "watchOrder": "1. FLCL (2000-2001) - 6 episodes, essential\n2. FLCL Progressive (2018) - 6 episodes\n3. FLCL Alternative (2018) - 6 episodes\n4. FLCL: Shoegaze (2023) - 3 episodes\n5. FLCL: Grunge (2023) - 3 episodes\n\nOriginal can be watched standalone. Later seasons are loosely connected spiritual successors.",
+    "totalEntries": 5,
+    "yearsActive": "2000-present",
+    "country": "Japan",
+    "studioRelation": [
+      "8852accf-fbc2-4014-b928-6fb5a14e1ae2"
+    ],
+    "filmRelations": [
+      "4c0e522c-5084-4acd-aae4-d4060dd3d486",
+      "96db9ae8-fbf1-4ad3-93aa-32b3b8931aad"
+    ]
+  },
+  {
+    "id": "b9675d47-3874-423c-9acc-97588fb57298",
+    "url": "https://app.notion.com/p/Adventures-of-Lolo-the-Penguin-b9675d473874423c9acc97588fb57298",
+    "name": "Adventures of Lolo the Penguin",
+    "type": "Series",
+    "description": "Soviet-Japanese co-production about a penguin family in Antarctica. Notable early example of Soviet-Japanese animation collaboration. Three episodes with environmental themes about penguin life and human impact.",
+    "watchOrder": "3 episodes in release order (1986-1987).",
+    "totalEntries": 1,
+    "yearsActive": "1986-1987",
+    "country": "USSR",
+    "studioRelation": [
+      "6865582c-8f9c-4a50-8ebe-843ff30d1e28"
+    ],
+    "filmRelations": [
+      "2db9fae4-b254-81b0-becd-d51b8a90062c"
+    ]
+  },
+  {
+    "id": "c678d939-a775-457d-aa6c-231940d615b3",
+    "url": "https://app.notion.com/p/Eden-of-the-East-c678d939a775457daa6c231940d615b3",
+    "name": "Eden of the East",
+    "type": "Series",
+    "description": "Kenji Kamiyama's thriller about a young man who wakes up naked in Washington D.C. with a phone containing 8.2 billion yen and no memories. Part of a deadly game with 11 other 'Seleção'. TV series followed by two theatrical films completing the story.",
+    "watchOrder": "1. Eden of the East (TV, 2009) - 11 episodes\n2. Eden of the East: The King of Eden (2009)\n3. Eden of the East: Paradise Lost (2010)",
+    "totalEntries": 3,
+    "yearsActive": "2009-2010",
+    "country": "Japan",
+    "studioRelation": [
+      "44c7018a-7db6-4717-a152-92c5e2c15989"
+    ],
+    "filmRelations": [
+      "f6d4b5e3-f3e4-4653-85ad-4ee082a3b9ee",
+      "8b6a8fa7-0962-4443-9671-799bb805325c",
+      "e2fdd3e3-1c85-4a7b-8a61-b0c413219470"
+    ]
+  },
+  {
+    "id": "007021ce-4544-437d-9806-b5f1c8187a51",
+    "url": "https://app.notion.com/p/Berserk-The-Golden-Age-Arc-007021ce4544437d9806b5f1c8187a51",
+    "name": "Berserk: The Golden Age Arc",
+    "type": "Trilogy",
+    "description": "Studio 4°C adaptation of Kentaro Miura's dark fantasy manga, covering the pivotal Golden Age storyline. Hybrid 2D/3D animation. Chronicles Guts' time with the Band of the Hawk and the tragic Eclipse event.",
+    "watchOrder": "1. Berserk: The Golden Age Arc I - The Egg of the King (2012)\n2. Berserk: The Golden Age Arc II - The Battle for Doldrey (2012)\n3. Berserk: The Golden Age Arc III - The Advent (2013)",
+    "totalEntries": 3,
+    "yearsActive": "2012-2013",
+    "country": "Japan",
+    "studioRelation": [
+      "e8d873b5-6a3e-4211-a76b-54418f6cf7df"
+    ],
+    "filmRelations": [
+      "fc7445bc-00ec-4603-8b66-3ee93e099ab0",
+      "cdbb8970-3e89-448c-ba89-3fd383d3bf9b",
+      "69ca25c3-b034-4061-b1da-44edbc3c3a0a"
+    ]
+  },
+  {
+    "id": "149c1190-3226-4f89-a775-554ad1f2757b",
+    "url": "https://app.notion.com/p/A-Jewish-Girl-in-Shanghai-149c119032264f89a775554ad1f2757b",
+    "name": "A Jewish Girl in Shanghai",
+    "type": "Duology",
+    "description": "Chinese animated duology depicting the true story of Jewish refugees who found sanctuary in Shanghai during WWII. First film (2010) follows a girl's journey; sequel 'The Mystery of the Necklace' (2015) continues the story with Rina searching for her parents. Based on graphic novels by Wu Lin. Produced by Shanghai Animation Film Studio. Important historical animation about Shanghai's role sheltering 20,000+ Jewish refugees.",
+    "watchOrder": "1. A Jewish Girl in Shanghai (2010)\n2. A Jewish Girl in Shanghai Part 2: The Mystery of the Necklace (2015)",
+    "totalEntries": 2,
+    "yearsActive": "2010-2015",
+    "country": "China",
+    "studioRelation": [
+      "d0f70f3c-bad3-45a7-8b5b-ebb27487e571"
+    ],
+    "filmRelations": [
+      "6967a694-5510-4ff0-a922-6aede09e0fd7",
+      "a0c3b7a5-a082-47c2-b7b0-fa392c96aa97"
+    ]
+  },
+  {
+    "id": "352ef21c-96ff-4b3a-941f-4757230adb3d",
+    "url": "https://app.notion.com/p/Hungarian-Folk-Tales-352ef21c96ff4b3a941f4757230adb3d",
+    "name": "Hungarian Folk Tales",
+    "type": "Series",
+    "description": "Long-running Hungarian animated series (Magyar népmesék) adapting traditional Magyar folk tales. Directed by Marcell Jankovics at Pannonia Film Studio, based on original idea by studio head Ferenc Mikulás. Each episode features authentic folk motives from different regions of Hungary. Distinctive visual style drawing from Hungarian folk art traditions with unique ornamentation. One of Hungary's most beloved animation projects, preserving cultural heritage through animation.",
+    "watchOrder": "Episodes can be watched in any order as standalone folk tales. Each features specific regional folk motifs and original storytelling by Szabó Gyula.",
+    "totalEntries": 1,
+    "yearsActive": "1980-2012",
+    "country": "Hungary",
+    "studioRelation": [
+      "6badfee5-7204-4a55-a194-d802ff65e8d6"
+    ],
+    "filmRelations": [
+      "2de9fae4-b254-8138-b36b-c82fefbf9d80"
+    ]
+  },
+  {
+    "id": "4e01594b-adda-4da4-8746-18030c6d930b",
+    "url": "https://app.notion.com/p/Godzilla-Anime-Trilogy-4e01594badda4da4874618030c6d930b",
+    "name": "Godzilla Anime Trilogy",
+    "type": "Trilogy",
+    "description": "Polygon Pictures CGI trilogy reimagining Godzilla in a post-apocalyptic sci-fi setting. Directed by Kobun Shizuno and Hiroyuki Seshita. Humanity returns to Earth 20,000 years after fleeing Godzilla, only to find the planet transformed.",
+    "watchOrder": "1. Godzilla: Planet of the Monsters (2017)\n2. Godzilla: City on the Edge of Battle (2018)\n3. Godzilla: The Planet Eater (2018)",
+    "totalEntries": 3,
+    "yearsActive": "2017-2018",
+    "country": "Japan",
+    "studioRelation": [
+      "e55ca76b-c96b-4fa2-a116-77e3b5e15035"
+    ],
+    "filmRelations": [
+      "6c88c7fe-4e64-4f76-aebd-74356209e338",
+      "a6536e2a-43e7-4375-9a2f-02b27713651e",
+      "106cbddc-6db2-468f-bbe8-25cd8913b674"
+    ]
+  },
+  {
+    "id": "8014e6c8-cecc-43ad-8cb6-447967db39f7",
+    "url": "https://app.notion.com/p/Ghost-in-the-Shell-8014e6c8cecc43ad8cb6447967db39f7",
+    "name": "Ghost in the Shell",
+    "type": "Franchise",
+    "description": "Landmark cyberpunk franchise based on Masamune Shirow's manga. Mamoru Oshii's 1995 film pioneered digital animation techniques and influenced The Matrix. Features multiple separate continuities: Oshii's philosophical film duology (1995, 2004), Stand Alone Complex TV series and SAC_2045 continuation (2002-2023), and Arise OVA prequels (2013-2015). Explores themes of consciousness, identity, and what it means to be human in a cybernetic age. The 2017 Hollywood live-action adaptation starred Scarlett Johansson.",
+    "watchOrder": "Multiple separate continuities (choose one):\n\nOshii Films:\n1. Ghost in the Shell (1995)\n2. Ghost in the Shell 2.0 (2008) - digital remaster\n3. Innocence (2004)\n\nStand Alone Complex:\n1. SAC Season 1 (2002-03) - 26 eps\n2. SAC 2nd GIG (2004-05) - 26 eps\n3. Solid State Society (2006)\n4. SAC_2045 (2020-22) - 2 seasons\n5. SAC_2045 Sustainable War (2021) - film\n6. SAC_2045 The Last Human (2023) - film\n\nArise:\n1. Arise OVA (2013-15) - 5 episodes\n2. The New Movie (2015)",
+    "totalEntries": 15,
+    "yearsActive": "1995-2023",
+    "country": "Japan",
+    "studioRelation": [
+      "44c7018a-7db6-4717-a152-92c5e2c15989"
+    ],
+    "filmRelations": [
+      "12bffdd6-853a-465e-8556-73c65a0107a6",
+      "f05e864a-51dd-4545-bc26-7ae7c25e1894",
+      "0ee0ef29-66ca-42b2-ba01-57d48c6bc222",
+      "925641a1-805b-4e5b-affc-0fc3f71eede6",
+      "e2d15efe-2148-4f47-8daf-5873f26b6b08",
+      "2f49fae4-b254-81ca-bea4-eed3b1d7e2e9",
+      "dfd2a29a-0422-42de-97ed-dcbec46b3c5f",
+      "2f49fae4-b254-81d2-b930-cc090f67e6d8",
+      "dc49e4d7-1f2f-4e36-9c4f-0ef3173d94ad",
+      "b9e3d315-6635-4da6-91d2-99cfdde772e2"
+    ]
+  },
+  {
+    "id": "e6cf3e65-72fa-4a2a-8670-6c44c264e624",
+    "url": "https://app.notion.com/p/Ajin-Demi-Human-e6cf3e6572fa4a2a86706c44c264e624",
+    "name": "Ajin: Demi-Human",
+    "type": "Trilogy",
+    "description": "Polygon Pictures CGI trilogy adapting Gamon Sakurai's dark manga about immortal beings hunted by society. Known for its tense action and moral ambiguity. Full CGI animation with distinctive cel-shaded aesthetic.",
+    "watchOrder": "1. Ajin: Demi-Human (2015)\n2. Ajin: Demi-Human Part 2 (2016)\n3. Ajin: Demi-Human Part 3 (2016)",
+    "totalEntries": 4,
+    "yearsActive": "2015-2016",
+    "country": "Japan",
+    "studioRelation": [
+      "e55ca76b-c96b-4fa2-a116-77e3b5e15035"
+    ],
+    "filmRelations": [
+      "be5580b0-1f7a-4d7e-b061-aa602ad9f8ee",
+      "6f4cc652-995f-44bb-8823-8e1614b3150e",
+      "d95256ae-8ef5-45e1-8215-c33dc7577066",
+      "c19da04f-4f01-4861-842b-40c22b669855"
+    ]
+  },
+  {
+    "id": "5715a603-1065-4fe2-9b74-e8cf114f90fd",
+    "url": "https://app.notion.com/p/Cheburashka-series-5715a60310654fe29b74e8cf114f90fd",
+    "name": "Cheburashka series",
+    "type": "Series",
+    "description": "Soviet animated series featuring Cheburashka, a small creature with large ears, and his friend Gena the Crocodile. Based on Eduard Uspensky's 1966 story, directed by Roman Kachanov with Cheburashka voiced by Klara Rumyanova. Became beloved cultural icons across the Eastern Bloc and later Japan, where it gained cult status. Characters became Russian Olympic team mascots (2004, 2006, 2008). A 2023 live-action/CGI Russian remake became a massive box office success.",
+    "watchOrder": "1. Gena the Crocodile (1969)\n2. Cheburashka (1971)\n3. Shapoklyak (1974)\n4. Cheburashka Goes to School (1983)",
+    "totalEntries": 4,
+    "yearsActive": "1969-1983",
+    "country": "USSR",
+    "studioRelation": [
+      "6865582c-8f9c-4a50-8ebe-843ff30d1e28"
+    ],
+    "filmRelations": [
+      "2db9fae4-b254-81d2-9ec7-c714bd37a88c"
+    ]
+  },
+  {
+    "id": "6ff5783d-c09c-44a0-b0ab-010ae4c284cc",
+    "url": "https://app.notion.com/p/Black-Cat-Detective-6ff5783dc09c44a0b0ab010ae4c284cc",
+    "name": "Black Cat Detective",
+    "type": "Series",
+    "description": "First Chinese science-based animation series. 5 episodes with detective noir aesthetic unprecedented in Chinese animation. '请看下集' (Please watch next episode) catchphrase became cultural phenomenon. Defined 80s Chinese childhood alongside Calabash Brothers. 2015 theatrical sequel.",
+    "watchOrder": "5 episodes (1984-1987) in release order.",
+    "totalEntries": 2,
+    "yearsActive": "1984-1987",
+    "country": "China",
+    "studioRelation": [
+      "d0f70f3c-bad3-45a7-8b5b-ebb27487e571"
+    ],
+    "filmRelations": [
+      "2e29fae4-b254-81ff-8f1a-facf1acc1ba8"
+    ]
+  },
+  {
+    "id": "7a8e0b36-f5c9-4b82-83fb-7fc181a4e50e",
+    "url": "https://app.notion.com/p/Afanti-s-Story-7a8e0b36f5c94b8283fb7fc181a4e50e",
+    "name": "Afanti's Story",
+    "type": "Series",
+    "description": "Landmark Chinese puppet animation series featuring the Uyghur folk hero Afanti (Nasreddin) from Xinjiang. 13 episodes of satire, wisdom, and justice against tyranny. Produced by Shanghai Animation Film Studio starting in 1979. Won Ministry of Culture award for best cartoon in 1979 and screened at 1991 Chicago International Children's Film Festival. 2018 CGI film 'Legend of Afanti' was produced as a modern continuation.",
+    "watchOrder": "13 episodes across 1979-1988. Can be watched in any order as standalone stories.",
+    "totalEntries": 2,
+    "yearsActive": "1979-1988",
+    "country": "China",
+    "studioRelation": [
+      "d0f70f3c-bad3-45a7-8b5b-ebb27487e571"
+    ],
+    "filmRelations": [
+      "2e29fae4-b254-81f7-a267-cf6344d58e5f",
+      "e8ff3c33-eacb-420c-9330-a53f6d2f12c1"
+    ]
+  },
+  {
+    "id": "8eba7619-fb12-4ff4-a07e-4db2290a47cc",
+    "url": "https://app.notion.com/p/Adventures-of-Mowgli-8eba7619fb124ff4a07e4db2290a47cc",
+    "name": "Adventures of Mowgli",
+    "type": "Series",
+    "description": "Soviet adaptation of Kipling's Jungle Book, directed by Roman Davydov with music by Sofia Gubaidulina. Released same year as Disney's version (1967) but conceived independently. Five 20-minute episodes emphasizing duty, heroism, and the laws of nature—combined into 96-minute feature film in 1973. Darker and more faithful to Kipling than Disney's version. Remains a touchstone of Russian childhood.",
+    "watchOrder": "1. Raksha (1967)\n2. The Kidnapping (1968)\n3. Akela's Last Hunt (1969)\n4. The Fight (1970)\n5. Return to Mankind (1971)\n\nAlso available as 1973 feature film compilation (96 min).",
+    "totalEntries": 2,
+    "yearsActive": "1967-1971",
+    "country": "USSR",
+    "studioRelation": [
+      "6865582c-8f9c-4a50-8ebe-843ff30d1e28"
+    ],
+    "filmRelations": [
+      "2db9fae4-b254-81d4-be6e-dbf11bb16d5e"
+    ]
+  },
+  {
+    "id": "a772d028-e71b-4b1c-8ebc-1d2cf2c78609",
+    "url": "https://app.notion.com/p/Calabash-Brothers-a772d028e71b4b1c8ebc1d2cf2c78609",
+    "name": "Calabash Brothers (葫芦兄弟)",
+    "type": "Series",
+    "description": "First Chinese paper-cut animated series. One of the most popular animations in China during 1980s - praised domestically as equal to Havoc in Heaven. The Huluwa (Calabash Babies) are China's most beloved animated characters after Sun Wukong. Sequel 'Little Golden Steel' (1989-1991).",
+    "watchOrder": "13 episodes in release order. Sequel series 'Little Golden Steel' follows.",
+    "totalEntries": 2,
+    "yearsActive": "1986-1987",
+    "country": "China",
+    "studioRelation": [
+      "d0f70f3c-bad3-45a7-8b5b-ebb27487e571"
+    ],
+    "filmRelations": [
+      "2dd9fae4-b254-8190-9441-f9b85e410588",
+      "3a9004e7-4afe-4081-87a4-728777ded0bb"
+    ]
+  },
+  {
+    "id": "b6caa560-d11b-4c9e-b3b9-857f680c2ca3",
+    "url": "https://app.notion.com/p/38-Parrots-b6caa560d11b4c9eb3b9857f680c2ca3",
+    "name": "38 Parrots",
+    "type": "Series",
+    "description": "Philosophical Soviet animated series about a thoughtful boa constrictor, a curious monkey, a baby elephant, and a parrot who measures things in parrots. Known for treating young audiences as capable of complex thought. Writer Grigoriy Oster became famous for his 'Bad Advice' children's books.",
+    "watchOrder": "10 episodes produced 1976-1991. Can be watched in release order.",
+    "totalEntries": 1,
+    "yearsActive": "1976-1991",
+    "country": "USSR",
+    "studioRelation": [
+      "6865582c-8f9c-4a50-8ebe-843ff30d1e28"
+    ],
+    "filmRelations": [
+      "2db9fae4-b254-815f-a308-fb867559548c"
+    ]
+  },
+  {
+    "id": "cf3ade71-5907-4059-ab6d-90d093a29ac1",
+    "url": "https://app.notion.com/p/A-Kitten-Named-Woof-cf3ade7159074059ab6d90d093a29ac1",
+    "name": "A Kitten Named Woof",
+    "type": "Series",
+    "description": "Lev Atamanov's final major work. Five episodes about a curious kitten and his puppy friend. Many quotes became everyday Russian expressions. Monument 'Sausage of Friendship' erected in Novokuznetsk depicting the iconic sharing scene.",
+    "watchOrder": "5 episodes: 1976, 1977, 1979, 1980, 1982. Episode 5 completed posthumously.",
+    "totalEntries": 1,
+    "yearsActive": "1976-1982",
+    "country": "USSR",
+    "studioRelation": [
+      "6865582c-8f9c-4a50-8ebe-843ff30d1e28"
+    ],
+    "filmRelations": [
+      "2dc9fae4-b254-8122-b78c-cfb42faa16a0"
+    ]
+  },
+  {
+    "id": "f722dacc-6ad7-42c3-a329-d936e09b3065",
+    "url": "https://app.notion.com/p/Karlsson-on-the-Roof-f722dacc6ad742c3a329d936e09b3065",
+    "name": "Karlsson-on-the-Roof",
+    "type": "Duology",
+    "description": "Soviet adaptation of Astrid Lindgren's beloved characters. Lindgren's works were beloved throughout the USSR - she was considered Soviet children's favorite foreign author. A 1971 stage adaptation at Moscow Satire Theatre starred Spartak Mishulin as Karlsson.",
+    "watchOrder": "1. Kid and Karlsson (1968)\n2. Karlsson Returns (1970)",
+    "totalEntries": 2,
+    "yearsActive": "1968-1970",
+    "country": "USSR",
+    "studioRelation": [
+      "6865582c-8f9c-4a50-8ebe-843ff30d1e28"
+    ],
+    "filmRelations": [
+      "2db9fae4-b254-811d-be4e-f9b1b57cce42"
+    ]
+  }
+]

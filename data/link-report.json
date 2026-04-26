@@ -1,0 +1,846 @@
+{
+  "generatedAt": "2026-01-27T12:23:55.685Z",
+  "summary": {
+    "totalFilms": 681,
+    "filmsWithLinks": 559,
+    "valid": 464,
+    "notFound": 11,
+    "redirects": 6,
+    "timeouts": 3,
+    "serverErrors": 0,
+    "otherErrors": 75
+  },
+  "details": {
+    "notFound": [
+      {
+        "id": "2dd9fae4-b254-8130-9ff5-d409913fd001",
+        "title": "Tokri (The Basket)",
+        "year": 2018,
+        "country": "India",
+        "url": "https://vimeo.com/392426186",
+        "statusText": "Not Found"
+      },
+      {
+        "id": "2de9fae4-b254-819e-b257-deef24df6d31",
+        "title": "Bino and Fino",
+        "year": 2010,
+        "country": "Nigeria",
+        "url": "https://www.youtube.com/c/BinoandFino",
+        "statusText": "Not Found"
+      },
+      {
+        "id": "2de9fae4-b254-816f-8aea-d768961cd841",
+        "title": "At the Ends of the Earth",
+        "year": 1999,
+        "country": "France",
+        "url": "https://www.nfb.ca/film/at_the_ends_of_the_earth/ (Folimage)",
+        "statusText": "Not Found"
+      },
+      {
+        "id": "0b22dc88-5abb-4110-a2e3-22271400b3b2",
+        "title": "Queen Millennia",
+        "year": 1982,
+        "country": "Japan",
+        "url": "https://archive.org/details/queen-millenia-movie",
+        "statusText": "Not Found"
+      },
+      {
+        "id": "2de9fae4-b254-8147-aade-ce7c9e822e6e",
+        "title": "Plasticine Crow",
+        "year": 1981,
+        "country": "USSR",
+        "url": "https://www.animatsiya.net/film.phtml?id=8",
+        "statusText": "Not Found"
+      },
+      {
+        "id": "2de9fae4-b254-8146-8995-f97cd324bb31",
+        "title": "King Tomcat",
+        "year": 1978,
+        "country": "Hungary",
+        "url": "https://www.youtube.com/@MagyarNepmesek (official channel)",
+        "statusText": "Not Found"
+      },
+      {
+        "id": "2dd9fae4-b254-8199-9459-d9a74495d26f",
+        "title": "Dunderklumpen!",
+        "year": 1974,
+        "country": "Sweden",
+        "url": "https://tubitv.com/movies/700484/dunderklumpen (Tubi free); https://watch.plex.tv/movie/dunderklumpen (Plex free); Roku Channel (free); Apple TV; Amazon Prime Video; Google Play (as 'Thunderclump')",
+        "statusText": "Not Found"
+      },
+      {
+        "id": "2dc9fae4-b254-8114-82fc-c28e9aa3158e",
+        "title": "Les Escargots (The Snails)",
+        "year": 1966,
+        "country": "France",
+        "url": "https://archive.org/details/les-escargots-1966_202311 | Criterion Channel",
+        "statusText": "Not Found"
+      },
+      {
+        "id": "2dc9fae4-b254-8175-9bbb-ff33d586d579",
+        "title": "Buffalo Boy and the Flute (牧笛)",
+        "year": 1963,
+        "country": "China",
+        "url": "https://www.bilibili.com/video/BV1Wx411F7qJ (Bilibili)",
+        "statusText": "Not Found"
+      },
+      {
+        "id": "2e59fae4-b254-817c-9559-e7f1f16bee2c",
+        "title": "Prince Bayaya",
+        "year": 1950,
+        "country": "Czechoslovakia",
+        "url": "https://archive.org/details/prince-bayaya-1950",
+        "statusText": "Not Found"
+      },
+      {
+        "id": "2db9fae4-b254-8129-aa0a-fa74afdfa659",
+        "title": "The Fox, the Hare and the Rooster",
+        "year": 1942,
+        "country": "USSR",
+        "url": "https://animatsiya.net/film/lisa-zayats-i-petukh",
+        "statusText": "Not Found"
+      }
+    ],
+    "redirects": [
+      {
+        "id": "2dc9fae4-b254-81b7-b320-c8b94994f980",
+        "title": "Hoffmaniada",
+        "year": 2018,
+        "country": "Russia",
+        "url": "https://www.ivi.ru/watch/gofmaniada (Russian platform, geo-restricted)",
+        "redirectUrl": "https://www.ivi.tv/watch/gofmaniada%2520(Russian%2520platform,%2520geo-restricted)",
+        "status": 302
+      },
+      {
+        "id": "a95b8e1d-d477-498b-b45d-99a96d0fed0f",
+        "title": "A Letter to Momo",
+        "year": 2011,
+        "country": "Japan",
+        "url": "https://virl.kanopy.com/video/letter-momo-0",
+        "redirectUrl": "https://www.kanopy.com/virl/video/letter-momo-0?frontend=kui",
+        "status": 302
+      },
+      {
+        "id": "57442461-dfc6-408b-9dbc-6a30d574f23e",
+        "title": "Prometheus",
+        "year": 1992,
+        "country": "Hungary",
+        "url": "https://youtu.be/hQDywP_Sxg0",
+        "redirectUrl": "https://www.youtube.com/watch?v=hQDywP_Sxg0&feature=youtu.be",
+        "status": 303
+      },
+      {
+        "id": "c106dd77-3d73-48e3-ac59-dc6258049f96",
+        "title": "Nocturna Artificialia: Those Who Desire Without End",
+        "year": 1979,
+        "country": "UK",
+        "url": "https://www.kanopy.com/product/brothers-quay-short-films",
+        "redirectUrl": "https://www.kanopy.com/video/brothers-quay-short-films?frontend=kui",
+        "status": 302
+      },
+      {
+        "id": "2dc9fae4-b254-81d8-8fca-dfa77fa0b366",
+        "title": "Fantastic Planet (La Planète Sauvage)",
+        "year": 1973,
+        "country": "France",
+        "url": "https://www.criterion.com/films/28649-fantastic-planet",
+        "redirectUrl": "https://www.criterion.com/shop/browse",
+        "status": 302
+      },
+      {
+        "id": "2db9fae4-b254-8170-a431-f7bd763fdd73",
+        "title": "The Scarlet Flower",
+        "year": 1952,
+        "country": "USSR",
+        "url": "https://klassiki.online/films/the-scarlet-flower",
+        "redirectUrl": "https://klassiki.online/film/the-scarlet-flower/",
+        "status": 301
+      }
+    ],
+    "timeouts": [
+      {
+        "id": "2de9fae4-b254-8151-8327-deaa722dadf7",
+        "title": "Milch",
+        "year": 2005,
+        "country": "USA",
+        "url": "https://klassiki.online/ (subscription)"
+      },
+      {
+        "id": "2dc9fae4-b254-8122-b78c-cfb42faa16a0",
+        "title": "A Kitten Named Woof",
+        "year": 1976,
+        "country": "USSR",
+        "url": "https://www.culture.ru/live/movies/8242/kotenok-po-imeni-gav"
+      },
+      {
+        "id": "2dc9fae4-b254-81ed-b6cb-cacb54e47e0c",
+        "title": "Vovka in the Faraway Kingdom",
+        "year": 1965,
+        "country": "USSR",
+        "url": "https://www.culture.ru/live/movies/8227/vovka-v-tridevyatom-carstve"
+      }
+    ],
+    "serverErrors": [],
+    "otherErrors": [
+      {
+        "id": "2e49fae4-b254-8121-b524-f44e1ff6c1fc",
+        "title": "Batman Azteca: Clash of Empires",
+        "year": 2025,
+        "country": "Mexico",
+        "url": "https://www.amazon.com/Aztec-Batman-Empires-Juan-Meza-Leon/dp/B0DLTM6QWW",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "0fbbc18c-94ca-4650-b1e4-ee22f2c61d1f",
+        "title": "SANDA",
+        "year": 2025,
+        "country": "Japan",
+        "url": "https://www.primevideo.com/detail/SANDA/0OTYB5HOFEGL63J0E2NDCL4UCM",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "c318c11c-25a6-4085-9be3-e6265fbed109",
+        "title": "Delicious in Dungeon",
+        "year": 2024,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/81564899",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "87ba7b43-5771-4a5e-b185-ed7fa93f4c8f",
+        "title": "Terminator Zero",
+        "year": 2024,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/81217220",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "5ae5bb90-1e01-45fb-90b6-e66e84863542",
+        "title": "Mech Cadets",
+        "year": 2023,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/81004665",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2f49fae4-b254-812c-b5fb-fad2d91ba31c",
+        "title": "Scott Pilgrim Takes Off",
+        "year": 2023,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/81153115",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2de9fae4-b254-81e9-9f21-cab1400c504e",
+        "title": "Supa Team 4",
+        "year": 2023,
+        "country": "Zambia",
+        "url": "https://www.netflix.com/title/80205037",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "6d5d99e0-91da-4438-bddc-aeebd73d1464",
+        "title": "Cyberpunk: Edgerunners",
+        "year": 2022,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/81054853",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "85c55d52-88da-4796-967d-47b5efebe467",
+        "title": "Inu-Oh",
+        "year": 2022,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/81499851",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "5c835668-a891-4b3e-8a0a-99339dc3e8fd",
+        "title": "The Deer King",
+        "year": 2022,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/81700393",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2f49fae4-b254-81f1-8029-d858c4f8b7e6",
+        "title": "New Gods: Nezha Reborn",
+        "year": 2021,
+        "country": "China",
+        "url": "https://www.netflix.com/title/81418302",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2dc9fae4-b254-81e4-8c46-c615865ced9a",
+        "title": "Seal Team",
+        "year": 2021,
+        "country": "South Africa",
+        "url": "https://www.netflix.com/title/81313398",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "5ead31b4-7fd2-4e1a-923f-c62eae424013",
+        "title": "White Snake 2: Green Snake",
+        "year": 2021,
+        "country": "China",
+        "url": "https://www.netflix.com/title/81504698",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2f49fae4-b254-8132-973a-f35b7c28597d",
+        "title": "BNA: Brand New Animal",
+        "year": 2020,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/81220429",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "c06b8ae1-c167-4113-90b3-8c885bd159c3",
+        "title": "Japan Sinks: 2020",
+        "year": 2020,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/80993018",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "f3a9e2ec-b648-41ce-bf33-fc0a72455da4",
+        "title": "Children of the Sea",
+        "year": 2019,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/81208104",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "046ac3c5-0b4c-4514-bc2a-9b061cb0e274",
+        "title": "Levius",
+        "year": 2019,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/80156799",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "786b69af-97de-4c4d-bebe-018d198100e6",
+        "title": "Ride Your Wave",
+        "year": 2019,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/81253737",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "d0a3fd43-4162-4a57-a0b1-1499b436f920",
+        "title": "Devilman Crybaby",
+        "year": 2018,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/80174974",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "106cbddc-6db2-468f-bbe8-25cd8913b674",
+        "title": "Godzilla: The Planet Eater",
+        "year": 2018,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/80198623",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "011693eb-5443-440f-aa88-7083ed797c09",
+        "title": "The Legend of Charro Negro",
+        "year": 2018,
+        "country": "Mexico",
+        "url": "https://www.netflix.com/title/80991342",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2dd9fae4-b254-81a9-b70c-ec9d48fd3745",
+        "title": "The Legend of Muay Thai: 9 Satra",
+        "year": 2018,
+        "country": "Thailand",
+        "url": "4659",
+        "error": "Failed to parse URL from 4659"
+      },
+      {
+        "id": "2dc9fae4-b254-813a-8555-d5c905cd3cf5",
+        "title": "Zog",
+        "year": 2018,
+        "country": "UK",
+        "url": "https://www.primevideo.com/detail/Zog/0QSU834D18MUWVVWUOSHSB0WTW",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "24e3dadd-147e-4f2b-b94d-5464b5dfd2a7",
+        "title": "Blame!",
+        "year": 2017,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/80115466",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "9129c5ff-103b-4fff-9573-89f6690f4bf7",
+        "title": "Little Witch Academia (TV)",
+        "year": 2017,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/80156387",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2f49fae4-b254-8112-baae-f42a97607b86",
+        "title": "MUTAFUKAZ (MFKZ)",
+        "year": 2017,
+        "country": "France",
+        "url": "https://www.netflix.com/title/81037697",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "8245534d-0581-43dd-9ad4-10f7ddfc9a35",
+        "title": "Night Is Short, Walk On Girl",
+        "year": 2017,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/80990742",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "c19da04f-4f01-4861-842b-40c22b669855",
+        "title": "Ajin: Demi-Human",
+        "year": 2016,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/80043576",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2dc9fae4-b254-8174-985c-d2e2a9664356",
+        "title": "Revolting Rhymes",
+        "year": 2016,
+        "country": "UK",
+        "url": "https://www.netflix.com/title/80234290",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "1ef892b8-65a8-4291-968c-a05e8cbbd82d",
+        "title": "The Legend of the Chupacabras",
+        "year": 2016,
+        "country": "Mexico",
+        "url": "https://www.netflix.com/title/80141080",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2dd9fae4-b254-8119-a8b1-f98a460bc00b",
+        "title": "Bilal: A New Breed of Hero",
+        "year": 2015,
+        "country": "UAE",
+        "url": "https://www.primevideo.com/detail/Bilal-A-New-Breed-of-Hero/0J82CFU83NB822Q5E8XRD8FT0F (also Tubi free, Peacock, Fandango at Home)",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "b8a9e68e-89eb-436d-9c88-f1a538e6508e",
+        "title": "Harmony",
+        "year": 2015,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/80107490",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "94b36736-97ee-451d-9202-5805d895fcef",
+        "title": "Little Witch Academia: The Enchanted Parade",
+        "year": 2015,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/80078599",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "40005751-39f3-4740-9ae6-745536f0ec9c",
+        "title": "Miss Hokusai",
+        "year": 2015,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/80075828",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "382ed630-4e04-44ec-8f1d-2d2a537e24f8",
+        "title": "Quay",
+        "year": 2015,
+        "country": "USA",
+        "url": "https://vk.com/video-2331622_456239112",
+        "status": 418,
+        "statusText": ""
+      },
+      {
+        "id": "1dafbb67-7b0a-4012-bd0c-299e3bfa28da",
+        "title": "Knights of Sidonia",
+        "year": 2014,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/70301578",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "40dd99c9-eb8a-4b6c-a1dc-fcf391640603",
+        "title": "Ronja, the Robber's Daughter",
+        "year": 2014,
+        "country": "Japan",
+        "url": "https://www.amazon.com/Ronja-the-Robbers-Daughter/dp/B08DK1W2WV",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "095cf283-0c34-4861-8991-1aef50e4137b",
+        "title": "Song of the Sea",
+        "year": 2014,
+        "country": "Ireland",
+        "url": "https://www.netflix.com/title/80015342",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "581e9c63-73b1-432d-b7f4-055dc8bce0be",
+        "title": "El Santos vs. la Tetona Mendoza",
+        "year": 2012,
+        "country": "Mexico",
+        "url": "https://www.netflix.com/title/70273118",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "4e148dfc-a08c-4dc3-9eba-3f47c3ce3b28",
+        "title": "The Legend of La Llorona",
+        "year": 2011,
+        "country": "Mexico",
+        "url": "https://www.netflix.com/title/70241338",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "36dc84ca-728b-412f-9729-069ecd6e7d2c",
+        "title": "Oblivion Island: Haruka and the Magic Mirror",
+        "year": 2009,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/70142796",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2dd9fae4-b254-81d5-bf02-c2418373f9d1",
+        "title": "Waltz with Bashir",
+        "year": 2008,
+        "country": "Israel",
+        "url": "https://www.netflix.com/title/70100415",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2de9fae4-b254-81a4-88c4-fd86070ada4d",
+        "title": "Persepolis",
+        "year": 2007,
+        "country": "France",
+        "url": "https://www.netflix.com/title/70071605",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2de9fae4-b254-8104-a5e2-c70b6983c2e0",
+        "title": "Rain Down from Above",
+        "year": 2007,
+        "country": "Russia",
+        "url": "MUBI: https://mubi.com/films/rain-down-from-above; Ivan Maximov Kroogi: http://ivanmaximov.kroogi.com/en/content/187749-RAIN-DOWN-FROM-ABOVE.html",
+        "error": "fetch failed"
+      },
+      {
+        "id": "2de9fae4-b254-81ac-ae20-c9f524fa19de",
+        "title": "Freej",
+        "year": 2006,
+        "country": "UAE",
+        "url": "1011637",
+        "error": "Failed to parse URL from 1011637"
+      },
+      {
+        "id": "2dd9fae4-b254-81c7-afb2-c01c53e61840",
+        "title": "Khan Kluay",
+        "year": 2006,
+        "country": "Thailand",
+        "url": "https://www.netflix.com/title/70104643",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2de9fae4-b254-8199-b020-f1f61c8b57e8",
+        "title": "Zhiharka",
+        "year": 2006,
+        "country": "Russia",
+        "url": "YouTube (official Gora Samotsvetov channel); Rutube; ZeroPlus.TV (legal streaming)",
+        "error": "Failed to parse URL from YouTube (official Gora Samotsvetov channel); Rutube; ZeroPlus.TV (legal streaming)"
+      },
+      {
+        "id": "f05e864a-51dd-4545-bc26-7ae7c25e1894",
+        "title": "Ghost in the Shell 2: Innocence",
+        "year": 2004,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/70001548",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "ec1b7455-78e7-4a29-af18-a56aec72430c",
+        "title": "Mind Game",
+        "year": 2004,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/80063295",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "a94e1215-1c77-4c44-90ee-c8b98b1786be",
+        "title": "Interstella 5555: The 5tory of the 5ecret 5tar 5ystem",
+        "year": 2003,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/70008515",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "759793ac-4ce9-485c-a334-fdf49e005548",
+        "title": "Blood: The Last Vampire",
+        "year": 2000,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/70013113",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "8c459028-d258-4163-9177-3465317684e4",
+        "title": "Little Otik",
+        "year": 2000,
+        "country": "Czech Republic",
+        "url": "https://www.netflix.com/title/60025313",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "b9247d74-bcf1-428b-a28c-e2673e76a2c7",
+        "title": "Neon Genesis Evangelion: Death & Rebirth",
+        "year": 1997,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/60024002",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2de9fae4-b254-8158-8a63-c454c17da8d3",
+        "title": "Nocturnal Butterflies",
+        "year": 1997,
+        "country": "Belgium",
+        "url": "NFB Collection: https://collection.nfb.ca/film/papillons-de-nuit",
+        "error": "Failed to parse URL from NFB Collection: https://collection.nfb.ca/film/papillons-de-nuit"
+      },
+      {
+        "id": "fd906ee3-ca02-40b1-841f-9a0f6f9c3121",
+        "title": "The End of Evangelion",
+        "year": 1997,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/60024788",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "14c9ece8-62c2-4ecc-93d3-ed035cf7708f",
+        "title": "Memories",
+        "year": 1995,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/60034332",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "ff267c82-8ef5-4770-9ab9-62b89936e1b7",
+        "title": "Neon Genesis Evangelion",
+        "year": 1995,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/81033445",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2de9fae4-b254-8161-8952-eca8f3e0bda3",
+        "title": "Bolero",
+        "year": 1992,
+        "country": "Russia",
+        "url": "Animatsiya.net: https://www.animatsiya.net/film.php?filmid=16; Ivan Maximov official website; YouTube (unofficial uploads)",
+        "error": "fetch failed"
+      },
+      {
+        "id": "2db9fae4-b254-81c9-9e01-dab0ff8c0976",
+        "title": "Shakespeare: The Animated Tales",
+        "year": 1992,
+        "country": "UK",
+        "url": "https://www.amazon.com/Shakespeare-Animated-Tales-Alec-McCowen/dp/B0002CHJS2",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2de9fae4-b254-81f6-9b00-d09030436c70",
+        "title": "Hen, His Wife",
+        "year": 1989,
+        "country": "USSR",
+        "url": "animatsiya.net: https://www.animatsiya.net/film.php?filmid=196",
+        "error": "fetch failed"
+      },
+      {
+        "id": "2dc9fae4-b254-8104-bb76-f66f8504086e",
+        "title": "Gandahar (Light Years)",
+        "year": 1988,
+        "country": "France",
+        "url": "https://www.amazon.com/Gandahar-Ren%C3%A9-Laloux/dp/B0DG9FQW9X",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "6c1365d6-a60e-43ad-84f5-ba33b20ff9bb",
+        "title": "Patlabor: The Early Days",
+        "year": 1988,
+        "country": "Japan",
+        "url": "https://www.netflix.com/jp-en/title/81036746",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "0284a2de-623a-41ee-8c78-c4c54dbcf00d",
+        "title": "Be Forever Yamato",
+        "year": 1980,
+        "country": "Japan",
+        "url": "https://www.netflix.com/title/70019017",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2dd9fae4-b254-8181-afd7-c6416f4c2373",
+        "title": "The King and the Mockingbird",
+        "year": 1980,
+        "country": "France",
+        "url": "https://www.amazon.com/King-Mockingbird-English-Subtitled/dp/B07VHR93YN",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2de9fae4-b254-8192-b1e1-dc4edfec3b30",
+        "title": "Zupa (Soup)",
+        "year": 1974,
+        "country": "Poland",
+        "url": "DVD: Anthology of Polish Animated Film; MUBI: https://mubi.com/en/us/films/soup",
+        "error": "fetch failed"
+      },
+      {
+        "id": "2de9fae4-b254-81e7-9879-ef40132bbefd",
+        "title": "Johnny Corncob",
+        "year": 1973,
+        "country": "Hungary",
+        "url": "Criterion Channel, Internet Archive (archive.org/details/janosvitezhd), Eastern European Movies streaming",
+        "error": "Failed to parse URL from Criterion Channel, Internet Archive (archive.org/details/janosvitezhd), Eastern European Movies streaming"
+      },
+      {
+        "id": "2dd9fae4-b254-8147-91a5-d5244e9f5ac4",
+        "title": "VIP My Brother Superman (The SuperVips)",
+        "year": 1968,
+        "country": "Italy",
+        "url": "Amazon Prime streaming; Beat Records DVD",
+        "error": "Failed to parse URL from Amazon Prime streaming; Beat Records DVD"
+      },
+      {
+        "id": "2de9fae4-b254-81a7-82b3-fdfb8b8ee35b",
+        "title": "A Story of Hong Gil-dong",
+        "year": 1967,
+        "country": "South Korea",
+        "url": "FREE: Tubi (https://tubitv.com/movies/100016235/the-story-of-hong-gil-dong); OVID.tv; Rent/Purchase: Amazon Prime Video; Korean Film Archive YouTube (4K restored 2021)",
+        "error": "fetch failed"
+      },
+      {
+        "id": "2dc9fae4-b254-81ae-abd2-d510be1863e1",
+        "title": "A Cloud in Love",
+        "year": 1959,
+        "country": "USSR",
+        "url": "https://animatsiya.net; YouTube uploads",
+        "error": "Failed to parse URL from https://animatsiya.net; YouTube uploads"
+      },
+      {
+        "id": "f9af3201-18c5-47e1-8b5f-43cf7a7aa96e",
+        "title": "The Emperor's Nightingale",
+        "year": 1948,
+        "country": "Czechoslovakia",
+        "url": "https://www.amazon.com/Emperors-Nightingale-Jir%C3%AD-Trnka/dp/B0FLQNLX5S",
+        "status": 405,
+        "statusText": "Method Not Allowed"
+      },
+      {
+        "id": "2de9fae4-b254-81d3-b9a1-c14747223183",
+        "title": "The Little Soldier",
+        "year": 1947,
+        "country": "France",
+        "url": "https://vk.com/video-167471844_456240217",
+        "status": 418,
+        "statusText": ""
+      },
+      {
+        "id": "2dc9fae4-b254-8195-ba40-ef5bd2fd6baf",
+        "title": "The Song of Joy",
+        "year": 1946,
+        "country": "USSR",
+        "url": "https://animatsiya.net; May 2025 Soyuzmultfilm restoration",
+        "error": "Failed to parse URL from https://animatsiya.net; May 2025 Soyuzmultfilm restoration"
+      },
+      {
+        "id": "327e9ea3-7f37-4eb8-abbe-1068f47fb597",
+        "title": "Love on the Wing",
+        "year": 1938,
+        "country": "UK",
+        "url": "1939",
+        "error": "Failed to parse URL from 1939"
+      },
+      {
+        "id": "00c68271-bd36-4b07-a276-b87f1bc11618",
+        "title": "Hell Unlimited",
+        "year": 1936,
+        "country": "UK",
+        "url": "1936",
+        "error": "Failed to parse URL from 1936"
+      },
+      {
+        "id": "2dc9fae4-b254-81fe-86c9-fe78fd9562d4",
+        "title": "China in Flames",
+        "year": 1925,
+        "country": "USSR",
+        "url": "https://animatsiya.net; UCL Library DVD collection; rare archival",
+        "error": "Failed to parse URL from https://animatsiya.net; UCL Library DVD collection; rare archival"
+      }
+    ]
+  }
+}

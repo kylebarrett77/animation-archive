@@ -57,6 +57,26 @@ jobs:
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
         run: npm run fetch:all
 
+      # Re-classify watch links using policy + HTTP probe, then write
+      # statuses back to Notion. Added 2026-04-25 — see
+      # scripts/lib/platform-trust.js + ops/WATCH-LINK-HARDENING.md.
+      # continue-on-error: true because a network blip on a single platform
+      # shouldn't halt the daily snapshot — the next cron tick will retry.
+      - name: Validate watch links (write back to Notion)
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        continue-on-error: true
+        run: node scripts/validate-watch-links.js --fix
+
+      # Re-fetch so the snapshot we commit reflects status writes from the
+      # validate step above. Without this, the dist/ build would lag the
+      # Notion truth by one cron tick.
+      - name: Re-fetch watch-links after validation
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: npm run fetch:links
+
       - name: Audit snapshot
         run: npm run audit
 
