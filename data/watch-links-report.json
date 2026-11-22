@@ -1,13 +1,13 @@
 {
-  "total": 2076,
-  "verified": 1006,
-  "unverified": 1067,
+  "total": 1981,
+  "verified": 1326,
+  "unverified": 538,
   "dead": 0,
   "redirect": 0,
-  "noUrl": 66,
+  "noUrl": 9,
   "byPlatform": {
     "Tubi": {
-      "total": 151,
+      "total": 148,
       "verified": 26,
       "dead": 0
     },
@@ -17,12 +17,12 @@
       "dead": 0
     },
     "Amazon Prime": {
-      "total": 112,
+      "total": 109,
       "verified": 83,
       "dead": 0
     },
     "YouTube": {
-      "total": 596,
+      "total": 593,
       "verified": 506,
       "dead": 0
     },
@@ -32,12 +32,12 @@
       "dead": 0
     },
     "Internet Archive": {
-      "total": 172,
-      "verified": 34,
+      "total": 169,
+      "verified": 166,
       "dead": 0
     },
     "Other": {
-      "total": 157,
+      "total": 118,
       "verified": 15,
       "dead": 0
     },
@@ -52,17 +52,17 @@
       "dead": 0
     },
     "Netflix": {
-      "total": 157,
-      "verified": 11,
+      "total": 155,
+      "verified": 63,
       "dead": 0
     },
     "Crunchyroll": {
-      "total": 212,
-      "verified": 29,
+      "total": 185,
+      "verified": 166,
       "dead": 0
     },
     "Vimeo": {
-      "total": 28,
+      "total": 27,
       "verified": 24,
       "dead": 0
     },
@@ -91,13 +91,8 @@
       "verified": 1,
       "dead": 0
     },
-    "Criterion Channel": {
-      "total": 10,
-      "verified": 9,
-      "dead": 0
-    },
     "Google Play": {
-      "total": 8,
+      "total": 7,
       "verified": 2,
       "dead": 0
     },
@@ -122,7 +117,7 @@
       "dead": 0
     },
     "HBO Max": {
-      "total": 13,
+      "total": 12,
       "verified": 1,
       "dead": 0
     },
@@ -132,17 +127,17 @@
       "dead": 0
     },
     "Kanopy": {
-      "total": 23,
+      "total": 22,
       "verified": 3,
       "dead": 0
     },
     "MUBI": {
-      "total": 14,
+      "total": 13,
       "verified": 1,
       "dead": 0
     },
     "HIDIVE": {
-      "total": 4,
+      "total": 2,
       "verified": 0,
       "dead": 0
     },
@@ -152,7 +147,7 @@
       "dead": 0
     },
     "iQIYI": {
-      "total": 4,
+      "total": 1,
       "verified": 0,
       "dead": 0
     },
@@ -161,12 +156,12 @@
       "verified": 48,
       "dead": 0
     },
-    "Fawesome": {
-      "total": 1,
-      "verified": 0,
+    "Criterion Channel": {
+      "total": 9,
+      "verified": 8,
       "dead": 0
     },
-    "Korean Streaming": {
+    "Fawesome": {
       "total": 1,
       "verified": 0,
       "dead": 0
@@ -177,17 +172,17 @@
       "dead": 0
     },
     "Shahid": {
-      "total": 3,
-      "verified": 0,
-      "dead": 0
-    },
-    "Peacock": {
-      "total": 4,
+      "total": 2,
       "verified": 0,
       "dead": 0
     },
     "Giloo": {
       "total": 1,
+      "verified": 0,
+      "dead": 0
+    },
+    "Peacock": {
+      "total": 2,
       "verified": 0,
       "dead": 0
     },
