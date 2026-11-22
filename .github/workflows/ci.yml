@@ -24,8 +24,8 @@ jobs:
   validate:
     name: Audit + smoke build
     runs-on: ubuntu-latest
-    # Full build is currently ~10 min; tighten once build speed is fixed.
-    timeout-minutes: 25
+    # The build takes well under a minute; this is just a runaway guard.
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
