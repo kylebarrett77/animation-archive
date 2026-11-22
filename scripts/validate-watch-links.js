@@ -13,7 +13,13 @@
  *   --report-only  Only generate report, don't check URLs (uses cached data)
  */
 
-import 'dotenv/config';
+// dotenv import is best-effort — node 22 ESM resolution barfs on the bare
+// 'dotenv/config' specifier. If env vars are already in process.env (e.g.
+// supplied by a wrapper or `set -a; source .env; set +a`) we skip it.
+if (!process.env.NOTION_TOKEN) {
+  try { await import('dotenv/config.js'); } catch {}
+  try { (await import('dotenv')).default.config(); } catch {}
+}
 import { Client } from '@notionhq/client';
 import https from 'https';
 import http from 'http';

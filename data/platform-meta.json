@@ -1,0 +1,306 @@
+{
+  "_doc": "Per-platform intro copy + tier/region metadata for /platforms/<slug>.html pages. Keys must match the Notion 'Platform' property values verbatim (case-sensitive). Build skips intro rendering for platforms not listed here. Fields: tier (free|paid|mixed), region (global|US|EU|JP|CN|RU|MENA|library|...), url (platform homepage), tagline (~6-10 word SEO subtitle), intro (1-3 sentence prose, plain text — markdown not supported).",
+  "platforms": {
+    "Internet Archive": {
+      "tier": "free",
+      "region": "global",
+      "url": "https://archive.org",
+      "tagline": "Free public-domain animation, no account required",
+      "intro": "Archive.org's animation holdings span Soviet shorts uploaded by enthusiasts, pre-1928 silent-era American works, NFB pieces hosted with permission, and a long tail of regional and propaganda animation from countries that no longer exist. Free, no account required, and often the only place a given title is legally available outside its country of origin."
+    },
+    "NFB": {
+      "tier": "free",
+      "region": "global",
+      "url": "https://www.nfb.ca",
+      "tagline": "The National Film Board of Canada — free, official, global",
+      "intro": "The National Film Board of Canada streams the full NFB animation catalog free to a global audience — Norman McLaren, Caroline Leaf, Co Hoedeman, the entire Canadian experimental tradition. Funded by Canadian taxpayers, deliberately accessible. No login. No ads. The standard every public broadcaster animation archive should aspire to."
+    },
+    "Animatsiya.net": {
+      "tier": "free",
+      "region": "global",
+      "url": "https://www.animatsiya.net",
+      "tagline": "Soviet and Russian animation archive, English-subtitled",
+      "intro": "A volunteer-run archive of Soviet and post-Soviet animation, with English subtitles on most entries. Yuriy Norshteyn, Fyodor Khitruk, the entire Soyuzmultfilm catalog, plus rarer regional works from the Estonian, Georgian, and Armenian studios. Free, ad-free, hosted in good faith — the closest thing to a complete Russian-animation archive available to non-Russian speakers."
+    },
+    "YouTube": {
+      "tier": "mixed",
+      "region": "global",
+      "url": "https://www.youtube.com",
+      "tagline": "Mostly free uploads, some rentals — quality varies",
+      "intro": "Most YouTube entries in this archive are free official uploads — studios, distributors, or rights-holders who put their own catalog up. A handful are licensed rentals through YouTube Movies. Region-locking is platform-level, not per-title; quality varies from official 4K masters to fan VHS rips. We've verified the URLs, not the upload provenance."
+    },
+    "Vimeo": {
+      "tier": "mixed",
+      "region": "global",
+      "url": "https://vimeo.com",
+      "tagline": "Festival circuit and indie animation, mostly free",
+      "intro": "Vimeo skews toward festival shorts, art-school student work, and indie animators self-distributing. Most entries here are free; a few are paid rentals or part of Vimeo OTT subscriptions. The signal-to-noise ratio for serious animation is much higher than YouTube's — but the catalog is smaller."
+    },
+    "Bilibili": {
+      "tier": "mixed",
+      "region": "CN",
+      "url": "https://www.bilibili.com",
+      "tagline": "Chinese animation hub — most free, some require 大会员",
+      "intro": "China's largest video platform and the de facto home of contemporary Chinese animation. Most of the catalog is free with ads; older works and current Donghua serials sometimes require 大会员 (DàHuìYuán) premium. Some titles are geo-locked outside mainland China — a VPN or local account may be required for full access from elsewhere."
+    },
+    "Tubi": {
+      "tier": "free",
+      "region": "US",
+      "url": "https://tubitv.com",
+      "tagline": "Free with ads — strong on dubbed anime and B-tier features",
+      "intro": "Free, ad-supported, currently US-only (Canada and Australia recently added a separate Tubi catalog). Strongest on licensed anime dubs and lower-tier theatrical features that aged out of premium services. Account optional — most titles play without sign-in. The largest legal free-to-watch animation library if you're in a supported region."
+    },
+    "Pluto TV": {
+      "tier": "free",
+      "region": "US",
+      "url": "https://pluto.tv",
+      "tagline": "Free linear streaming, US-only, ad-supported",
+      "intro": "Paramount-owned free-with-ads streaming, US-focused with limited European territories. Animation distribution is uneven — strong on Nickelodeon back catalog and licensed anime, weaker elsewhere. Linear-channel layout means individual titles drift in and out of the catalog; check before relying on a specific watch link."
+    },
+    "Netflix": {
+      "tier": "paid",
+      "region": "global",
+      "url": "https://www.netflix.com",
+      "tagline": "Subscription required — region-dependent catalogs",
+      "intro": "Netflix's animation catalog varies dramatically by region — a Japan account holds 5x the anime library of a US account, and licensed European animation often sits behind country-specific catalogs. Subscription required ($6.99–22.99/mo). Catalog volatility is high — titles drop on ~30-day notice. We verify URL patterns, not catalog membership; verify availability in your region before clicking."
+    },
+    "Disney+": {
+      "tier": "paid",
+      "region": "global",
+      "url": "https://www.disneyplus.com",
+      "tagline": "Subscription required — Disney, Pixar, Studio Ghibli (in some regions)",
+      "intro": "Disney's vertical streaming service. The animation catalog spans the full Disney/Pixar canon plus Studio Ghibli in select regions (most of the world ex. US/Japan). Subscription only ($9.99–15.99/mo). Region-locked: a Ghibli title visible from London won't play from a US account, and vice versa for some Marvel/Disney shorts."
+    },
+    "Hulu": {
+      "tier": "paid",
+      "region": "US",
+      "url": "https://www.hulu.com",
+      "tagline": "Subscription, US-only — strongest on FX and licensed anime",
+      "intro": "Disney's US-only general streaming service. Animation catalog skews toward FX/Adult Swim adult animation and a co-licensed anime sub-catalog inherited from the pre-Disney era. Subscription ($9.99–18.99/mo). Outside the US, the equivalent content typically sits on Disney+'s Star tier."
+    },
+    "Amazon Prime": {
+      "tier": "paid",
+      "region": "global",
+      "url": "https://www.amazon.com/Prime-Video",
+      "tagline": "Mixed model — Prime subscription, rental, or purchase",
+      "intro": "Amazon Prime Video runs three concurrent models: free-with-Prime-subscription titles, à la carte rentals (24-48hr), and digital purchases. The mix varies per title and per region. Animation catalog is broad but uneven — strong on licensed children's TV, weaker on auteur/world animation. Region-locking is severe: a title rentable in Germany may not appear at all in the US."
+    },
+    "Apple TV": {
+      "tier": "paid",
+      "region": "global",
+      "url": "https://tv.apple.com",
+      "tagline": "Rental, purchase, or Apple TV+ subscription",
+      "intro": "Most animation entries here are à la carte rentals or digital purchases through the Apple TV / iTunes Store. A small Apple TV+ subscription catalog exists but contains few animated works. Region-locking determines pricing and availability; the same title may be a $3.99 rental in one country and unavailable in another."
+    },
+    "HBO Max": {
+      "tier": "paid",
+      "region": "US",
+      "url": "https://www.max.com",
+      "tagline": "Subscription, primarily US — Studio Ghibli, Cartoon Network catalog",
+      "intro": "Warner-owned premium streaming, rebranded from HBO Max to Max in 2023. In the US, holds the full Cartoon Network back catalog, Adult Swim originals, and (until renewal cycles change) the Studio Ghibli US license. Available in select Latin American and European markets with smaller catalogs; not available in most of Asia-Pacific."
+    },
+    "Paramount+": {
+      "tier": "paid",
+      "region": "US",
+      "url": "https://www.paramountplus.com",
+      "tagline": "Subscription — primarily Nickelodeon and CBS animation",
+      "intro": "Paramount's vertical service. Animation catalog draws from Nickelodeon, the CBS classic library, and a small slate of original animated features. Available in the US, Canada, UK, Australia, and parts of Latin America with regional catalogs. The free with-ads parent service Pluto TV often carries overlapping content."
+    },
+    "Peacock": {
+      "tier": "paid",
+      "region": "US",
+      "url": "https://www.peacocktv.com",
+      "tagline": "NBC-Universal streaming, US-only",
+      "intro": "NBCUniversal's streaming service, US-only. Animation catalog is small but distinctive: the DreamWorks back catalog (post-2022), Universal-distributed Asian features, and a thin slate of licensed anime. Free tier exists with limited content; full catalog requires Premium ($7.99–14.99/mo)."
+    },
+    "Crunchyroll": {
+      "tier": "mixed",
+      "region": "global",
+      "url": "https://www.crunchyroll.com",
+      "tagline": "Anime — free tier exists, Premium for the full catalog",
+      "intro": "The dominant Western anime streaming service. The free tier carries ads and limited recent titles; Premium ($7.99–14.99/mo) unlocks the full catalog. Region varies — Japan, Korea, and Southeast Asia often route to local services."
+    },
+    "HIDIVE": {
+      "tier": "paid",
+      "region": "US",
+      "url": "https://www.hidive.com",
+      "tagline": "Anime subscription — Sentai Filmworks library, US-focused",
+      "intro": "Subscription anime platform built around the Sentai Filmworks catalog — strong on simulcast originals and back catalog that Crunchyroll passed on. Available in the US, Canada, UK, Ireland, Australia, New Zealand, and parts of Latin America. $4.99/mo, no ads, dub and sub options on most titles."
+    },
+    "MUBI": {
+      "tier": "paid",
+      "region": "global",
+      "url": "https://mubi.com",
+      "tagline": "Curated arthouse — short rotating subscription catalog",
+      "intro": "Curated arthouse streaming with a rotating ~30-title library plus a permanent collection. Animation entries trend heavily toward festival circuit and auteur work — Anča Slovenský, Nina Bisyarina, the Ottawa and Annecy programs. Subscription $14.99/mo (cheaper annually). Available in most of the world."
+    },
+    "Criterion Channel": {
+      "tier": "paid",
+      "region": "US",
+      "url": "https://www.criterionchannel.com",
+      "tagline": "Subscription — curated arthouse and animation classics",
+      "intro": "The Criterion Collection's streaming home, US/Canada-only. Animation programming runs in seasonal collections — Czech surrealism, NFB experimental, Norman McLaren retrospectives, regular Studio Ghibli and Aardman seasons. Subscription $10.99/mo. Catalog rotation is heavy; check availability before relying on a watch link."
+    },
+    "Kanopy": {
+      "tier": "free",
+      "region": "library",
+      "url": "https://www.kanopy.com",
+      "tagline": "Free with library card — academic and public library streaming",
+      "intro": "Free streaming through participating public libraries and universities. Most US, Canadian, UK, and Australian library systems include access. Limited monthly play credits per library, but no per-title fee. Strong on documentary and arthouse animation — the Criterion Collection licenses rotate through here, plus dedicated children's and educational tracks."
+    },
+    "Hoopla": {
+      "tier": "free",
+      "region": "library",
+      "url": "https://www.hoopladigital.com",
+      "tagline": "Free with library card — North American public libraries",
+      "intro": "Free streaming through participating US and Canadian public libraries. Limited monthly checkouts per cardholder. Animation catalog is broad and shallow — strong on licensed children's TV, weaker on auteur work. Some titles are concurrent-use, so popular series can show as 'available' but fail to play during peak hours."
+    },
+    "Plex": {
+      "tier": "mixed",
+      "region": "global",
+      "url": "https://www.plex.tv",
+      "tagline": "Free ad-supported tier plus rentals and personal libraries",
+      "intro": "Originally a personal-media-server tool, now also a free ad-supported streaming service (Plex FAST) with a paid rental layer. Animation catalog skews toward older theatrical features and licensed B-tier content. Account required for the free tier; Plex Pass subscription unlocks personal-library features unrelated to the streaming catalog."
+    },
+    "Niconico": {
+      "tier": "mixed",
+      "region": "JP",
+      "url": "https://www.nicovideo.jp",
+      "tagline": "Japanese platform — free tier, Premium subscription",
+      "intro": "Japan's homegrown video platform, distinguished by overlay-comments scrolling across the playback. Animation catalog includes Niconico-original works, fan productions, and a long tail of older anime. Free tier limits playback quality and bandwidth; Premium (¥550/mo) lifts those caps. Most premium Japanese-only content; non-JP region requires a workaround."
+    },
+    "ABEMA": {
+      "tier": "free",
+      "region": "JP",
+      "url": "https://abema.tv",
+      "tagline": "Japanese free linear streaming with anime channels",
+      "intro": "CyberAgent's free linear-streaming service, anime-heavy. Free tier offers live channels including 24/7 anime. ABEMA Premium (¥960/mo) unlocks on-demand replay, simultaneous viewing limits, and exclusive originals. Mostly JP-only outside of select simulcasts pushed to international audiences."
+    },
+    "U-NEXT": {
+      "tier": "paid",
+      "region": "JP",
+      "url": "https://video.unext.jp",
+      "tagline": "Japanese SVOD — broadest legal anime catalog in Japan",
+      "intro": "Japan's largest by-subscription video service. Anime catalog is broader than any single Western competitor — old Mushi Production works, Kanagawa-region indie studios, full simulcast slate. ¥2,189/mo. Japan-only, no easy bypass for international viewers."
+    },
+    "dアニメストア": {
+      "tier": "paid",
+      "region": "JP",
+      "url": "https://anime.dmkt-sp.jp",
+      "tagline": "Anime-focused SVOD — NTT Docomo, JP-only",
+      "intro": "Anime-only subscription service from NTT Docomo. ¥550/mo, the cheapest anime-focused SVOD in Japan. Catalog is among the largest legal anime libraries in the world — but JP-only with no overseas access path."
+    },
+    "Bandai Channel": {
+      "tier": "paid",
+      "region": "JP",
+      "url": "https://www.b-ch.com",
+      "tagline": "Bandai-Namco anime archive, JP subscription",
+      "intro": "Bandai's owned anime catalog, tilted heavily toward the company's mecha and tokusatsu IP — Gundam, Eldoran, Brave Series. Subscription ¥1,100/mo, Japan-only. The deepest legal source for older Bandai-produced anime."
+    },
+    "FOD": {
+      "tier": "paid",
+      "region": "JP",
+      "url": "https://fod.fujitv.co.jp",
+      "tagline": "Fuji TV's catalog — anime + drama, JP-only",
+      "intro": "Fuji TV's by-subscription on-demand service. Animation catalog draws from Fuji TV's own production slate (Noitamina block, Gundam co-productions). ¥976/mo, Japan-only."
+    },
+    "Korean Streaming": {
+      "tier": "mixed",
+      "region": "KR",
+      "url": "",
+      "tagline": "Catch-all for Wavve, TVING, Watcha and other Korean services",
+      "intro": "Catch-all label for Korean-domiciled streaming services — Wavve, TVING, Watcha, Coupang Play, NEW iD. Most require a Korean account or address; international access varies by service. Animation catalog is dominated by Korean originals and licensed anime; catalogs differ sharply between services."
+    },
+    "iQIYI": {
+      "tier": "mixed",
+      "region": "CN",
+      "url": "https://www.iqiyi.com",
+      "tagline": "Chinese SVOD — free with ads, premium for full catalog",
+      "intro": "Baidu-owned Chinese streaming giant. Free ad-supported tier includes most older Donghua and licensed anime; VIP membership (¥30/mo equivalent) unlocks 4K, simulcasts, and exclusive originals. Domestic catalog (CN) and international catalogs (most Asia-Pacific + select Western markets) differ significantly."
+    },
+    "Tencent Video": {
+      "tier": "mixed",
+      "region": "CN",
+      "url": "https://v.qq.com",
+      "tagline": "Chinese SVOD — most catalog free, exclusives behind VIP",
+      "intro": "Tencent's streaming service, China's largest by paying subscribers. Most animation catalog is free with ads; Tencent's flagship Donghua originals are VIP-locked. Outside China the WeTV-branded international portal carries a smaller catalog with stricter region-locking."
+    },
+    "Youku": {
+      "tier": "mixed",
+      "region": "CN",
+      "url": "https://www.youku.com",
+      "tagline": "Alibaba's Chinese streaming service",
+      "intro": "Alibaba-owned, third of the Chinese big-three streaming services. Animation catalog overlaps heavily with iQIYI and Tencent for licensed content; differentiates on a smaller slate of Youku-original Donghua. Mostly Chinese-domestic with limited international access."
+    },
+    "RetroCrush": {
+      "tier": "free",
+      "region": "US",
+      "url": "https://www.retrocrush.tv",
+      "tagline": "Free ad-supported retro anime — pre-2000 catalog",
+      "intro": "Free, ad-supported, US-only. Specialized in pre-2000 anime — Lupin III, Cyber City Oedo, Project A-ko, the OVA-era stuff that didn't survive into mainstream services. No sign-in. Catalog is small but uniquely deep for the era."
+    },
+    "Fawesome": {
+      "tier": "free",
+      "region": "US",
+      "url": "https://fawesometv.com",
+      "tagline": "Free ad-supported — older feature animation",
+      "intro": "Future Today's free ad-supported streamer, US-focused. Animation catalog is shallow but covers theatrical features that have aged out of premium services."
+    },
+    "Vudu": {
+      "tier": "paid",
+      "region": "US",
+      "url": "https://www.vudu.com",
+      "tagline": "Walmart's à-la-carte rental/purchase service, US-only",
+      "intro": "Walmart-owned digital rental and purchase service, US-only. Free Movies on Us tier exists but skews older and sparser for animation. Animation catalog is broad but transactional — most titles are $3.99–14.99 per rental or purchase."
+    },
+    "Google Play": {
+      "tier": "paid",
+      "region": "global",
+      "url": "https://play.google.com/store/movies",
+      "tagline": "Per-title rental and purchase via Google",
+      "intro": "Google's à-la-carte digital rental and purchase store, global with regional pricing. Animation catalog overlaps significantly with Apple TV; pricing and availability vary by territory."
+    },
+    "Shahid": {
+      "tier": "paid",
+      "region": "MENA",
+      "url": "https://shahid.mbc.net",
+      "tagline": "MBC's Middle-East streaming — Arabic-dub anime",
+      "intro": "MBC's pan-Arab streaming service. Animation catalog includes Arabic-dubbed anime (the foundational dubbing tradition that gave the region its anime canon), original Arabic animation, and licensed content. Subscription required, available across MENA with limited international access."
+    },
+    "Giloo": {
+      "tier": "paid",
+      "region": "global",
+      "url": "https://giloo.ist",
+      "tagline": "Documentary and arthouse — Taiwanese curation, global access",
+      "intro": "Taiwanese arthouse and documentary streaming, available globally. Animation slate is small but curated — heavy on Asian indie/festival work that struggles to reach Western platforms. Subscription required (NT$390/mo)."
+    },
+    "Dailymotion": {
+      "tier": "free",
+      "region": "global",
+      "url": "https://www.dailymotion.com",
+      "tagline": "French-domiciled video host, ad-supported",
+      "intro": "Vivendi-owned French video platform, free with ads. Animation catalog is patchy — relies on user uploads more than YouTube does. Useful for French and European animation that hasn't found a home on the bigger platforms; quality and rights status often unclear."
+    },
+    "Short of the Week": {
+      "tier": "free",
+      "region": "global",
+      "url": "https://www.shortoftheweek.com",
+      "tagline": "Free curated short-film hub",
+      "intro": "Editor-curated short-film platform — staff-picked weekly entries plus a deep archive. Animation programming is strong on festival and student work. Free, no account required, embeds Vimeo and other player back-ends."
+    },
+    "UNIT9 Archive": {
+      "tier": "free",
+      "region": "global",
+      "url": "",
+      "tagline": "Studio archive — UNIT9's own back catalog",
+      "intro": "London/global creative studio UNIT9's self-archived back catalog. Animation entries are mostly commissioned commercial and brand work; a thin slate of original shorts. Free, no account."
+    },
+    "Other": {
+      "tier": "mixed",
+      "region": "global",
+      "url": "",
+      "tagline": "Long-tail platforms — regional services, fan archives, defunct hosts",
+      "intro": "Catch-all for platforms too small or specialized to warrant their own bucket — regional Eastern European archives, fan-restored sites, semi-defunct hosts that still serve legacy content, and niche national services. Quality and reliability vary widely; tier and region depend on the specific entry."
+    }
+  }
+}

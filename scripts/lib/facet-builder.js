@@ -70,6 +70,14 @@ function generateFacetDetailPage(config, value, valueFilms) {
     ? config.describe(value, sorted)
     : `Explore ${sorted.length} ${escapeHtml(value)} animated films from around the world in the Global Animation Archive.`;
 
+  // Optional richer OG/Twitter metadata. Falls back to description.
+  const ogTitle = (typeof config.detailTitle === 'function')
+    ? config.detailTitle(value, sorted)
+    : `${value} — Global Animation Archive`;
+  const ogDescription = (typeof config.detailOgDescription === 'function')
+    ? config.detailOgDescription(value, sorted)
+    : description;
+
   const valueSlug = slugify(value);
   const singularName = name; // e.g. "Genre"
 
@@ -104,21 +112,28 @@ function generateFacetDetailPage(config, value, valueFilms) {
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeHtml(
-    typeof config.detailTitle === 'function'
-      ? config.detailTitle(value, sorted)
-      : `${value} — Global Animation Archive`
-  )}</title>
+<title>${escapeHtml(ogTitle)}</title>
 <meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${SITE_URL}/${slug}/${valueSlug}.html">
 ${FAVICON}
+<meta property="og:type" content="website">
+<meta property="og:title" content="${escapeHtml(ogTitle)}">
+<meta property="og:description" content="${escapeHtml(ogDescription)}">
+<meta property="og:url" content="${SITE_URL}/${slug}/${valueSlug}.html">
+<meta property="og:site_name" content="Global Animation Archive">
+<meta property="og:image" content="${SITE_URL}/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escapeHtml(ogTitle)}">
+<meta name="twitter:description" content="${escapeHtml(ogDescription)}">
+<meta name="twitter:image" content="${SITE_URL}/og-image.png">
+${typeof config.detailJsonLd === 'function' ? `<script type="application/ld+json">${config.detailJsonLd(value, sorted)}</script>` : ''}
 ${deps.FONT_HEAD || ''}
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -127,11 +142,17 @@ ${generateBreadcrumb([
   { label: escapeHtml(value) }
 ], '../')}
 <main class="tag-page ${name.toLowerCase()}-page" id="main-content">
-  <div class="tag-header">
-    <span class="tag-type">${escapeHtml(singularName)}</span>
-    <h1 class="tag-name">${escapeHtml(value)}</h1>
-    <p class="tag-count">${sorted.length} films</p>
-  </div>
+  ${typeof config.detailHero === 'function'
+    ? config.detailHero(value, sorted)
+    : `<div class="tag-header">
+        <span class="tag-type">${escapeHtml(singularName)}</span>
+        <h1 class="tag-name">${escapeHtml(value)}</h1>
+        <p class="tag-count">${sorted.length} films</p>
+        ${typeof config.detailBadges === 'function' ? config.detailBadges(value, sorted) : ''}
+      </div>
+      ${typeof config.detailIntro === 'function' ? config.detailIntro(value, sorted) : ''}`}
+
+  ${typeof config.detailCuratorPicks === 'function' ? config.detailCuratorPicks(value, sorted) : ''}
 
   ${(showCountries || showDecades || showTechniques) ? `
   <div class="tag-stats-grid">
@@ -156,13 +177,13 @@ ${generateBreadcrumb([
     <div class="table-wrapper">
       <table class="film-table">
         <thead><tr>
-          <th scope="col" style="width:90px">Year</th>
+          <th scope="col" class="col-year">Year</th>
           <th scope="col">Title</th>
           <th scope="col">Director / Studio</th>
-          <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
-          <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
-          <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
-          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+          <th scope="col" class="col-technique hide-mobile">Technique</th>
+          <th scope="col" class="col-runtime hide-mobile">Runtime</th>
+          <th scope="col" class="col-confidence hide-mobile">Confidence</th>
+          <th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
         <tbody>${generateTableRows(sorted, { basePath: '../' })}</tbody>
       </table>
@@ -179,7 +200,8 @@ ${generateFooter('../')}
 function generateFacetIndexPage(config, valuesWithFilms) {
   const { slug, label, films, deps } = config;
   const { slugify, escapeHtml, generateBreadcrumb, generateFooter,
-          SITE_URL, FAVICON, BUILD_DATE } = deps;
+          SITE_URL, FAVICON, BUILD_DATE,
+          entityIndexControls, entityIndexEnhanceScript, entityIndexTopChips } = deps;
 
   const thresholds = config.sizeThresholds || DEFAULT_SIZE_THRESHOLDS;
 
@@ -213,7 +235,7 @@ ${deps.FONT_HEAD || ''}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -233,6 +255,17 @@ ${generateBreadcrumb([
         : (config.indexSubtitle || `Browse ${sorted.length} ${label.toLowerCase()}`)
     )}</p>
   </div>
+  ${/* Rec #2 (2026-05-03): top-chips + search affordances on tag-cloud
+       indexes (platforms, genres, keywords). Brings them into parity with
+       countries/directors. Helpers passed in via deps; if a host build
+       doesn't supply them, the chips/search silently degrade. */ ''}
+  ${entityIndexTopChips ? entityIndexTopChips(
+    sorted,
+    (item) => `${slugify(item.name)}.html`,
+    (item) => item.count,
+    { label: 'Most films', limit: 10 }
+  ) : ''}
+  ${entityIndexControls ? entityIndexControls(sorted.length, label.toLowerCase()) : ''}
   <div class="tag-cloud">
     ${sorted.map(({ name, count }) => {
       const size = pickSize(count, thresholds);
@@ -242,6 +275,7 @@ ${generateBreadcrumb([
       </a>`;
     }).join('')}
   </div>
+  ${entityIndexEnhanceScript ? entityIndexEnhanceScript(sorted.length, label.toLowerCase()) : ''}
 </main>
 ${generateFooter('../')}
 </body></html>`;

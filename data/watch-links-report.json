@@ -1,98 +1,153 @@
 {
-  "total": 1762,
-  "verified": 664,
-  "unverified": 1025,
-  "dead": 57,
-  "redirect": 16,
-  "noUrl": 105,
+  "total": 2076,
+  "verified": 1006,
+  "unverified": 1067,
+  "dead": 0,
+  "redirect": 0,
+  "noUrl": 66,
   "byPlatform": {
-    "YouTube": {
-      "total": 484,
-      "verified": 396,
+    "Tubi": {
+      "total": 151,
+      "verified": 26,
       "dead": 0
     },
     "Apple TV": {
-      "total": 31,
-      "verified": 28,
+      "total": 54,
+      "verified": 46,
       "dead": 0
     },
-    "Plex": {
-      "total": 25,
-      "verified": 0,
+    "Amazon Prime": {
+      "total": 112,
+      "verified": 83,
       "dead": 0
     },
-    "Bilibili": {
-      "total": 19,
-      "verified": 17,
+    "YouTube": {
+      "total": 596,
+      "verified": 506,
       "dead": 0
     },
-    "Disney+": {
-      "total": 38,
-      "verified": 0,
+    "Dailymotion": {
+      "total": 26,
+      "verified": 6,
       "dead": 0
     },
     "Internet Archive": {
-      "total": 142,
-      "verified": 0,
-      "dead": 0
-    },
-    "MUBI": {
-      "total": 13,
-      "verified": 1,
-      "dead": 0
-    },
-    "Hulu": {
-      "total": 38,
-      "verified": 1,
-      "dead": 0
-    },
-    "Crunchyroll": {
-      "total": 198,
-      "verified": 6,
-      "dead": 14
-    },
-    "Tubi": {
-      "total": 125,
-      "verified": 0,
-      "dead": 1
-    },
-    "Netflix": {
-      "total": 147,
-      "verified": 0,
-      "dead": 1
-    },
-    "Amazon Prime": {
-      "total": 63,
-      "verified": 51,
-      "dead": 1
-    },
-    "HIDIVE": {
-      "total": 6,
-      "verified": 0,
-      "dead": 2
-    },
-    "Pluto TV": {
-      "total": 14,
-      "verified": 2,
+      "total": 172,
+      "verified": 34,
       "dead": 0
     },
     "Other": {
       "total": 157,
+      "verified": 15,
+      "dead": 0
+    },
+    "Bilibili": {
+      "total": 29,
+      "verified": 23,
+      "dead": 0
+    },
+    "ABEMA": {
+      "total": 3,
+      "verified": 2,
+      "dead": 0
+    },
+    "Netflix": {
+      "total": 157,
+      "verified": 11,
+      "dead": 0
+    },
+    "Crunchyroll": {
+      "total": 212,
+      "verified": 29,
+      "dead": 0
+    },
+    "Vimeo": {
+      "total": 28,
+      "verified": 24,
+      "dead": 0
+    },
+    "U-NEXT": {
+      "total": 13,
+      "verified": 13,
+      "dead": 0
+    },
+    "Hulu": {
+      "total": 30,
+      "verified": 3,
+      "dead": 0
+    },
+    "dアニメストア": {
+      "total": 21,
+      "verified": 19,
+      "dead": 0
+    },
+    "Bandai Channel": {
+      "total": 20,
+      "verified": 19,
+      "dead": 0
+    },
+    "RetroCrush": {
+      "total": 1,
+      "verified": 1,
+      "dead": 0
+    },
+    "Criterion Channel": {
+      "total": 10,
+      "verified": 9,
+      "dead": 0
+    },
+    "Google Play": {
+      "total": 8,
+      "verified": 2,
+      "dead": 0
+    },
+    "Vudu": {
+      "total": 3,
+      "verified": 2,
+      "dead": 0
+    },
+    "FOD": {
+      "total": 2,
+      "verified": 2,
+      "dead": 0
+    },
+    "Disney+": {
+      "total": 28,
       "verified": 0,
-      "dead": 37
+      "dead": 0
+    },
+    "Pluto TV": {
+      "total": 17,
+      "verified": 4,
+      "dead": 0
     },
     "HBO Max": {
       "total": 13,
+      "verified": 1,
+      "dead": 0
+    },
+    "Plex": {
+      "total": 26,
+      "verified": 1,
+      "dead": 0
+    },
+    "Kanopy": {
+      "total": 23,
+      "verified": 3,
+      "dead": 0
+    },
+    "MUBI": {
+      "total": 14,
+      "verified": 1,
+      "dead": 0
+    },
+    "HIDIVE": {
+      "total": 4,
       "verified": 0,
       "dead": 0
     },
     "Paramount+": {
       "total": 6,
-      "verified": 0,
-      "dead": 0
-    },
-    "Dailymotion": {
-      "total": 20,
       "verified": 0,
       "dead": 0
     },
@@ -106,30 +161,10 @@
       "verified": 48,
       "dead": 0
     },
-    "Vimeo": {
-      "total": 27,
-      "verified": 23,
-      "dead": 0
-    },
-    "Criterion Channel": {
-      "total": 17,
-      "verified": 15,
-      "dead": 0
-    },
-    "Google Play": {
-      "total": 5,
-      "verified": 0,
-      "dead": 0
-    },
     "Fawesome": {
-      "total": 2,
+      "total": 1,
       "verified": 0,
       "dead": 0
-    },
-    "Kanopy": {
-      "total": 30,
-      "verified": 0,
-      "dead": 1
     },
     "Korean Streaming": {
       "total": 1,
@@ -157,8 +192,8 @@
       "dead": 0
     },
     "Animatsiya.net": {
-      "total": 77,
-      "verified": 76,
+      "total": 74,
+      "verified": 73,
       "dead": 0
     },
     "Short of the Week": {

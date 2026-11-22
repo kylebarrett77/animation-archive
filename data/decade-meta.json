@@ -1,0 +1,70 @@
+{
+  "_doc": "Per-decade editorial metadata for /decades/<year>s.html pages. Keys are integer decade-start years (1900, 1910, ..., 2020). Fields: tagline (the existing one-liner — appears in hero subtitle and prev/next nav), intro (2-3 sentence chapter framing rendered as the hero lede), keyMovements (3-5 bullets of the era's defining shifts). Smaller decades render with empty/short content; the helper handles missing fields gracefully.",
+  "decades": {
+    "1900": {
+      "tagline": "The birth of animation — pioneers experiment with motion pictures",
+      "intro": "Animation in the 1900s was a curiosity sandwiched between vaudeville and the magic-lantern show. Émile Cohl in Paris, Stuart Blackton in New York, Winsor McCay's earliest sketches — single-creator novelties drawn frame by frame, projected at fairs and theaters. The medium hadn't decided yet what it was for.",
+      "keyMovements": ["Émile Cohl's stick-figure metamorphoses", "J. Stuart Blackton's experimental shorts", "First chalkboard-and-erase tricks", "Pre-narrative visual gags"]
+    },
+    "1910": {
+      "tagline": "Early animation studios emerge, theatrical shorts gain popularity",
+      "intro": "The 1910s industrialized the form. Winsor McCay's Gertie the Dinosaur (1914) proved animation could carry a personality and a performance. Studios — John Bray, Raoul Barré, Pat Sullivan — formalized the production line, patented techniques, and started turning out theatrical shorts as a regular product.",
+      "keyMovements": ["Gertie the Dinosaur — character animation born", "Bray-Hurd cel patents", "Krazy Kat strip adapted to film", "First studio assembly lines"]
+    },
+    "1920": {
+      "tagline": "Silent era golden age — Felix the Cat, Fleischer Studios rise",
+      "intro": "By the 1920s animation had a star (Felix the Cat) and a defining studio rivalry (Disney vs. Fleischer). The Fleischers developed rotoscoping, the Out of the Inkwell series broke the fourth wall, Disney's early Alice and Oswald shorts laid the groundwork for what would become Mickey. Soviet experimental animation also began here — Vertov's montage logic feeding through to early animators.",
+      "keyMovements": ["Felix the Cat — first animated star", "Fleischer Studios + rotoscope", "Disney early shorts (Alice, Oswald)", "Soviet montage influence on early experimentalists"]
+    },
+    "1930": {
+      "tagline": "Sound transforms animation — Disney dominates, Snow White debuts",
+      "intro": "Steamboat Willie (1928) had already arrived; the 1930s built the industry around it. Disney's Silly Symphonies, full Technicolor (1932), and the moonshot of Snow White and the Seven Dwarfs (1937) reset the ceiling. Fleischer competed with Betty Boop and Popeye. Norman McLaren joined the GPO Film Unit. The Frenkel Brothers in Cairo made the first Arabic animation. Animation became a multinational commercial form.",
+      "keyMovements": ["Snow White — first feature-length cel animation", "Silly Symphonies + multiplane camera", "Betty Boop and Popeye era", "Frenkel Brothers (Egypt) — first Arabic animation", "Norman McLaren joins GPO"]
+    },
+    "1940": {
+      "tagline": "Wartime propaganda and postwar experimentation across the globe",
+      "intro": "WWII militarized animation everywhere — Disney made training films for the US Navy, Soyuzmultfilm produced Soviet propaganda, Toei's predecessor studios produced Japanese wartime shorts. The postwar period (1945–1949) was the inverse: state archives released their wartime stockpiles into theatrical distribution and avant-garde animators (McLaren in Canada, Norman McLaren's GPO veterans, the National Film Board) used the new institutional support to push abstraction.",
+      "keyMovements": ["Disney wartime training shorts", "Soyuzmultfilm founded (1936) hits stride", "NFB Canada animation studio established (1941)", "Postwar avant-garde (McLaren, Lye, Whitney brothers)", "Tom and Jerry Oscar dominance"]
+    },
+    "1950": {
+      "tagline": "Television reshapes the industry, UPA modernism, anime beginnings",
+      "intro": "Television annihilated the theatrical short. UPA's modernist response — Mr. Magoo, Gerald McBoing-Boing — proved limited animation could be high art. Toei Animation founded in 1948 and produced Japan's first feature-length color animated film in 1958. Soyuzmultfilm built the Russian-school house style. The first Annecy festival (1960 — just past the decade boundary) was already being planned.",
+      "keyMovements": ["UPA modernism (Magoo, McBoing-Boing)", "Toei Animation founded — first Japanese feature", "Hanna-Barbera limited-animation TV pivot", "Soyuzmultfilm house style codified", "Norman McLaren's Neighbours wins Oscar (1953)"]
+    },
+    "1960": {
+      "tagline": "Artistic renaissance — Zagreb School, NFB, auteur animation flourishes",
+      "intro": "The 1960s were animation's New Wave. The Zagreb School — Vukotić, Mimica, Dovniković — won the first Eastern European animation Oscar (Surogat, 1961) and codified a recognizably-Yugoslav aesthetic. Tezuka's Astro Boy (1963) launched modern Japanese television anime. NFB Canada institutionalized auteur production. The festival circuit (Annecy, Zagreb) became the canon-making mechanism the form had always lacked.",
+      "keyMovements": ["Zagreb School — Surogat Oscar (1961)", "Tezuka's Astro Boy — modern TV anime born", "NFB auteur period (Leaf, Hoedeman, Larkin)", "Annecy + Zagreb festivals establish the canon", "Czechoslovak puppet boom (Trnka, Týrlová)"]
+    },
+    "1970": {
+      "tagline": "Independent animation grows, Eastern European masters peak",
+      "intro": "The 1970s were Soviet animation's golden age — Norshteyn, Khitruk, and Tsekhanovsky did their defining work. Zagreb School matured into international recognition. NFB Canada hosted McLaren's late period. American commercial animation cratered (the Disney post-Walt slump) while Saturday-morning TV took over. Ralph Bakshi made Fritz the Cat. Hayao Miyazaki and Isao Takahata were sharpening at the studios that would become Ghibli.",
+      "keyMovements": ["Soviet experimental peak (Norshteyn, Khitruk)", "Zagreb School maturity", "NFB McLaren late period", "Disney post-Walt slump", "Saturday-morning TV dominance", "Bakshi adult animation"]
+    },
+    "1980": {
+      "tagline": "Anime goes global, MTV generation, early CGI experiments",
+      "intro": "The 1980s globalized Japanese animation. Akira (1988), Nausicaä (1984), and Studio Ghibli (founded 1985) put anime on Western festival programs and home video. Don Bluth left Disney; Disney recovered with The Little Mermaid (1989) and the early Renaissance. Pixar's first short (Luxo Jr., 1986) hinted at what was coming. Eastern European animation continued at a high level but lost much of its state funding by decade's end.",
+      "keyMovements": ["Studio Ghibli founded (1985)", "Akira — anime international breakthrough (1988)", "Disney Renaissance begins (Little Mermaid, 1989)", "Pixar early shorts (Luxo Jr., Tin Toy)", "Aardman / Ardman early Wallace & Gromit", "End of Soviet bloc state-funded animation"]
+    },
+    "1990": {
+      "tagline": "Digital revolution begins, Pixar emerges, anime mainstream breakthrough",
+      "intro": "Toy Story (1995) was the inflection point — animation's first all-CGI feature, and the moment 2D theatrical animation began its decade-long decline. Pokémon (1997) and Sailor Moon globalized anime to children. Cartoon Network launched, Adult Swim followed. The Eastern European industry collapsed with state funding; the surviving auteurs went indie. Hayao Miyazaki's Spirited Away (just past the decade boundary, 2001) was already in pre-production.",
+      "keyMovements": ["Toy Story — first CGI feature (1995)", "Pixar dominance begins", "Disney Renaissance peaks (Beauty and the Beast Best Picture nomination)", "Pokémon / Sailor Moon globalize anime", "Cartoon Network + Adult Swim launch", "Post-Soviet animation collapse + indie revival"]
+    },
+    "2000": {
+      "tagline": "3D CGI dominates mainstream, indie animation thrives online",
+      "intro": "Theatrical animation became almost entirely 3D CGI. Pixar made Finding Nemo, Up, Wall-E. DreamWorks responded with Shrek. Disney shut down its 2D division (briefly) in 2004. Online video — first Newgrounds, then YouTube (2005) — created a parallel indie ecosystem at zero distribution cost. Anime DVD localization peaked then collapsed when streaming arrived. Spirited Away won Best Animated Feature (2003), the genre's biggest international validation.",
+      "keyMovements": ["Pixar dominance (Nemo, Wall-E, Up)", "DreamWorks Shrek franchise", "Disney 2D division closure (2004)", "Spirited Away Oscar (2003)", "Newgrounds + YouTube enable indie distribution", "Anime DVD market peak then collapse"]
+    },
+    "2010": {
+      "tagline": "Streaming era, global co-productions, diverse voices emerge",
+      "intro": "Netflix and Crunchyroll rewrote the economics. International co-productions (Cartoon Saloon's Irish-French features, Aardman's UK-French partnerships) became standard. Anime returned to global mainstream via streaming. Adult animation series (Rick and Morty, BoJack Horseman) found cable + streaming audiences willing to engage long-form. CG continued to dominate theatrical; 2D survived in TV and indie features.",
+      "keyMovements": ["Netflix + Crunchyroll rewrite distribution", "Cartoon Saloon Irish features (Secret of Kells, Song of the Sea)", "Anime mainstream re-acceleration", "Adult animation TV boom (Rick and Morty, BoJack)", "Spider-Verse — new visual language (2018)", "Anime World Heritage rise (Your Name, Demon Slayer)"]
+    },
+    "2020": {
+      "tagline": "Pandemic production shifts, AI tools debut, hybrid techniques",
+      "intro": "Covid disrupted production globally — Japanese studios delayed seasons, Western productions moved to remote-pipeline workflows. The streaming wars stuffed catalog with originals. AI image generation arrived in 2022 and became a labor-political flashpoint. Cartoon Saloon, Science SARU, Ghibli's Boy and the Heron, the Spider-Verse sequels — animation continues to expand its visual languages even as the industry struggles with consolidation.",
+      "keyMovements": ["Pandemic production disruption", "Streaming wars original-content boom", "AI image generation as labor flashpoint", "Cartoon Saloon Wolfwalkers (2020)", "Spider-Verse Across the Spider-Verse (2023)", "Ghibli Boy and the Heron (2023)", "Anime production-pipeline crisis"]
+    }
+  }
+}
