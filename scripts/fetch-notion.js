@@ -4,11 +4,10 @@
  */
 
 import 'dotenv/config';
-import { Client } from '@notionhq/client';
 import { writeFileSync, mkdirSync, readFileSync } from 'fs';
 import { imageSize } from './lib/image-size.js';
+import { queryAll } from './lib/notion.js';
 
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const DATABASE_ID = process.env.NOTION_DATABASE_ID || '9bdc62e48ffe43fda6b992248570c49f';
 
 // Property extractors for different Notion property types
@@ -135,8 +134,7 @@ async function downloadPosters(films) {
   console.log(`  ✓ ${ok} posters saved to data/posters/${failed ? `, ${failed} failed` : ''}`);
 }
 
-// Extract studio data from Notion page
-// Note: In the Notion workspace, the "Directors" database (ae6d444a...) actually contains Studios
+// Extract studio data from a page in "Animation Archive: Studios" (ae6d444a...)
 function extractStudio(page) {
   const props = page.properties;
 
@@ -156,8 +154,7 @@ function extractStudio(page) {
   };
 }
 
-// Extract director data from Notion page
-// Note: In the Notion workspace, the "Studios" database (59f9c337...) actually contains Directors
+// Extract director data from a page in "Animation Archive: Directors" (59f9c337...)
 function extractDirector(page) {
   const props = page.properties;
 
@@ -203,32 +200,14 @@ function extractSeries(page) {
 async function fetchAllFilms() {
   console.log('🎬 Fetching films from Notion...');
 
-  const films = [];
-  let cursor = undefined;
-  let pageCount = 0;
+  const pages = await queryAll(DATABASE_ID, {
+    sorts: [
+      { property: 'Year', direction: 'descending' },
+      { property: 'Title (English)', direction: 'ascending' }
+    ]
+  }, (batch, n, total) => console.log(`  Page ${n}: fetched ${batch.length} films (total: ${total})`));
 
-  do {
-    const response = await notion.databases.query({
-      database_id: DATABASE_ID,
-      start_cursor: cursor,
-      page_size: 100,
-      sorts: [
-        { property: 'Year', direction: 'descending' },
-        { property: 'Title (English)', direction: 'ascending' }
-      ]
-    });
-
-    for (const page of response.results) {
-      films.push(extractFilm(page));
-    }
-
-    cursor = response.next_cursor;
-    pageCount++;
-    console.log(`  Page ${pageCount}: fetched ${response.results.length} films (total: ${films.length})`);
-
-  } while (cursor);
-
-  return films;
+  return pages.map(extractFilm);
 }
 
 // Fetch related database by getting the database ID from relation properties
@@ -240,43 +219,30 @@ async function fetchRelatedDatabase(databaseId, extractFn, label) {
 
   console.log(`📚 Fetching ${label} from Notion...`);
 
-  const items = [];
-  let cursor = undefined;
-  let pageCount = 0;
-
+  let pages;
   try {
-    do {
-      const response = await notion.databases.query({
-        database_id: databaseId,
-        start_cursor: cursor,
-        page_size: 100,
-      });
-
-      for (const page of response.results) {
-        try {
-          items.push(extractFn(page));
-        } catch (e) {
-          console.log(`    ⚠ Error extracting item: ${e.message}`);
-        }
-      }
-
-      cursor = response.next_cursor;
-      pageCount++;
-      console.log(`  Page ${pageCount}: fetched ${response.results.length} ${label} (total: ${items.length})`);
-
-    } while (cursor);
+    pages = await queryAll(databaseId, {}, (batch, n, total) =>
+      console.log(`  Page ${n}: fetched ${batch.length} ${label} (total: ${total})`));
   } catch (e) {
     console.log(`  ⚠ Error fetching ${label}: ${e.message}`);
     return [];
   }
 
+  const items = [];
+  for (const page of pages) {
+    try {
+      items.push(extractFn(page));
+    } catch (e) {
+      console.log(`    ⚠ Error extracting item: ${e.message}`);
+    }
+  }
   return items;
 }
 
-// Database IDs for related entities
-// Note: The Notion database names are swapped - "Directors" DB contains Studios, "Studios" DB contains Directors
-const STUDIOS_DATABASE_ID = 'ae6d444ad0d847d49f7ff716642c5955';  // Actually labeled "Directors" in Notion
-const DIRECTORS_DATABASE_ID = '59f9c337c2ae490b9b59561129c911a0'; // Actually labeled "Studios" in Notion
+// Database IDs for related entities. (These were once mislabeled in Notion,
+// Studios vs Directors; the titles were corrected and now match.)
+const STUDIOS_DATABASE_ID = 'ae6d444ad0d847d49f7ff716642c5955';  // "Animation Archive: Studios"
+const DIRECTORS_DATABASE_ID = '59f9c337c2ae490b9b59561129c911a0'; // "Animation Archive: Directors"
 const SERIES_DATABASE_ID = '6a5c2864-8159-45bd-8662-a47c03bd649d';
 
 // Get database IDs - using hardcoded values since we know them

@@ -20,7 +20,7 @@ if (!process.env.NOTION_TOKEN) {
   try { await import('dotenv/config.js'); } catch {}
   try { (await import('dotenv')).default.config(); } catch {}
 }
-import { Client } from '@notionhq/client';
+import { getNotion, queryAll } from './lib/notion.js';
 import https from 'https';
 import http from 'http';
 import fs from 'fs';
@@ -132,36 +132,21 @@ const PLATFORM_VALIDATORS = {
   },
 };
 
-async function fetchWatchLinksFromNotion(notion) {
-  const entries = [];
-  let cursor = undefined;
-
+async function fetchWatchLinksFromNotion() {
   console.log('Fetching watch links from Notion...');
 
-  do {
-    const response = await notion.databases.query({
-      database_id: WATCH_LINKS_DB_ID,
-      start_cursor: cursor,
-      page_size: 100,
-    });
-
-    for (const result of response.results) {
-      const props = result.properties;
-      entries.push({
-        id: result.id,
-        label: props['Label']?.title?.[0]?.plain_text || '',
-        url: props['URL']?.url || null,
-        platform: props['Platform']?.select?.name || 'Other',
-        currentStatus: props['Link Status']?.select?.name || 'Unverified',
-        lastVerified: props['Last Verified']?.date?.start || null,
-      });
-    }
-
-    cursor = response.has_more ? response.next_cursor : undefined;
-    if (cursor) await sleep(350);
-  } while (cursor);
-
-  return entries;
+  const results = await queryAll(WATCH_LINKS_DB_ID);
+  return results.map(result => {
+    const props = result.properties;
+    return {
+      id: result.id,
+      label: props['Label']?.title?.[0]?.plain_text || '',
+      url: props['URL']?.url || null,
+      platform: props['Platform']?.select?.name || 'Other',
+      currentStatus: props['Link Status']?.select?.name || 'Unverified',
+      lastVerified: props['Last Verified']?.date?.start || null,
+    };
+  });
 }
 
 async function updateNotionEntry(notion, entryId, status, todayISO) {
@@ -242,11 +227,11 @@ async function main() {
     process.exit(1);
   }
 
-  const notion = new Client({ auth: process.env.NOTION_TOKEN });
+  const notion = getNotion();
   const today = new Date().toISOString().split('T')[0];
 
   // Fetch entries
-  const entries = await fetchWatchLinksFromNotion(notion);
+  const entries = await fetchWatchLinksFromNotion();
   console.log(`Found ${entries.length} watch link entries\n`);
 
   if (reportOnly) {
