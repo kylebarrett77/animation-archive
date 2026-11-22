@@ -1,115 +1,70 @@
 # Cron Diagnosis — `Fetch Notion data`
 
-**Status:** ❌ FAILING since 2026-04-15. 11 consecutive failed runs.
-**Last successful commit:** `86a9943de9` (2026-04-14 11:49 UTC, "fix(deploy): Netlify runs fetch:all so build has Notion data").
-**Site impact:** Catalog is 11 days stale. New Notion entries invisible. Watch-link verification frozen.
+**Status (2026-11-22):** root cause confirmed; pipeline redesigned on branch
+`revive/2026-11`. Waiting on one manual step (add the GitHub secret) before
+the schedule is re-enabled.
 
----
+## What actually happened
 
-## Evidence
+| Date | Event |
+|---|---|
+| 2026-04-14 | `fetch-data.yml` added (commit `87533fb`). The `NOTION_TOKEN` repository secret was **never created**. |
+| 2026-04-15 → 06-26 | 74 scheduled runs, **0 successes**, 0 data commits. Each died in ~20 s at the first Notion call. |
+| 2026-04-26 | Last push to `main`. Netlify (which fetched Notion itself, with its own token) last rebuilt the site. |
+| ~2026-06-26 | GitHub auto-disabled the workflow (`disabled_inactivity`, 60 days without commits). |
+| 2026-11-22 | Site still showed `UPDATED: 2026-04-26`; 561 films edited and 197 watch links added in Notion since. |
 
-Pulled from `https://api.github.com/repos/kylebarrett77/animation-archive/actions/runs/24924743439/jobs` (run #11, 2026-04-25 06:32 UTC):
+A manual dry run on 2026-11-22 kept its logs and showed the cause directly:
 
-| Step | Status | Duration |
-|---|---|---|
-| Set up job | ✅ | 1 s |
-| Checkout | ✅ | 1 s |
-| Setup Node | ✅ | 3 s |
-| Install dependencies | ✅ | 3 s |
-| **Fetch films + watch-links** | **❌** | **8 s** |
-| Audit snapshot | ⏭ skipped | — |
-| Smoke build | ⏭ skipped | — |
-| Commit refreshed data | ⏭ skipped | — |
+```
+env:
+  NOTION_TOKEN:          ← empty
+  NOTION_DATABASE_ID:    ← empty
+❌ unauthorized: Authorization header must use the format "Bearer …"
+```
 
-All 11 failed runs follow the same pattern. Total elapsed time per run is ~17 seconds — consistent with auth failure on the very first Notion API call.
+`gh secret list` returns nothing: the repository has no secrets at all.
 
----
+> An earlier version of this file (2026-04-26) blamed **token rotation** and
+> stated the cron "worked before April 15". Both were wrong: the workflow was
+> created on April 14 and never succeeded once. Checking `gh secret list`
+> (step 1 of its own runbook) would have shown the empty secret list.
 
-## Diagnosis
+## Why the site froze
 
-`fetch-notion.js` calls `notion.databases.query()` immediately after constructing the client. Possible failure modes ranked by likelihood:
+1. The cron never worked, so it never pushed data.
+2. Netlify only rebuilds on push, and nobody pushed after April 26.
+3. GitHub then disabled the never-working cron for inactivity.
 
-| # | Cause | Why it fits | How to confirm |
-|---|---|---|---|
-| 1 | `NOTION_TOKEN` was rotated in Notion / no longer valid | 8 s fail = API call sent and rejected (`401 Unauthorized`). Pre-2026-04-15 runs worked → token died around then. | Check Notion → My Integrations → "Animation Archive" → Token tab. Compare to `gh secret list -R kylebarrett77/animation-archive`. |
-| 2 | Integration was removed from one or both databases | Same auth-fail surface. | In Notion, open Films DB and Watch Links DB → ⋯ → Connections → confirm "Animation Archive" is listed. Watch Links DB ID = `e19f5cd9525446ca8e352f6b9121b3af` (per `validate-watch-links.js:27`). |
-| 3 | `NOTION_DATABASE_ID` secret blank or wrong | Possible if recently edited. Would `404` not `401`. | `gh secret list -R kylebarrett77/animation-archive` (names only — values aren't readable). |
-| 4 | Notion API breaking change | Would be reported broadly. Unlikely. | Check status.notion.so. |
+## Redesign (branch `revive/2026-11`)
 
-**Primary hypothesis: token rotation.** The Notion-to-API integration tokens introduced in late 2025 have shorter rotation windows than the legacy `secret_*` format. The Apr 14 → Apr 15 cliff timing matches a 30-day token expiry if the secret was last set in mid-March.
+- **GitHub Actions is the only thing that calls Notion.** It fetches,
+  validates watch links, runs `npm run check:data`, smoke-builds, and commits
+  `data/**` to `main` only when catalog data changed.
+- **Netlify builds from the committed snapshot** (`npm run build`) and never
+  calls Notion, so it no longer needs a token.
+- **Safety:** related-database errors are now fatal (they used to publish an
+  empty studios/directors list), and `check:data` rejects empty datasets,
+  drops of more than 20%, and missing poster files.
+- **Keepalive:** every run re-enables the workflow through the API so 60 quiet
+  days cannot disable it again.
 
----
-
-## Fix — runbook
+## Runbook — turning it on
 
 ```bash
-# 1. Verify which secrets exist (values not visible by design)
+# 1. Add the secret (paste the token from .env, or a fresh one from
+#    notion.so/profile/integrations) — values are never shown back.
+gh secret set NOTION_TOKEN -R kylebarrett77/animation-archive
+
+# 2. Confirm it exists
 gh secret list -R kylebarrett77/animation-archive
 
-# Expected: NOTION_TOKEN, NOTION_DATABASE_ID
-
-# 2. Generate a fresh token in Notion
-#    notion.so/my-integrations → Animation Archive → Configure → New token
-#    Or: rotate the existing one and copy the new value.
-
-# 3. Update the secret
-gh secret set NOTION_TOKEN -R kylebarrett77/animation-archive
-# Paste new token at prompt.
-
-# 4. Verify integration is connected to BOTH databases in Notion
-#    - Films DB (the one in NOTION_DATABASE_ID)
-#    - Watch Links DB (e19f5cd9525446ca8e352f6b9121b3af)
-#    For each: ⋯ → Connections → Add → "Animation Archive"
-
-# 5. Trigger a manual run to confirm
-gh workflow run fetch-data.yml -R kylebarrett77/animation-archive
+# 3. After revive/2026-11 is merged to main, re-enable and dry-run
+gh workflow enable "Fetch Notion data" -R kylebarrett77/animation-archive
+gh workflow run "Fetch Notion data" -R kylebarrett77/animation-archive -f skip_commit=true
 gh run watch -R kylebarrett77/animation-archive
 ```
 
-If the manual run succeeds, the daily cron will pick up automatically tomorrow morning.
-
----
-
-## Hardening (so this doesn't go silent for 11 days again)
-
-The failure was invisible because nothing alerts on cron failure. Two cheap fixes — pick one or both:
-
-### A. Email on failure (zero infrastructure)
-
-Add to `.github/workflows/fetch-data.yml` after the existing `commit` step:
-
-```yaml
-      - name: Notify on failure
-        if: failure()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.MAIL_USER }}
-          password: ${{ secrets.MAIL_APP_PASSWORD }}
-          subject: "❌ Animation Archive cron failed (${{ github.run_number }})"
-          to: kylebarrett1@mac.com
-          from: Animation Archive Bot
-          body: |
-            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-            Failed step: see logs.
-```
-
-### B. Dead Man's Snitch / cronitor.io (passive monitoring)
-
-If the cron stops *running* (not just failing), GH email won't fire. Add a `curl` ping to a dead-man's-snitch endpoint at the end of the successful path. Free tier covers daily cadence.
-
-### C. Cheapest: just enable GitHub's built-in failure email
-
-Settings → Notifications → "Send notifications for failed workflows only" → on. This is on by default for the repo owner but worth confirming since 11 runs failed without action.
-
----
-
-## Once cron is green again
-
-Catalog will jump from the 2026-04-14 snapshot to current Notion state — expect:
-- New films added in the 11-day gap
-- Updated watch-link statuses if you've been verifying manually in Notion
-- Director/studio additions reflected in entity pages
-
-Netlify auto-rebuilds on the data commit, so no separate deploy step needed.
+Merge the branch **before** adding the secret if the schedule is enabled:
+otherwise the next run commits fresh data onto the old April code on `main`
+and Netlify deploys that.

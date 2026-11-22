@@ -4,7 +4,7 @@
  */
 
 import 'dotenv/config';
-import { writeFileSync, mkdirSync, readFileSync } from 'fs';
+import { writeFileSync, mkdirSync, readFileSync, readdirSync, unlinkSync } from 'fs';
 import { imageSize } from './lib/image-size.js';
 import { queryAll } from './lib/notion.js';
 
@@ -107,23 +107,40 @@ async function downloadPosters(films) {
   console.log(`\n🖼  Downloading ${withPosters.length} poster image(s)...`);
   mkdirSync('./data/posters', { recursive: true });
 
-  let ok = 0, failed = 0;
+  const existing = readdirSync('./data/posters');
+  const posterFor = (buf, file) => {
+    const dims = imageSize(buf);
+    if (!dims || !dims.width || !dims.height) throw new Error('could not read dimensions');
+    return { file, w: dims.width, h: dims.height, ar: Math.round((dims.width / dims.height) * 1000) / 1000 };
+  };
+
+  let ok = 0, kept = 0, failed = 0;
   const CONCURRENCY = 8;
   for (let i = 0; i < withPosters.length; i += CONCURRENCY) {
     const batch = withPosters.slice(i, i + CONCURRENCY);
     await Promise.all(batch.map(async (film) => {
       const url = film.posterUrls[0]; // one image per film today; take the first
+      const id8 = film.id.slice(0, 8);
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const buf = Buffer.from(await res.arrayBuffer());
-        const dims = imageSize(buf);
-        if (!dims || !dims.width || !dims.height) throw new Error('could not read dimensions');
-        const file = `${film.id.slice(0, 8)}.${extFromBuffer(buf)}`;
+        const file = `${id8}.${extFromBuffer(buf)}`;
+        film.poster = posterFor(buf, file);
         writeFileSync(`./data/posters/${file}`, buf);
-        film.poster = { file, w: dims.width, h: dims.height, ar: Math.round((dims.width / dims.height) * 1000) / 1000 };
         ok++;
       } catch (e) {
+        // Transient failure: keep the previously downloaded poster, if any,
+        // rather than dropping the film's artwork from the site.
+        const previous = existing.find(f => f.startsWith(`${id8}.`));
+        if (previous) {
+          try {
+            film.poster = posterFor(readFileSync(`./data/posters/${previous}`), previous);
+            kept++;
+            console.warn(`  ⚠ poster download failed for "${film.titleEnglish || film.id}" (${e.message}); kept previous file`);
+            return;
+          } catch { /* fall through */ }
+        }
         failed++;
         console.warn(`  ⚠ poster failed for "${film.titleEnglish || film.id}": ${e.message}`);
       }
@@ -131,7 +148,19 @@ async function downloadPosters(films) {
   }
   // Never persist the expiring signed URLs.
   for (const f of films) delete f.posterUrls;
-  console.log(`  ✓ ${ok} posters saved to data/posters/${failed ? `, ${failed} failed` : ''}`);
+
+  // Prune files no film references any more (poster removed in Notion, or
+  // replaced with a different format), so data/posters/ mirrors films.json.
+  const referenced = new Set(films.filter(f => f.poster).map(f => f.poster.file));
+  let pruned = 0;
+  for (const file of readdirSync('./data/posters')) {
+    if (!referenced.has(file)) { unlinkSync(`./data/posters/${file}`); pruned++; }
+  }
+
+  console.log(`  ✓ ${ok} posters saved to data/posters/` +
+    `${kept ? `, ${kept} kept from previous run` : ''}` +
+    `${failed ? `, ${failed} failed` : ''}` +
+    `${pruned ? `, ${pruned} orphaned file(s) pruned` : ''}`);
 }
 
 // Extract studio data from a page in "Animation Archive: Studios" (ae6d444a...)
@@ -219,14 +248,12 @@ async function fetchRelatedDatabase(databaseId, extractFn, label) {
 
   console.log(`📚 Fetching ${label} from Notion...`);
 
-  let pages;
-  try {
-    pages = await queryAll(databaseId, {}, (batch, n, total) =>
-      console.log(`  Page ${n}: fetched ${batch.length} ${label} (total: ${total})`));
-  } catch (e) {
-    console.log(`  ⚠ Error fetching ${label}: ${e.message}`);
-    return [];
-  }
+  // Errors propagate and fail the whole fetch. This used to return [] on
+  // error, which let one transient Notion failure publish a catalog with
+  // zero studios/directors/series; the scheduled refresh commits whatever
+  // this script writes, so failing loudly is the safe behavior.
+  const pages = await queryAll(databaseId, {}, (batch, n, total) =>
+    console.log(`  Page ${n}: fetched ${batch.length} ${label} (total: ${total})`));
 
   const items = [];
   for (const page of pages) {

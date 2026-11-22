@@ -21,74 +21,59 @@ Static site generator that pulls from your Notion database and builds a searchab
 
 ### 3. Local setup
 
+Requires Node 22+ (the repo pins Node 24 in `.nvmrc`; run `nvm use`).
+
 ```bash
-# Clone/download this folder
-cd animation-archive-site
+npm ci
 
-# Install dependencies
-npm install
+# Put your integration token in .env (gitignored):
+echo "NOTION_TOKEN=ntn_your_token_here" > .env
 
-# Set environment variables
-export NOTION_TOKEN="secret_your_token_here"
-export NOTION_DATABASE_ID="9bdc62e48ffe43fda6b992248570c49f"
-
-# Fetch data from Notion
-npm run fetch
-
-# Build the site
-npm run build
-
-# Preview locally
-npx serve dist
+npm run refresh        # fetch from Notion, sanity-check, build
+npx serve dist         # preview at http://localhost:3000
 ```
 
-Open `http://localhost:3000` to see your site.
+Building from the committed snapshot needs no token: `npm run build`.
 
-## Deploy Options
+## How data reaches the live site
 
-### Option A: Netlify (Recommended - Simplest)
+```
+Notion ──(daily 06:00 UTC)──▶ GitHub Action "Fetch Notion data"
+                               fetch → validate links → check → build
+                               └─ commits data/** to main (only if changed)
+                                        │
+                                        ▼
+                              Netlify builds from data/** → live site
+```
 
-1. Push this folder to GitHub
-2. Go to [netlify.com](https://netlify.com) → "Add new site" → "Import from Git"
-3. Select your repo
-4. Add environment variables in Netlify UI:
-   - `NOTION_TOKEN` = your integration token
-   - `NOTION_DATABASE_ID` = `9bdc62e48ffe43fda6b992248570c49f`
-5. Deploy
-
-**Auto-rebuilds:** Set up a build hook and trigger it daily with a cron service, or use GitHub Actions.
-
-### Option B: Vercel + GitHub Actions (Auto daily builds)
-
-1. Push to GitHub
-2. Create Vercel project from the repo
-3. Add these GitHub secrets:
-   - `NOTION_TOKEN`
-   - `NOTION_DATABASE_ID`
-   - `VERCEL_TOKEN` (from vercel.com/account/tokens)
-   - `VERCEL_ORG_ID` (from .vercel/project.json after linking)
-   - `VERCEL_PROJECT_ID` (same)
-4. The workflow runs daily at 6 AM UTC
+- **GitHub Actions is the only thing that talks to Notion.** It needs the
+  repository secret `NOTION_TOKEN` (Settings → Secrets and variables →
+  Actions). It can also be run by hand from the Actions tab, with a dry-run
+  option.
+- **Netlify never calls Notion.** It runs `npm run build` on whatever
+  snapshot is committed, so builds are deterministic and need no token.
+- `npm run check:data` guards every refresh: an empty dataset, a drop of
+  more than 20%, or a missing poster file rejects the snapshot and the
+  previous one stays live.
+- A keepalive step stops GitHub from disabling the schedule after 60 days
+  without commits. See `ops/CRON-DIAGNOSIS.md` for why that matters.
 
 ## Project Structure
 
 ```
-animation-archive-site/
-├── scripts/
-│   ├── fetch-notion.js   # Pulls all films from Notion API
-│   └── build.js          # Generates static HTML
-├── data/                  # Generated JSON (gitignored)
-│   ├── films.json
-│   └── stats.json
-├── dist/                  # Generated site (gitignored)
-│   ├── index.html
-│   ├── styles.css
-│   ├── app.js
-│   └── films/            # Individual film pages
-├── .github/workflows/
-│   └── deploy.yml        # GitHub Action for auto-builds
-├── netlify.toml          # Netlify config
-└── package.json
+scripts/
+  fetch-notion.js        films, studios, directors, series, posters
+  fetch-watch-links.js   watch links, merged into films.json
+  validate-watch-links.js  probe links, write changed statuses to Notion
+  check-data.js          snapshot sanity guard
+  build-site.js          generates the static site into dist/
+  lib/notion.js          shared Notion client (API 2025-09-03)
+data/                    committed Notion snapshot (+ posters/)
+dist/                    generated site (gitignored)
+.github/workflows/
+  fetch-data.yml         scheduled Notion refresh
+  ci.yml                 audit + smoke build on PRs / branches
+netlify.toml             Netlify build + headers
 ```
 
 ## Customization
