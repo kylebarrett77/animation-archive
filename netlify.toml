@@ -18,8 +18,8 @@
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
-  NPM_VERSION  = "10"
+  # Node version comes from .nvmrc (shared with local nvm and GitHub
+  # Actions). Do not set NODE_VERSION here — it would override .nvmrc.
   NETLIFY_USE_YARN = "false"
 
 #############################################################

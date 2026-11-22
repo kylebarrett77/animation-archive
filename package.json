@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Static site generator for Global Animation Archive - pulls from Notion, builds HTML",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "fetch": "node scripts/fetch-notion.js",
     "fetch:links": "node scripts/fetch-watch-links.js",
