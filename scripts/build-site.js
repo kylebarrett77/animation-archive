@@ -1885,7 +1885,7 @@ ${/* Rec #2 (2026-05-03): featured-picks panel moved here from inside main-
         (not assertive) — table changes shouldn't preempt other speech.
         aria-atomic="false" so only the changed rows are announced, not
         the entire table on every keystroke. */ ''}
-    <div class="table-wrapper" aria-live="polite" aria-atomic="false"><table class="film-table"><thead><tr><th scope="col" class="col-year" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th><th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col">Director / Studio</th><th scope="col" class="col-technique" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col" class="col-runtime" class="hide-mobile">Runtime</th><th scope="col" class="col-confidence" class="hide-mobile">Confidence</th><th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
+    <div class="table-wrapper" aria-live="polite" aria-atomic="false"><table class="film-table"><thead><tr><th scope="col" class="col-year sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th><th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col">Director / Studio</th><th scope="col" class="col-technique sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col" class="col-runtime hide-mobile">Runtime</th><th scope="col" class="col-confidence hide-mobile">Confidence</th><th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
     <div id="no-results" class="no-results" hidden><h3 class="no-results-title">No films match your criteria</h3><p class="no-results-message" id="no-results-detail">Try adjusting your search or filters.</p><button id="clear-all-btn" class="clear-all-btn" hidden>Clear All Filters</button></div>
     ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${sortedFilms.length}">Load More <span class="load-more-count">(${sortedFilms.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
   </main>
@@ -4070,12 +4070,12 @@ ${generateBreadcrumb([
       <table class="film-table">
         <thead>
           <tr>
-            <th scope="col" class="col-year" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+            <th scope="col" class="col-year sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
             <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
             <th scope="col">Director / Studio</th>
-            <th scope="col" class="col-country" class="hide-mobile">Country</th>
-            <th scope="col" class="col-runtime" class="hide-mobile">Runtime</th>
-            <th scope="col" class="col-confidence" class="hide-mobile">Confidence</th>
+            <th scope="col" class="col-country hide-mobile">Country</th>
+            <th scope="col" class="col-runtime hide-mobile">Runtime</th>
+            <th scope="col" class="col-confidence hide-mobile">Confidence</th>
             <th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th>
           </tr>
         </thead>
@@ -5254,12 +5254,12 @@ ${generateBreadcrumb([
     <div class="table-wrapper" aria-live="polite" aria-atomic="false">
       <table class="film-table">
         <thead><tr>
-          <th scope="col" class="col-year" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+          <th scope="col" class="col-year sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
           <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
           <th scope="col">Director</th>
-          <th scope="col" class="col-technique" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
-          <th scope="col" class="col-runtime" class="hide-mobile">Runtime</th>
-          <th scope="col" class="col-confidence" class="hide-mobile">Confidence</th>
+          <th scope="col" class="col-technique sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
+          <th scope="col" class="col-runtime hide-mobile">Runtime</th>
+          <th scope="col" class="col-confidence hide-mobile">Confidence</th>
           <th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
         <tbody>${generateTableRows(studioFilms, { basePath: '../', omitMeta: 'studio' })}</tbody>
@@ -5389,13 +5389,26 @@ function generateStudioPages() {
   // curator additions — outsourcing houses, VFX studios, etc. — that
   // aren't credited in any film.studio yet. Same fix pattern as
   // generateDirectorDetailPages.
-  const isOrphanStudio = (studio) => {
-    const lower = studio.name.toLowerCase();
-    return !films.some(f =>
-      (f.studioEntities && f.studioEntities.some(se => se.id === studio.id)) ||
-      (f.studio && f.studio.split(',').map(x => x.trim().toLowerCase()).includes(lower))
-    );
-  };
+  // Single-pass precompute (see generateDirectorDetailPages): O(1) orphan
+  // check per studio instead of O(studios × films).
+  const linkedStudioIds = new Set();
+  const linkedStudioNames = new Set();
+  for (const f of films) {
+    if (f.studioEntities) {
+      for (const se of f.studioEntities) {
+        if (se && se.id) linkedStudioIds.add(se.id);
+      }
+    }
+    if (f.studio) {
+      for (const name of f.studio.split(',')) {
+        const t = name.trim().toLowerCase();
+        if (t) linkedStudioNames.add(t);
+      }
+    }
+  }
+  const isOrphanStudio = (studio) =>
+    !linkedStudioIds.has(studio.id) &&
+    !linkedStudioNames.has(studio.name.toLowerCase());
 
   let count = 0;
   let skipped = 0;
@@ -5532,12 +5545,12 @@ ${generateBreadcrumb([
     <div class="table-wrapper" aria-live="polite" aria-atomic="false">
       <table class="film-table">
         <thead><tr>
-          <th scope="col" class="col-year" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+          <th scope="col" class="col-year sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
           <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
           <th scope="col">Studio</th>
-          <th scope="col" class="col-technique" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
-          <th scope="col" class="col-runtime" class="hide-mobile">Runtime</th>
-          <th scope="col" class="col-confidence" class="hide-mobile">Confidence</th>
+          <th scope="col" class="col-technique sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
+          <th scope="col" class="col-runtime hide-mobile">Runtime</th>
+          <th scope="col" class="col-confidence hide-mobile">Confidence</th>
           <th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
         <tbody>${generateTableRows(directorFilms, { basePath: '../', omitMeta: 'director' })}</tbody>
@@ -5593,13 +5606,28 @@ function generateDirectorDetailPages() {
   // Generating detail pages for them produces empty stubs that dilute
   // the index and harm credibility. Data stays in directors.json so the
   // curator can reconnect later when films get added.
-  const isOrphanDirector = (director) => {
-    const lower = director.name.toLowerCase();
-    return !films.some(f =>
-      (f.directorEntities && f.directorEntities.some(de => de.id === director.id)) ||
-      (f.director && f.director.split(',').map(x => x.trim().toLowerCase()).includes(lower))
-    );
-  };
+  // Precompute the set of directors linked to at least one film in a
+  // single pass over films, so the orphan check below is O(1) per director
+  // instead of O(films). Was O(directors × films) ≈ 2.7M iterations (plus
+  // per-film string splitting) on a full build — a major slow-build cause.
+  const linkedDirectorIds = new Set();
+  const linkedDirectorNames = new Set();
+  for (const f of films) {
+    if (f.directorEntities) {
+      for (const de of f.directorEntities) {
+        if (de && de.id) linkedDirectorIds.add(de.id);
+      }
+    }
+    if (f.director) {
+      for (const name of f.director.split(',')) {
+        const t = name.trim().toLowerCase();
+        if (t) linkedDirectorNames.add(t);
+      }
+    }
+  }
+  const isOrphanDirector = (director) =>
+    !linkedDirectorIds.has(director.id) &&
+    !linkedDirectorNames.has(director.name.toLowerCase());
 
   let count = 0;
   let skipped = 0;
@@ -5700,7 +5728,7 @@ ${generateBreadcrumb([
     <div class="table-wrapper">
       <table class="film-table">
         <thead><tr>
-          <th scope="col" class="col-year" class="sortable active" data-col="year" tabindex="0" aria-sort="ascending">Year <span class="sort-indicator" aria-hidden="true">▲</span></th>
+          <th scope="col" class="col-year sortable active" data-col="year" tabindex="0" aria-sort="ascending">Year <span class="sort-indicator" aria-hidden="true">▲</span></th>
           <th scope="col" class="sortable" data-col="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true">⇅</span></th>
           <th scope="col">Director</th>
           <th scope="col" class="col-technique hide-mobile">Technique</th>
@@ -6530,6 +6558,21 @@ function build() {
       } catch (e) { /* file may already exist with same content */ }
     }
     console.log(`  ✓ ${fontCount} fonts copied to dist/fonts/${fontSkipped ? ` (${fontSkipped} unused weight duplicates skipped)` : ''}`);
+  }
+
+  // Copy the prebuilt OG card into dist. Every page references
+  // ${SITE_URL}/og-image.png (see OG_IMAGE), so it must exist in dist on
+  // every deploy. The image is generated by scripts/generate-og-image.py
+  // (Python + Pillow) and committed at ./assets/og-image.png so the
+  // Netlify build — which is Node-only and has no Python/Pillow — can ship
+  // it without running the generator. Run `npm run og` locally to refresh
+  // the committed asset when the homepage stats change.
+  const ogSrc = './assets/og-image.png';
+  if (fs.existsSync(ogSrc)) {
+    fs.copyFileSync(ogSrc, './dist/og-image.png');
+    console.log('  ✓ og-image.png copied to dist/');
+  } else {
+    console.warn('  ⚠ assets/og-image.png missing — social cards will 404. Run `npm run og`.');
   }
 
   // ----- Batch D2: hash + emit JS assets BEFORE index.html -----
