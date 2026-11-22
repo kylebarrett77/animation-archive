@@ -5,7 +5,8 @@
 
 import 'dotenv/config';
 import { Client } from '@notionhq/client';
-import { writeFileSync, mkdirSync } from 'fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'fs';
+import { imageSize } from './lib/image-size.js';
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const DATABASE_ID = process.env.NOTION_DATABASE_ID || '9bdc62e48ffe43fda6b992248570c49f';
@@ -23,6 +24,9 @@ const extractors = {
   created_time: (prop) => prop?.created_time || null,
   last_edited_time: (prop) => prop?.last_edited_time || null,
   relation: (prop) => prop?.relation?.map(r => r.id) || [],
+  // Notion "files" props return signed S3 URLs that expire ~1h, so we only
+  // keep them long enough to download the file (see downloadPosters).
+  files: (prop) => prop?.files?.map(f => (f.type === 'file' ? f.file?.url : f.external?.url)).filter(Boolean) || [],
 };
 
 function extractFilm(page) {
@@ -78,7 +82,57 @@ function extractFilm(page) {
     studioRelation: extractors.relation(props['Studio (Link)']),
     directorRelation: extractors.relation(props['Director (Link)']),
     seriesRelation: extractors.relation(props['Series/Universe']),
+
+    // Temporary: signed poster URLs, downloaded + replaced with a local
+    // `poster` object by downloadPosters(). Stripped before films.json is written.
+    posterUrls: extractors.files(props['Poster images']),
   };
+}
+
+// Download poster images referenced by Notion "Poster images" and self-host
+// them. Notion serves expiring signed S3 URLs, so a static site cannot link
+// them directly — we download at fetch time (when the URLs are fresh), save
+// under data/posters/, measure pixel dimensions (Node-only, no Pillow), and
+// bake a { file, w, h, ar } object into each film. build-site.js copies
+// data/posters/ into dist/ and renders from these local files.
+function extFromBuffer(buf) {
+  if (buf[0] === 0x89 && buf[1] === 0x50) return 'png';
+  if (buf[0] === 0xff && buf[1] === 0xd8) return 'jpg';
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return 'gif';
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46) return 'webp';
+  return 'img';
+}
+
+async function downloadPosters(films) {
+  const withPosters = films.filter(f => f.posterUrls && f.posterUrls.length);
+  console.log(`\n🖼  Downloading ${withPosters.length} poster image(s)...`);
+  mkdirSync('./data/posters', { recursive: true });
+
+  let ok = 0, failed = 0;
+  const CONCURRENCY = 8;
+  for (let i = 0; i < withPosters.length; i += CONCURRENCY) {
+    const batch = withPosters.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(async (film) => {
+      const url = film.posterUrls[0]; // one image per film today; take the first
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const buf = Buffer.from(await res.arrayBuffer());
+        const dims = imageSize(buf);
+        if (!dims || !dims.width || !dims.height) throw new Error('could not read dimensions');
+        const file = `${film.id.slice(0, 8)}.${extFromBuffer(buf)}`;
+        writeFileSync(`./data/posters/${file}`, buf);
+        film.poster = { file, w: dims.width, h: dims.height, ar: Math.round((dims.width / dims.height) * 1000) / 1000 };
+        ok++;
+      } catch (e) {
+        failed++;
+        console.warn(`  ⚠ poster failed for "${film.titleEnglish || film.id}": ${e.message}`);
+      }
+    }));
+  }
+  // Never persist the expiring signed URLs.
+  for (const f of films) delete f.posterUrls;
+  console.log(`  ✓ ${ok} posters saved to data/posters/${failed ? `, ${failed} failed` : ''}`);
 }
 
 // Extract studio data from Notion page
@@ -403,6 +457,9 @@ async function main() {
 
     // Ensure data directory exists
     mkdirSync('./data', { recursive: true });
+
+    // Download + self-host poster images (replaces expiring Notion URLs).
+    await downloadPosters(films);
 
     // Write films data
     writeFileSync('./data/films.json', JSON.stringify(films, null, 2));

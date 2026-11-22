@@ -434,6 +434,36 @@ function slugify(str) { return (str || 'untitled').toLowerCase().replace(/[^a-z0
 // Helper to filter out N/A values from URLs
 function getValidUrl(url) { return (url && url !== 'N/A' && url.toLowerCase() !== 'n/a' && url.startsWith('http')) ? url : null; }
 function getFilmUrl(film, basePath = '') { return `${basePath}films/${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
+
+// ---- Poster / artwork treatment (see fetch-notion.js downloadPosters) ----
+// Films carry an optional `poster` = { file, w, h, ar }. Aspect ratio drives
+// how each image is presented, since the "Poster images" field holds a mix of
+// tall posters and wide title-cards.
+const POSTER_PORTRAIT_MAX = 0.8;  // ar below this = tall poster → detail-page hero
+const POSTER_SQUARE_MAX = 1.25;   // ar up to this = square-ish; above = wide
+const POSTER_AR_CLAMP = 3.2;      // clamp ultra-wide banners in the justified grid
+// Sort order for the homepage showcase: by shape bucket, then newest-first.
+function posterBucket(ar) { return ar < POSTER_PORTRAIT_MAX ? 0 : (ar <= POSTER_SQUARE_MAX ? 1 : 2); }
+function filmsWithPosters(list) {
+  return list.filter(f => f.poster && f.poster.file)
+    .sort((a, b) => posterBucket(a.poster.ar) - posterBucket(b.poster.ar)
+      || (b.year || 0) - (a.year || 0)
+      || (a.titleEnglish || '').localeCompare(b.titleEnglish || ''));
+}
+// Homepage showcase: aspect-bucketed, justified rows, object-fit:contain (no crop).
+function generatePosterShowcase(list) {
+  const items = filmsWithPosters(list);
+  if (items.length === 0) return '';
+  const cards = items.map(f => {
+    const g = Math.min(f.poster.ar, POSTER_AR_CLAMP);
+    return `<a class="ps-item" href="${getFilmUrl(f)}" style="flex-grow:${g};flex-basis:${Math.round(g * 150)}px" title="${escapeHtml(f.titleEnglish || 'Untitled')}${f.year ? ` (${f.year})` : ''}"><span class="ps-imgwrap"><img src="posters/${f.poster.file}" alt="${escapeHtml(f.titleEnglish || 'Untitled')} artwork" width="${f.poster.w}" height="${f.poster.h}" loading="lazy"></span></a>`;
+  }).join('');
+  return `
+    <section class="poster-showcase" aria-labelledby="poster-showcase-h">
+      <div class="content-header"><div><h2 class="content-title" id="poster-showcase-h">Recently Illustrated</h2><span class="content-meta">${items.length} films with artwork</span></div></div>
+      <div class="ps-grid">${cards}<span class="ps-spacer"></span></div>
+    </section>`;
+}
 function getFilmFilename(film) { return `${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
 function getStudioUrl(studio, basePath = '') { return `${basePath}studios/${slugify(studio.name)}-${studio.id.slice(0,8)}.html`; }
 function getDirectorUrl(director, basePath = '') { return `${basePath}directors/${slugify(director.name)}-${director.id.slice(0,8)}.html`; }
@@ -1880,6 +1910,7 @@ ${/* Rec #2 (2026-05-03): featured-picks panel moved here from inside main-
       <button type="button" class="library-hint-dismiss" id="library-hint-dismiss" aria-label="Dismiss hint">&times;</button>
     </div>
     ${generateFilmOfTheDayCard(getFilmOfTheDay(sortedFilms))}
+    ${generatePosterShowcase(films)}
     ${/* Round 9 #5: aria-live="polite" on the wrapper so screen readers
         announce row updates when the user changes filters/search. Polite
         (not assertive) — table changes shouldn't preempt other speech.
@@ -2083,6 +2114,21 @@ function generateFilmPage(film) {
   const techniques = film.technique?.join(', ') || 'Unknown';
   const specs = [film.format, film.color, film.sound].filter(Boolean).join(' · ');
   const description = film.synopsis || `${film.titleEnglish || 'Animated film'} (${film.year || 'Year unknown'}) - ${techniques} animation from ${film.country || 'Unknown country'}`;
+
+  // Poster treatment: a tall poster becomes a hero image beside the title;
+  // wider title-card art drops below the header as an "artwork strip" (no
+  // sliver hero). Both use object-fit:contain so nothing is cropped.
+  const poster = film.poster;
+  const isPortraitPoster = poster && poster.ar < POSTER_PORTRAIT_MAX;
+  const posterAlt = escapeHtml(film.titleEnglish || 'Untitled');
+  const posterHeroOpen = isPortraitPoster
+    ? `<div class="detail-hero-flex">
+    <div class="detail-poster"><img src="../posters/${poster.file}" alt="${posterAlt} poster" width="${poster.w}" height="${poster.h}"></div>`
+    : '';
+  const posterHeroClose = isPortraitPoster ? `</div>` : '';
+  const posterStrip = (poster && !isPortraitPoster)
+    ? `<figure class="detail-artwork"><img src="../posters/${poster.file}" alt="${posterAlt} artwork" width="${poster.w}" height="${poster.h}"></figure>`
+    : '';
   
   return `<!DOCTYPE html>
 <html lang="en">
@@ -2127,7 +2173,7 @@ ${generateBreadcrumb([
 ], '../')}
 <main class="detail-page" id="main-content">
   <article>
-  <div class="detail-header">
+  ${posterHeroOpen}<div class="detail-header">
     <div class="detail-year-block"><div class="detail-year">${film.year || '?'}</div><div class="detail-country">${getCountryCode(film.country)}</div></div>
     <div class="detail-title-section">
       <div class="detail-technique">${escapeHtml(techniques.toUpperCase())}</div>
@@ -2169,7 +2215,8 @@ ${generateBreadcrumb([
       const subs = (!gated && film.hasSubtitles) ? '<span class="detail-subs">EN SUBTITLES AVAILABLE</span>' : '';
       return `<a href="${escapeHtml(link.url)}" class="${cls}" target="_blank" rel="noopener" aria-label="${aria}">${label}</a>${subs}`;
     })()}${renderLibraryButtons(film)}</div>
-  </div>
+  </div>${posterHeroClose}
+  ${posterStrip}
   <div class="detail-body">
     <div class="detail-content">
       ${/* Watch links lifted above the prose 2026-04-25 — primary user
@@ -2867,7 +2914,22 @@ ul.watch-order-list{list-style:disc}
 .link-chips{gap:3px;width:100%}
 .no-results{padding:var(--space-5) var(--space-4)}
 .no-results-title{font-size:20px}
-}`;
+}
+/* ---- Poster / artwork treatment ---- */
+.detail-hero-flex{display:flex;gap:40px;align-items:flex-start}
+.detail-hero-flex .detail-header{flex:1;min-width:0}
+.detail-poster{flex:0 0 200px;max-width:200px;border-radius:8px;overflow:hidden;background:rgba(0,0,0,.06);box-shadow:0 2px 12px rgba(0,0,0,.18)}
+.detail-poster img{width:100%;height:auto;display:block}
+.detail-artwork{margin:0 0 40px;border-radius:8px;overflow:hidden;background:rgba(0,0,0,.05)}
+.detail-artwork img{width:100%;max-height:280px;object-fit:contain;object-position:left;display:block}
+.poster-showcase{margin:0 0 var(--space-6)}
+.ps-grid{display:flex;flex-wrap:wrap;gap:12px;margin-top:var(--space-3)}
+.ps-item{display:block;border-radius:6px;overflow:hidden;background:rgba(0,0,0,.06);box-shadow:0 1px 5px rgba(0,0,0,.12);transition:transform .12s ease,box-shadow .12s ease}
+.ps-item:hover,.ps-item:focus-visible{transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,.2)}
+.ps-imgwrap{display:block;height:150px}
+.ps-item img{width:100%;height:100%;object-fit:contain;display:block;background:rgba(0,0,0,.04)}
+.ps-spacer{flex-grow:9999}
+@media(max-width:768px){.detail-hero-flex{flex-direction:column;gap:20px}.detail-poster{flex-basis:auto;max-width:160px}.ps-imgwrap{height:118px}}`;
 }
 
 function generateJS() {
@@ -6573,6 +6635,21 @@ function build() {
     console.log('  ✓ og-image.png copied to dist/');
   } else {
     console.warn('  ⚠ assets/og-image.png missing — social cards will 404. Run `npm run og`.');
+  }
+
+  // Copy self-hosted poster images. fetch-notion.js downloads Notion's
+  // "Poster images" into data/posters/ (Notion's own URLs expire), and each
+  // film carries a `poster` object referencing a file here. Detail pages and
+  // the homepage showcase render from dist/posters/.
+  const posterSrc = './data/posters';
+  if (fs.existsSync(posterSrc)) {
+    mkdirSync('./dist/posters', { recursive: true });
+    let posterCount = 0;
+    for (const file of fs.readdirSync(posterSrc)) {
+      try { fs.copyFileSync(`${posterSrc}/${file}`, `./dist/posters/${file}`); posterCount++; }
+      catch { /* skip unreadable */ }
+    }
+    console.log(`  ✓ ${posterCount} posters copied to dist/posters/`);
   }
 
   // ----- Batch D2: hash + emit JS assets BEFORE index.html -----
