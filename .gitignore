@@ -18,3 +18,7 @@ data/validation-runs/
 # snapshots created by audit-data.js stay local.
 data/.*
 
+# Local source folder of original poster images (uploaded to Notion by hand).
+# Notion is the source of truth; fetch-notion.js downloads the build copies
+# into data/posters/.
+assets/poster images/
