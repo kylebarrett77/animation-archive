@@ -275,7 +275,9 @@ function reviewBlocks(plan) {
   };
   blocks.push(block('callout', [rt(`Automated Cleanup/Audit check, ${new Date().toISOString().slice(0, 10)}. Auto-fixed this run: ${plan.links.length} relations, ${plan.fill.length} empty fields${APPLY ? '' : ' (planned only)'}. Everything below is for a research session.`)], { icon: { type: 'emoji', emoji: '🤖' }, color: 'blue_background' }));
   section('Wrong IMDb links', 'The IMDb ID resolves to a different title. Find the correct tt-ID.', plan.identity,
-    x => [mention(x.film), rt(' → IMDb '), rt(x.imdb, `https://www.imdb.com/title/${x.imdb}/`), rt(` is “${x.label}”${x.years.length ? ` (${x.years.join(', ')})` : ''}`)]);
+    x => x.imdb
+      ? [mention(x.film), rt(' → IMDb '), rt(x.imdb, `https://www.imdb.com/title/${x.imdb}/`), rt(` is “${x.label}”${x.years.length ? ` (${x.years.join(', ')})` : ''}`)]
+      : [mention(x.film), rt(' → IMDB field holds '), rt(x.raw, /^https?:/.test(x.raw) ? x.raw : null), rt(', which is not a title link (tt…)')]);
   section('Facts that disagree with Wikidata / TMDB', 'Verify with native-language sources first; our value may be right. ★ = both outside sources agree with each other.', plan.facts,
     x => [rt(x.strong ? '★ ' : ''), mention(x.film), rt(` — ${x.field}: ours “${x.ours}”, Wikidata “${x.wikidata ?? '—'}”${x.tmdb ? `, TMDB “${x.tmdb}”` : ''}`)]);
   section('Entities needing creation', 'Names used by 3+ films with no Studios/Directors page. Create the page with this exact name; the next run links the films. Some are alternate names of an existing page, so add the alias to that page’s film credits instead.', plan.entities,
@@ -283,7 +285,7 @@ function reviewBlocks(plan) {
   section('Duplicate entity pages', 'Two pages share this name, so the film can’t be linked. Merge them.', plan.ambiguous,
     x => [rt(`${x.kind}: ${x.name} — `), mention(x.film)]);
   section('Free copies on the Internet Archive', 'Films ≥50 years old with no working watch link. Check the upload is legitimate, then add a Watch Links entry (Link Status: Unverified).', plan.watch,
-    x => [mention(x.film), rt(' — '), ...x.hits.flatMap((h, i) => [rt(i ? ', ' : ''), rt(`${h.title} (${h.year})`, `https://archive.org/details/${h.id}`)])]);
+    x => [mention(x.film), rt(' — '), ...x.hits.flatMap((h, i) => [rt(i ? ', ' : ''), rt(String(h.title).includes(String(h.year)) ? h.title : `${h.title} (${h.year})`, `https://archive.org/details/${h.id}`)])]);
   return blocks;
 }
 
@@ -346,7 +348,7 @@ function reviewHtml(plan) {
 ${section('facts', 'Facts that disagree with outside sources', 'Our value next to Wikidata and TMDB. <span class="hi">Red</span> rows: both outside sources agree with each other and not with us. Our value is never overwritten automatically.',
   table(['Film', 'Field', 'Ours', 'Wikidata', 'TMDB'], f.map(x => [notionLink(x.film), x.field, esc(x.ours), esc(x.wikidata ?? '—'), esc(x.tmdb ?? '—')].map((c, i) => i === 1 && x.strong ? `<span class="hi">${c}</span>` : c))))}
 ${section('identity', 'IMDb links that point at a different title', 'The IMDb ID resolves to a title and year that don’t match the film. Fix the IMDB field in Notion.',
-  table(['Film', 'IMDb', 'Resolves to'], plan.identity.map(x => [notionLink(x.film), `<a href="https://www.imdb.com/title/${x.imdb}/">${x.imdb}</a>`, esc(`${x.label} (${x.years.join(', ') || '?'})`)])))}
+  table(['Film', 'IMDb', 'Resolves to'], plan.identity.map(x => [notionLink(x.film), x.imdb ? `<a href="https://www.imdb.com/title/${x.imdb}/">${x.imdb}</a>` : esc(x.raw), esc(x.imdb ? `${x.label} (${x.years.join(', ') || '?'})` : x.label)])))}
 ${section('entities', 'Studios and directors without an entry', 'Names used by three or more films with no matching page in the Studios or Directors database. Creating the page (with the exact name) lets the next run link the films automatically.',
   table(['Kind', 'Name', 'Films', 'Examples'], plan.entities.map(x => [x.kind, esc(x.name), x.count, esc(x.sample.join('; '))])))}
 ${section('ambiguous', 'Ambiguous names', 'The film names an entity, but two entity pages share that name. Merge or rename one, then the next run links it.',
@@ -390,7 +392,7 @@ async function main() {
       const outYear = wYear ?? t?.year ?? null;
       // Identity: neither source's title resembles ours and the year is off too.
       if ((w || t) && sim < 0.4 && (!outYear || !f.year || Math.abs(outYear - f.year) > 2)) {
-        plan.identity.push({ film: f.id, imdb: id, label: w?.label || t?.title, years: [...new Set([wYear, t?.year].filter(Boolean))] });
+        plan.identity.push({ film: f.id, imdb: id, label: (w?.label && !/^Q\d+$/.test(w.label) ? w.label : null) || t?.title || `an unnamed Wikidata item (${w?.qid})`, years: [...new Set([wYear, t?.year].filter(Boolean))] });
         continue;
       }
       if (runs('fill') && !f.wikipedia && w?.enwiki && sim >= 0.6 && (!wYear || !f.year || Math.abs(wYear - f.year) <= 1)) {
@@ -415,7 +417,13 @@ async function main() {
     }
     // Missing IMDb: fill from Wikidata via the film's English Wikipedia article.
     if (runs('fill')) {
-      const noImdb = films.filter(f => !imdbIdOf(f.imdb) && /en\.wikipedia\.org\/wiki\//.test(f.wikipedia || ''));
+      // A non-empty IMDB field without a title ID (a search or name URL) is a
+      // review item, not a fill: the writer never overwrites a field.
+      const NO_IMDB = /^(n\/?a|none|-|—)$/i;   // deliberate "no IMDb page exists"
+      for (const f of films.filter(f => f.imdb && !NO_IMDB.test(f.imdb.trim()) && !imdbIdOf(f.imdb))) {
+        plan.identity.push({ film: f.id, imdb: null, raw: f.imdb, label: 'not a title link', years: [] });
+      }
+      const noImdb = films.filter(f => !f.imdb && /en\.wikipedia\.org\/wiki\//.test(f.wikipedia || ''));
       for (const f of noImdb) {
         const title = decodeURIComponent(f.wikipedia.split('/wiki/')[1].split('#')[0]).replace(/_/g, ' ');
         const rows = await sparql(`SELECT ?imdb ?itemLabel ?date WHERE { ?a schema:about ?item ; schema:isPartOf <https://en.wikipedia.org/> ; schema:name "${title.replace(/"/g, '\\"')}"@en . ?item wdt:P345 ?imdb . OPTIONAL { ?item wdt:P577 ?date } SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }`).catch(() => []);
