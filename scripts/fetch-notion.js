@@ -141,6 +141,12 @@ async function downloadPosters(films) {
         // Image hosts like Wikimedia reject generic user agents.
         const res = await fetch(src.url, { headers: { 'User-Agent': 'GlobalAnimationArchive/1.0 (https://animationarchive.netlify.app)' } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        // Decide from the headers before downloading the body: a "poster"
+        // can turn out to be a full film (Wikimedia lead media can be video).
+        const type = res.headers.get('content-type') || '';
+        const size = Number(res.headers.get('content-length') || 0);
+        if (!type.startsWith('image/')) { res.body?.cancel(); throw new Error(`not an image (${type || 'unknown type'})`); }
+        if (size > 30 * 1024 * 1024) { res.body?.cancel(); throw new Error(`too large (${Math.round(size / 1048576)} MB)`); }
         const card = await renderCard(Buffer.from(await res.arrayBuffer()));
         writeFileSync(`./data/posters/${file}`, card.buffer);
         film.poster = { file, srcW: card.srcW, srcH: card.srcH, ar: card.ar, color: card.color, source, srcKey };

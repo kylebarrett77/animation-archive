@@ -150,7 +150,7 @@ async function wikipediaLeadImages(films) {
       const chunk = list.slice(i, i + 50);
       const api = new URL(`https://${lang}.wikipedia.org/w/api.php`);
       Object.entries({ action: 'query', format: 'json', formatversion: '2', redirects: '1', prop: 'pageimages|pageprops', ppprop: 'wikibase_item',
-        piprop: 'original|name', pilicense: 'any', titles: chunk.map(c => c.title).join('|') })
+        piprop: 'original|name|thumbnail', pithumbsize: '1000', pilicense: 'any', titles: chunk.map(c => c.title).join('|') })
         .forEach(([k, v]) => api.searchParams.set(k, v));
       const res = await fetch(api, { headers: { 'User-Agent': UA } });
       if (!res.ok) { console.warn(`  ⚠ Wikipedia (${lang}) HTTP ${res.status}; skipping ${chunk.length} titles`); continue; }
@@ -163,11 +163,17 @@ async function wikipediaLeadImages(films) {
       const pages = new Map((q.pages || []).map(p => [p.title, p]));
       for (const c of chunk) {
         const page = pages.get(resolve(c.title));
-        if (page?.original?.source) {
+        // Prefer Wikimedia's rendered thumbnail when the original is not a
+        // plain raster image (video -> still frame, SVG/TIFF -> raster) or is
+        // very large. Small fair-use posters come back at their own size.
+        const orig = page?.original;
+        const raster = orig && /\.(jpe?g|png|gif|webp)(\?|$)/i.test(orig.source);
+        const media = orig && (raster && orig.width <= 1600 ? orig : page.thumbnail || null);
+        if (media?.source) {
           const doubt = wikiIdentity(c.film, page.title, page.pageimage);
           found.set(c.film.id, {
-            url: page.original.source, via: 'wikipedia', match: doubt ? 'review' : 'exact',
-            detail: `Wikipedia (${lang}) lead image of “${page.title}” — ${page.original.width}×${page.original.height}${doubt ? ` · review: ${doubt}` : ''}`,
+            url: media.source, via: 'wikipedia', match: doubt ? 'review' : 'exact',
+            detail: `Wikipedia (${lang}) lead image of “${page.title}” — ${media.width}×${media.height}${media === orig ? '' : ' (rendered still)'}${doubt ? ` · review: ${doubt}` : ''}`,
             link: `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g, '_'))}`,
             qid: page.pageprops?.wikibase_item || null,
           });
@@ -235,8 +241,9 @@ async function writePoster(film, candidate) {
   const page = await notion.pages.retrieve({ page_id: film.id });
   const current = page.properties['Poster images']?.files || [];
   if (current.some(f => f.type === 'external' && f.external?.url === candidate.url)) return { skipped: 'already present' };
-  // Keep every existing file (Notion-hosted files are echoed back by URL).
-  const keep = current.map(f => f.type === 'file'
+  // Keep every file a person added (Notion-hosted ones are echoed back by
+  // URL). Earlier auto-sourced entries are replaced, not accumulated.
+  const keep = current.filter(f => !/\(auto\)$/.test(f.name || '')).map(f => f.type === 'file'
     ? { name: f.name, type: 'file', file: { url: f.file.url } }
     : { name: f.name, type: 'external', external: { url: f.external.url } });
   const files = [{ name: NAMES[candidate.via], type: 'external', external: { url: candidate.url } }, ...keep];
