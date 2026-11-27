@@ -582,6 +582,52 @@ function generatePosterShowcase(list) {
       <div class="poster-grid">${cards}</div>
     </section>`;
 }
+// K2 (site audit): the Recently Added wall is replaced by three rows built
+// from the archive's own data, in the top section's voice. All rows skip
+// entries hidden by default (K1) and need poster art. Rows 2–3 rotate
+// weekly (seeded by ISO week) so the homepage changes without curation.
+const REGIONS = [
+  { name: 'Eastern Europe', countries: ['USSR', 'Russia', 'Czechoslovakia', 'Czech Republic', 'Poland', 'Hungary', 'Yugoslavia', 'Croatia', 'Serbia', 'Montenegro', 'Bulgaria', 'Romania', 'Estonia', 'Latvia', 'East Germany'] },
+  { name: 'Latin America', countries: ['Argentina', 'Brazil', 'Chile', 'Colombia', 'Cuba', 'Mexico'] },
+  { name: 'Africa & the Middle East', countries: ['Egypt', 'Kenya', 'Nigeria', 'South Africa', 'Zambia', 'Iran', 'Israel', 'Saudi Arabia', 'Turkey', 'UAE'] },
+  { name: 'South & Southeast Asia', countries: ['India', 'Indonesia', 'Malaysia', 'Philippines', 'Singapore', 'Thailand', 'Vietnam'] },
+];
+function isoWeekSeed() { const d = new Date(); const onejan = new Date(d.getFullYear(), 0, 1); return d.getFullYear() * 100 + Math.ceil(((d - onejan) / 86400000 + onejan.getDay() + 1) / 7); }
+function weeklyShuffle(list, salt) { return seededShuffle(list, hashString(`${isoWeekSeed()}:${salt}`)); }
+const conf = f => String(f.confidence || '').length;
+function posterRow(id, title, dek, items, moreHref, moreLabel) {
+  if (items.length < 3) return '';
+  const cards = items.map(f => `<a class="poster-card" href="${getFilmUrl(f)}">${posterThumb(f, '', { sizes: '(max-width:768px) 30vw, 160px' })}<span class="poster-title">${escapeHtml(f.titleEnglish || 'Untitled')}</span><span class="poster-year">${f.year || ''} · ${getCountryCode(f.country)}</span></a>`).join('');
+  return `<div class="home-row" aria-labelledby="${id}"><div class="home-row-head"><h3 class="home-row-title" id="${id}">${title}</h3><p class="home-row-dek">${dek}</p>${moreHref ? `<a class="home-row-more" href="${moreHref}">${moreLabel} →</a>` : ''}</div><div class="poster-grid home-row-grid">${cards}</div></div>`;
+}
+function generateHomeRows(list) {
+  const pool = list.filter(f => f.poster && f.poster.file && !isHiddenByDefault(f));
+  const used = new Set();
+  // 1. Free to watch now, from everywhere: verified free links, round-robin by country.
+  const free = pool.filter(f => (f.watchLinks || []).some(l => l && l.url && isWatchable(l) && (l.accessType === 'FREE' || l.accessType === 'ADS')));
+  const byCountry = new Map();
+  for (const f of weeklyShuffle(free, 'free').sort((a, b) => conf(b) - conf(a))) byCountry.set(f.country, [...(byCountry.get(f.country) || []), f]);
+  const freeRow = []; const queues = [...byCountry.values()];
+  for (let r = 0; freeRow.length < 12 && queues.some(q => q.length > r); r++) for (const q of queues) if (q[r] && freeRow.length < 12) freeRow.push(q[r]);
+  freeRow.forEach(f => used.add(f.id));
+  // 2. Underseen: well-documented work from outside the US and Japan.
+  const under = weeklyShuffle(pool.filter(f => !used.has(f.id) && f.country !== 'USA' && f.country !== 'Japan' && conf(f) >= 4), 'under').slice(0, 12);
+  under.forEach(f => used.add(f.id));
+  // 3. By region.
+  const regionRows = REGIONS.map((r, i) => {
+    const items = weeklyShuffle(pool.filter(f => !used.has(f.id) && r.countries.includes(f.country)), r.name).sort((a, b) => conf(b) - conf(a)).slice(0, 6);
+    items.forEach(f => used.add(f.id));
+    return posterRow(`home-region-${i}`, r.name, `${pool.filter(f => r.countries.includes(f.country)).length} films from ${r.countries.filter(c => pool.some(f => f.country === c)).length} countries`, items, 'countries/', 'All countries');
+  }).join('');
+  return `
+    <section class="poster-showcase home-rows" aria-label="Featured from the collection">
+      ${posterRow('home-free', 'Free to watch now, from everywhere', 'Verified free links, one country at a time.', freeRow, null, '')}
+      ${posterRow('home-under', 'Underseen', 'Well-documented work from beyond the two biggest industries. Changes weekly.', under, null, '')}
+      <h2 class="home-rows-region-title">By region</h2>
+      ${regionRows}
+    </section>`;
+}
+
 function getFilmFilename(film) { return `${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
 function getStudioUrl(studio, basePath = '') { return `${basePath}studios/${slugify(studio.name)}-${studio.id.slice(0,8)}.html`; }
 function getDirectorUrl(director, basePath = '') { return `${basePath}directors/${slugify(director.name)}-${director.id.slice(0,8)}.html`; }
@@ -2080,7 +2126,7 @@ ${/* Rec #2 (2026-05-03): featured-picks panel moved here from inside main-
       <button type="button" class="library-hint-dismiss" id="library-hint-dismiss" aria-label="Dismiss hint">&times;</button>
     </div>
     ${generateFilmOfTheDayCard(getFilmOfTheDay(sortedFilms))}
-    ${generatePosterShowcase(films)}
+    ${generateHomeRows(films)}
     ${/* Round 9 #5: aria-live="polite" on the wrapper so screen readers
         announce row updates when the user changes filters/search. Polite
         (not assertive) — table changes shouldn't preempt other speech.
@@ -3090,6 +3136,16 @@ ul.watch-order-list{list-style:disc}
 .poster-empty--initial span{font-family:var(--font-display);font-size:17px}
 .poster-empty--title span{font-family:var(--font-display);font-size:15px;line-height:1.25;padding:12px;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink)}
 body.is-filtering .poster-showcase{display:none}
+.home-rows{padding:var(--space-5) 0 var(--space-3)}
+.home-row{margin:0 0 var(--space-6)}
+.home-row-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--space-2) var(--space-4);padding:0 var(--space-6)}
+.home-row-title{font-family:var(--font-display);font-size:22px;font-weight:400;margin:0}
+.home-row-dek{font-family:var(--font-prose);font-style:italic;font-size:var(--type-meta);color:var(--ink-muted);margin:0}
+.home-row-more{margin-left:auto;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--accent);text-decoration:none}
+@media(max-width:768px){.home-row-grid .poster-card:nth-child(n+7){display:none}}
+.home-row-grid{grid-template-columns:repeat(6,minmax(0,1fr));margin-top:var(--space-3)}
+.home-rows-region-title{font-family:var(--font-display);font-size:26px;font-weight:400;padding:var(--space-3) var(--space-6) var(--space-2);margin:0;border-top:1px solid var(--rule)}
+@media(max-width:768px){.home-row-head,.home-rows-region-title{padding-left:var(--space-4);padding-right:var(--space-4)}.home-row-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .catalog-grid,.load-more-container{margin-bottom:72px}
 .catalog-bar{display:flex;justify-content:space-between;align-items:center;gap:var(--space-4);padding:var(--space-6) var(--space-6) 0;flex-wrap:wrap;border-top:1px solid var(--rule)}
 .catalog-bar-title{font-family:var(--font-display);font-size:24px;font-weight:400;margin:0}
