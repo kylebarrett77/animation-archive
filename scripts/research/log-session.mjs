@@ -20,7 +20,7 @@ const logs = list('--logs').map(f => JSON.parse(readFileSync(f, 'utf8')));
 const read = f => (f ? readFileSync(f, 'utf8').trim() : '');
 
 const films = logs.flatMap(l => l.films).filter(f => f.page);
-const failed = logs.flatMap(l => l.films).filter(f => f.error);
+const failed = logs.flatMap(l => l.films).filter(f => f.error && !films.some(g => g.film === f.film));   // a failure fixed by a resumed run is not a failure
 const entities = logs.flatMap(l => l.entities); const series = logs.flatMap(l => l.series).filter(s => s.id);
 const watch = films.reduce((n, f) => n + (f.watchLinks?.length || 0), 0);
 
