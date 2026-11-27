@@ -12,6 +12,7 @@
     "fetch:all": "npm run fetch && npm run fetch:links",
     "check:data": "node scripts/check-data.js",
     "posters:source": "node scripts/source-posters.js",
+    "links:imdb": "node scripts/check-imdb-links.js",
     "build": "node scripts/build-site.js",
     "og": "python3 scripts/generate-og-image.py && cp dist/og-image.png assets/og-image.png",
     "clean": "bash scripts/clean-stale-dist.sh",

@@ -33,6 +33,8 @@
 import 'dotenv/config';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { getNotion } from './lib/notion.js';
+import { hasTmdb, tmdb, posterUrl, yearOf } from './lib/tmdb.js';
+import { titleSimilarity, filmNames, sequelMismatch, imdbIdOf } from './lib/title-match.js';
 
 const args = process.argv.slice(2);
 const APPLY = args.includes('--apply');
@@ -40,9 +42,7 @@ const APPROVE = args.includes('--approve') ? (args[args.indexOf('--approve') + 1
 const ONLY_MISSING = args.includes('--only-missing');
 const LIMIT = args.includes('--limit') ? Number(args[args.indexOf('--limit') + 1]) : Infinity;
 
-const TMDB_TOKEN = process.env.TMDB_TOKEN || '';
-const TMDB_API_KEY = process.env.TMDB_API_KEY || '';
-const HAS_TMDB = Boolean(TMDB_TOKEN || TMDB_API_KEY);
+const HAS_TMDB = hasTmdb();
 const UA = 'GlobalAnimationArchive/1.0 (https://animationarchive.netlify.app; poster sourcing)';
 const REPORTS = './reports';
 const NAMES = { tmdb: 'TMDB poster (auto)', wikipedia: 'Wikipedia image (auto)' };
@@ -50,7 +50,6 @@ const TITLE_CARD_MIN_AR = 0.8; // wider than this = title card / logo, not a pos
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const imdbIdOf = f => (String(f.imdb || '').match(/tt\d{6,10}/) || [])[0] || null;
 
 // Run tasks with a small concurrency limit.
 async function pool(items, size, fn) {
@@ -63,25 +62,10 @@ async function pool(items, size, fn) {
 }
 
 // ---------- TMDB ----------
-async function tmdb(path, params = {}) {
-  const url = new URL(`https://api.themoviedb.org/3${path}`);
-  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null) url.searchParams.set(k, v);
-  if (!TMDB_TOKEN) url.searchParams.set('api_key', TMDB_API_KEY);
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const res = await fetch(url, { headers: TMDB_TOKEN ? { Authorization: `Bearer ${TMDB_TOKEN}`, accept: 'application/json' } : { accept: 'application/json' } });
-    if (res.status === 429) { await sleep(1000 * (attempt + 1)); continue; }
-    if (res.status === 401) throw new Error('TMDB rejected the key (401). Check TMDB_TOKEN / TMDB_API_KEY.');
-    if (!res.ok) throw new Error(`TMDB ${path} → HTTP ${res.status}`);
-    return res.json();
-  }
-  throw new Error(`TMDB ${path} → rate limited`);
-}
-const posterUrl = path => `https://image.tmdb.org/t/p/w780${path}`;
-const yearOf = d => (d ? Number(String(d).slice(0, 4)) : null);
 
 async function tmdbByImdb(imdbId) {
   const r = await tmdb(`/find/${imdbId}`, { external_source: 'imdb_id' });
-  const hit = [...(r.movie_results || []), ...(r.tv_results || [])].find(x => x.poster_path);
+  const hit = r && [...(r.movie_results || []), ...(r.tv_results || [])].find(x => x.poster_path);
   if (!hit) return null;
   return {
     url: posterUrl(hit.poster_path),
@@ -115,7 +99,7 @@ function tmdbIdentity(film, c) {
 async function tmdbTitleGuess(film) {
   if (!film.titleEnglish) return null;
   const r = await tmdb('/search/multi', { query: film.titleEnglish, include_adult: 'false' });
-  const hits = (r.results || []).filter(x => (x.media_type === 'movie' || x.media_type === 'tv') && x.poster_path);
+  const hits = ((r && r.results) || []).filter(x => (x.media_type === 'movie' || x.media_type === 'tv') && x.poster_path);
   const near = hits.find(x => film.year && Math.abs((yearOf(x.release_date || x.first_air_date) || 0) - film.year) <= 1);
   if (!near) return null;
   return {
@@ -130,26 +114,7 @@ async function tmdbTitleGuess(film) {
 // A film is sometimes linked to its franchise or source-material article
 // (no dedicated article exists), whose lead image is then a logo or a manga
 // / novel cover. Those go to review instead of being written as exact.
-const norm = t => String(t || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-  .replace(/\([^)]*\)/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/^the /, '').trim();
-function titleSimilarity(a, b) {
-  const x = norm(a), y = norm(b);
-  if (!x || !y) return 0;
-  if (x === y) return 1;
-  if (x.includes(y) || y.includes(x)) return Math.min(x.length, y.length) / Math.max(x.length, y.length);
-  const A = new Set(x.split(' ')), B = new Set(y.split(' '));
-  const inter = [...A].filter(w => B.has(w)).length;
-  return inter / new Set([...A, ...B]).size;
-}
-const filmNames = film => [film.titleEnglish, film.originalTitle, film.romanizedTitle, ...String(film.alternateTitles || '').split(/[;,|\n]/)].filter(Boolean);
 const NOT_THE_WORK = /manga|franchise|novel|comic|video game|game|book|character|soundtrack|album|song|toy|media mix/i;
-// Sequel / part markers: "Tekkaman Blade II" must not take the image of the
-// parent "Tekkaman Blade" article (that is the earlier series' artwork).
-const SEQUEL_TOKEN = /^(ii|iii|iv|v|vi|vii|viii|ix|x|\d+|part|season|movie|film|final|chapter|episode|ova|special|returns|reborn|zero|sequel|gaiden|kai|shippuden)$/;
-function sequelMismatch(filmTitle, articleTitle) {
-  const art = new Set(norm(articleTitle).split(' '));
-  return norm(filmTitle).split(' ').filter(t => t && !art.has(t) && SEQUEL_TOKEN.test(t));
-}
 const COVER_FILE = /\b(vol(ume)?\.?[ _-]*0?\d+|manga|tank[oō]bon|light[ _-]?novel|novel|comic|book[ _-]?cover|cover[ _-]?art)\b/i;
 function wikiIdentity(film, articleTitle, imageName) {
   const qual = (articleTitle.match(/\(([^)]+)\)\s*$/) || [])[1] || '';
@@ -309,7 +274,7 @@ async function main() {
   if (HAS_TMDB) {
     let done = 0;
     await pool(candidates, 6, async ({ film }) => {
-      const imdb = imdbIdOf(film);
+      const imdb = imdbIdOf(film.imdb);
       if (imdb) {
         try {
           const c = await tmdbByImdb(imdb);
