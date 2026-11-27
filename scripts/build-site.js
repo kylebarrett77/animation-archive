@@ -472,7 +472,19 @@ const decadeDescriptions = {
 };
 
 function escapeHtml(str) { if (!str) return ''; if (Array.isArray(str)) str = str.join(', '); if (typeof str !== 'string') str = String(str); return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-function slugify(str) { return (str || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+// Slugs transliterate accented letters (Švankmajer → svankmajer) instead of
+// dropping them (site audit #17). Every slug that differs from the old
+// letter-dropping form is recorded so build() can emit 301 redirects.
+const legacySlug = str => (str || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+const translit = str => String(str || 'untitled').normalize('NFKD').replace(/[̀-ͯ]/g, '')
+  .replace(/ß/g, 'ss').replace(/[æÆ]/g, 'ae').replace(/[œŒ]/g, 'oe').replace(/[øØ]/g, 'o').replace(/[łŁ]/g, 'l').replace(/[đĐ]/g, 'd').replace(/[þÞ]/g, 'th');
+const slugChanges = new Map();
+function slugify(str) {
+  const s = legacySlug(translit(str));
+  const old = legacySlug(str);
+  if (old !== s && old) slugChanges.set(old, s);
+  return s;
+}
 // Helper to filter out N/A values from URLs
 function getValidUrl(url) { return (url && url !== 'N/A' && url.toLowerCase() !== 'n/a' && url.startsWith('http')) ? url : null; }
 function getFilmUrl(film, basePath = '') { return `${basePath}films/${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
@@ -1177,7 +1189,7 @@ function generateFooter(pathPrefix = '') {
   // pre-filled subject. mailto: works without JavaScript and without an
   // external form provider — appropriate for a personal research archive.
   const reportSubject = encodeURIComponent('Animation Archive: broken/missing watch link');
-  return `<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="${randomUrl}" class="footer-random">🎲 Random Film</a><a href="mailto:${CORRECTIONS_EMAIL}?subject=${reportSubject}" class="footer-report">📝 Report broken link</a><a href="${pathPrefix}feed.xml" class="footer-rss" aria-label="Subscribe to RSS feed of new additions">📡 RSS</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div><div class="footer-license"><p>Catalog data is licensed <a href="${LICENSE.url}" target="_blank" rel="noopener">${LICENSE.shortName}</a> &mdash; cite as &ldquo;${LICENSE.attribution}&rdquo;. Films and poster images are &copy; their respective rights-holders.${POSTER_ATTRIBUTION} <a href="${pathPrefix}license.html">Full terms</a>.</p></div></footer><button class="back-to-top" aria-label="Back to top">↑</button>`;
+  return `<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="${pathPrefix}about.html" class="footer-report">About &amp; methodology</a><a href="${randomUrl}" class="footer-random">🎲 Random Film</a><a href="mailto:${CORRECTIONS_EMAIL}?subject=${reportSubject}" class="footer-report">📝 Report broken link</a><a href="${pathPrefix}feed.xml" class="footer-rss" aria-label="Subscribe to RSS feed of new additions">📡 RSS</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div><div class="footer-license"><p>Catalog data is licensed <a href="${LICENSE.url}" target="_blank" rel="noopener">${LICENSE.shortName}</a> &mdash; cite as &ldquo;${LICENSE.attribution}&rdquo;. Films and poster images are &copy; their respective rights-holders.${POSTER_ATTRIBUTION} <a href="${pathPrefix}license.html">Full terms</a>.</p></div></footer><button class="back-to-top" aria-label="Back to top">↑</button>`;
 }
 
 // Film of the Day: deterministic selection by calendar date.
@@ -1889,6 +1901,49 @@ function generateFilmJsonLd(film) {
   return JSON.stringify(data);
 }
 
+// About section, shared by the homepage and the standalone /about page (site audit #19).
+function aboutSectionHtml() {
+  return `<section class="about-section" id="about">
+  <div class="about-inner">
+    <div class="about-text">
+      <h2>World animation,<br><em>made accessible</em></h2>
+      <p class="about-lede">A discovery surface for animated films you can actually watch &mdash; not just read about &mdash; built one entry at a time around a single working belief: that world animation deserves a catalog that isn't filtered through any one national tradition.</p>
+
+      <h3>Who</h3>
+      <p>Built and maintained by Kyle Barrett, an independent worldbuilder and researcher. This is a personal project &mdash; not a publication, not a company. Entries are catalogued in evenings and weekends.</p>
+
+      <h3>Why this exists</h3>
+      <p>Most film databases are Western-centric. Letterboxd, IMDb, and even academic indices privilege the canon of three or four national traditions. The other 60 are scattered across regional sites in languages most readers can't search, behind paywalls, or simply not catalogued anywhere indexable. This archive is one attempt to put them on the same surface.</p>
+
+      <h3>Methodology</h3>
+      <p>Each entry is cross-referenced across independent sources &mdash; national film databases, studio sites, festival programmes, archives, scholarship and reference sites &mdash; with native-language sources preferred; fan wikis are used only to support other sources. Watch links are checked against schema-stable URL patterns or live HTTP responses before being labelled <strong>Verified</strong>. Entries with platform pages we haven't fully checked yet are labelled <strong>With Watch Leads</strong>. The gradient is explicit because reliability is the point: a database that quietly inflates "watchable" is worse than one that tells you the real number.</p>
+
+      <h3>Confidence ratings</h3>
+      <p>The <span class="confidence-pips" aria-hidden="true"><span class="filled">■■■</span><span class="empty">□□</span></span> pips on each entry are a five-point scale of how well the entry is sourced (not a rating of the film): <span class="confidence-pips" aria-hidden="true"><span class="filled">■</span><span class="empty">□□□□</span></span> One source, basic details only &middot; <span class="confidence-pips" aria-hidden="true"><span class="filled">■■</span><span class="empty">□□□</span></span> two sources; some details unconfirmed &middot; <span class="confidence-pips" aria-hidden="true"><span class="filled">■■■</span><span class="empty">□□</span></span> three or more sources; title, year and director verified &middot; <span class="confidence-pips" aria-hidden="true"><span class="filled">■■■■</span><span class="empty">□</span></span> multiple sources; well documented &middot; <span class="confidence-pips" aria-hidden="true"><span class="filled">■■■■■</span><span class="empty"></span></span> comprehensive; backed by scholarly or archival sources. Most entries sit at four pips; three is the working floor for a full entry.</p>
+
+      <h3>License &amp; reuse</h3>
+      <p>Catalog data &mdash; descriptions, classifications, watch-link compilations, methodology &mdash; is licensed <a href="${LICENSE.url}" target="_blank" rel="noopener"><strong>${LICENSE.shortName}</strong></a>. Cite as &ldquo;${LICENSE.attribution}&rdquo; with a link back. Free to use commercially or non-commercially, with or without modification. Films themselves remain the property of their respective rights-holders &mdash; this license covers only the metadata around them. <a href="license.html">Full terms.</a></p>
+
+      <div class="about-contact">
+        <h3>Corrections welcome</h3>
+        <p>Spotted a broken link, a missing film, a misattributed director? The catalog improves with corrections.</p>
+        <p class="about-contact-cta"><a href="mailto:${CORRECTIONS_EMAIL}?subject=Animation%20Archive%20%E2%80%94%20correction%2Fcontribution">${CORRECTIONS_EMAIL}</a></p>
+        <p class="about-contact-hint">Most useful: regional knowledge (films and platforms underrepresented here), watch-link drift (entries that moved between platforms), and director/studio attribution disputes.</p>
+      </div>
+    </div>
+    <div class="about-data"><div class="about-data-title">Archive Statistics</div>
+      <div class="about-stat-row"><span class="about-stat-label">Films Catalogued</span><span class="about-stat-value">${stats.total.toLocaleString()}</span></div>
+      <div class="about-stat-row"><span class="about-stat-label">Countries</span><span class="about-stat-value">${Object.keys(stats.countries).length}</span></div>
+      <div class="about-stat-row" title="Films with at least one verified watch link"><span class="about-stat-label">Verified Watchable</span><span class="about-stat-value">${stats.watchable.toLocaleString()}</span></div>
+      <div class="about-stat-row" title="Films with a watch link surfaced — verified or auth-gated / pending verification"><span class="about-stat-label">With Watch Leads</span><span class="about-stat-value">${stats.accessible.toLocaleString()}</span></div>
+      <div class="about-stat-row"><span class="about-stat-label">Platforms</span><span class="about-stat-value">${stats.platformsSorted.length}</span></div>
+      <div class="about-stat-row"><span class="about-stat-label">EN Subtitles</span><span class="about-stat-value">${stats.withSubtitles.toLocaleString()}</span></div>
+      <div class="about-data-footnote">Updated ${BUILD_DATE}</div>
+    </div>
+  </div>
+</section>`;
+}
+
 function generateIndexPage() {
   // Sort so current/past films come first (year desc), future films go to end
   const currentYear = new Date().getFullYear();
@@ -1961,7 +2016,7 @@ ${/* Rec #2 (2026-05-03): featured-picks panel moved here from inside main-
   <div class="stat-block"><span class="stat-label">Countries</span><span class="stat-value">${Object.keys(stats.countries).length}</span></div>
   <div class="stat-block"><span class="stat-label">Platforms</span><span class="stat-value">${stats.platformsSorted.length}</span></div>
 </div>
-<nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="studios/">Studios</a><a href="directors/">Directors</a><a href="series/">Series</a><a href="decades/">Decades</a><a href="platforms/">Platforms</a><a href="#about">About</a></nav>
+<nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="studios/">Studios</a><a href="directors/">Directors</a><a href="series/">Series</a><a href="decades/">Decades</a><a href="platforms/">Platforms</a><a href="about.html">About</a></nav>
 <div class="main-layout">
   <aside class="sidebar" role="complementary" aria-label="Browse and filter">
     <button class="drawer-close-bar" id="drawer-close" aria-label="Close filters">Apply Filters</button>
@@ -2038,45 +2093,7 @@ ${/* Rec #2 (2026-05-03): featured-picks panel moved here from inside main-
     ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${defaultFilms.length}">Load More <span class="load-more-count">(${defaultFilms.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
   </main>
 </div>
-<section class="about-section" id="about">
-  <div class="about-inner">
-    <div class="about-text">
-      <h2>World animation,<br><em>made accessible</em></h2>
-      <p class="about-lede">A discovery surface for animated films you can actually watch &mdash; not just read about &mdash; built one entry at a time around a single working belief: that world animation deserves a catalog that isn't filtered through any one national tradition.</p>
-
-      <h3>Who</h3>
-      <p>Built and maintained by Kyle Barrett, an independent worldbuilder and researcher. This is a personal project &mdash; not a publication, not a company. Entries are catalogued in evenings and weekends.</p>
-
-      <h3>Why this exists</h3>
-      <p>Most film databases are Western-centric. Letterboxd, IMDb, and even academic indices privilege the canon of three or four national traditions. The other 60 are scattered across regional sites in languages most readers can't search, behind paywalls, or simply not catalogued anywhere indexable. This archive is one attempt to put them on the same surface.</p>
-
-      <h3>Methodology</h3>
-      <p>Each entry is cross-referenced across independent sources &mdash; national film databases, studio sites, festival programmes, archives, scholarship and reference sites &mdash; with native-language sources preferred; fan wikis are used only to support other sources. Watch links are checked against schema-stable URL patterns or live HTTP responses before being labelled <strong>Verified</strong>. Entries with platform pages we haven't fully checked yet are labelled <strong>With Watch Leads</strong>. The gradient is explicit because reliability is the point: a database that quietly inflates "watchable" is worse than one that tells you the real number.</p>
-
-      <h3>Confidence ratings</h3>
-      <p>The <span class="confidence-pips" aria-hidden="true"><span class="filled">■■■</span><span class="empty">□□</span></span> pips on each entry are a five-point scale of how well the entry is sourced (not a rating of the film): <span class="confidence-pips" aria-hidden="true"><span class="filled">■</span><span class="empty">□□□□</span></span> One source, basic details only &middot; <span class="confidence-pips" aria-hidden="true"><span class="filled">■■</span><span class="empty">□□□</span></span> two sources; some details unconfirmed &middot; <span class="confidence-pips" aria-hidden="true"><span class="filled">■■■</span><span class="empty">□□</span></span> three or more sources; title, year and director verified &middot; <span class="confidence-pips" aria-hidden="true"><span class="filled">■■■■</span><span class="empty">□</span></span> multiple sources; well documented &middot; <span class="confidence-pips" aria-hidden="true"><span class="filled">■■■■■</span><span class="empty"></span></span> comprehensive; backed by scholarly or archival sources. Most entries sit at four pips; three is the working floor for a full entry.</p>
-
-      <h3>License &amp; reuse</h3>
-      <p>Catalog data &mdash; descriptions, classifications, watch-link compilations, methodology &mdash; is licensed <a href="${LICENSE.url}" target="_blank" rel="noopener"><strong>${LICENSE.shortName}</strong></a>. Cite as &ldquo;${LICENSE.attribution}&rdquo; with a link back. Free to use commercially or non-commercially, with or without modification. Films themselves remain the property of their respective rights-holders &mdash; this license covers only the metadata around them. <a href="license.html">Full terms.</a></p>
-
-      <div class="about-contact">
-        <h3>Corrections welcome</h3>
-        <p>Spotted a broken link, a missing film, a misattributed director? The catalog improves with corrections.</p>
-        <p class="about-contact-cta"><a href="mailto:${CORRECTIONS_EMAIL}?subject=Animation%20Archive%20%E2%80%94%20correction%2Fcontribution">${CORRECTIONS_EMAIL}</a></p>
-        <p class="about-contact-hint">Most useful: regional knowledge (films and platforms underrepresented here), watch-link drift (entries that moved between platforms), and director/studio attribution disputes.</p>
-      </div>
-    </div>
-    <div class="about-data"><div class="about-data-title">Archive Statistics</div>
-      <div class="about-stat-row"><span class="about-stat-label">Films Catalogued</span><span class="about-stat-value">${stats.total.toLocaleString()}</span></div>
-      <div class="about-stat-row"><span class="about-stat-label">Countries</span><span class="about-stat-value">${Object.keys(stats.countries).length}</span></div>
-      <div class="about-stat-row" title="Films with at least one verified watch link"><span class="about-stat-label">Verified Watchable</span><span class="about-stat-value">${stats.watchable.toLocaleString()}</span></div>
-      <div class="about-stat-row" title="Films with a watch link surfaced — verified or auth-gated / pending verification"><span class="about-stat-label">With Watch Leads</span><span class="about-stat-value">${stats.accessible.toLocaleString()}</span></div>
-      <div class="about-stat-row"><span class="about-stat-label">Platforms</span><span class="about-stat-value">${stats.platformsSorted.length}</span></div>
-      <div class="about-stat-row"><span class="about-stat-label">EN Subtitles</span><span class="about-stat-value">${stats.withSubtitles.toLocaleString()}</span></div>
-      <div class="about-data-footnote">Updated ${BUILD_DATE}</div>
-    </div>
-  </div>
-</section>
+${aboutSectionHtml()}
 ${generateEmailSignupSection()}
 <footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="#" class="footer-random" id="footer-random-link">🎲 Random</a><a href="mailto:${CORRECTIONS_EMAIL}?subject=${encodeURIComponent('Animation Archive — broken link report')}" class="footer-report">📝 Report broken link</a><a href="feed.xml" class="footer-rss" aria-label="Subscribe to RSS feed of new additions">📡 RSS</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div><div class="footer-license"><p>Catalog data is licensed <a href="${LICENSE.url}" target="_blank" rel="noopener">${LICENSE.shortName}</a> &mdash; cite as &ldquo;${LICENSE.attribution}&rdquo;. Films and poster images are &copy; their respective rights-holders.${POSTER_ATTRIBUTION} <a href="license.html">Full terms</a>.</p></div></footer>
 <button class="back-to-top" aria-label="Back to top">↑</button>
@@ -2370,7 +2387,7 @@ ${generateBreadcrumb([
       ${film.researchSources ? (() => {
         const sources = splitTopLevel(film.researchSources);
         const chips = sources.map(linkifySource).join('');
-        return `<section class="research-sources detail-section" id="film-sources"><h2>Research Sources</h2><p class="section-dek">${sources.length} ${sources.length === 1 ? 'source' : 'sources'} consulted; clickable where the publication has a stable home.</p><p class="sources-list">${chips}</p><p class="sources-disclaimer">Sources are curator-attested; click-through where verifiable. The catalog cross-references multiple sources where possible &mdash; see <a href="../#about">methodology</a>.</p></section>`;
+        return `<section class="research-sources detail-section" id="film-sources"><h2>Research Sources</h2><p class="section-dek">${sources.length} ${sources.length === 1 ? 'source' : 'sources'} consulted; clickable where the publication has a stable home.</p><p class="sources-list">${chips}</p><p class="sources-disclaimer">Sources are curator-attested; click-through where verifiable. The catalog cross-references multiple sources where possible &mdash; see <a href="../about.html">methodology</a>.</p></section>`;
       })() : ''}
       ${!film.synopsis && !film.historicalContext && !film.keyCredits && !film.notes ? `<div class="empty-state"><p class="empty-state-message">No detailed information available yet.</p><a href="mailto:${CORRECTIONS_EMAIL}?subject=${encodeURIComponent('Details for ' + (film.titleEnglish || 'this film'))}&body=${encodeURIComponent('Hi — I have details to contribute for ' + (film.titleEnglish || 'this film') + ' (' + (film.year || '') + '):\n\nSynopsis:\nBackground:\nProduction:\nCurator notes:\nSources:\n\nThanks!')}" class="empty-state-cta">Help us add details for this film →</a></div>` : ''}
       ${generateFilmTags(film)}
@@ -3294,7 +3311,7 @@ Watchlist.updateCounts();
 const countryCodes={USSR:'USSR',Russia:'RUS',Czechoslovakia:'CSSR','Czech Republic':'CZE',Poland:'POL',Hungary:'HUN',Yugoslavia:'YUG',Croatia:'HRV',Serbia:'SRB',Romania:'ROU','East Germany':'DDR',Germany:'DEU',China:'CHN',Japan:'JPN',USA:'USA',France:'FRA',UK:'GBR',Canada:'CAN',Italy:'ITA',Australia:'AUS',India:'IND',Thailand:'THA',Vietnam:'VNM',UAE:'UAE',Cuba:'CUB',Brazil:'BRA',Belgium:'BEL',Philippines:'PHL',Malaysia:'MYS',Indonesia:'IDN','South Africa':'ZAF',Egypt:'EGY',Iran:'IRN',Argentina:'ARG',Mexico:'MEX','South Korea':'KOR',Taiwan:'TWN',Turkey:'TUR',Nigeria:'NGA',Kenya:'KEN',Zambia:'ZMB','Saudi Arabia':'SAU','North Korea':'PRK',Spain:'ESP',Netherlands:'NLD',Sweden:'SWE',Denmark:'DNK',Norway:'NOR',Switzerland:'CHE',Ireland:'IRL','New Zealand':'NZL',Singapore:'SGP',Israel:'ISR',Slovakia:'SVK',Bulgaria:'BGR',Ukraine:'UKR',Estonia:'EST',Latvia:'LVA',Lithuania:'LTU',Georgia:'GEO',Armenia:'ARM',Chile:'CHL',Other:'OTH'};
 function getCC(c){return countryCodes[c]||c?.substring(0,3).toUpperCase()||'???';}
 function escHtml(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function slugify(s){return(s||'untitled').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');}
+function slugify(s){return String(s||'untitled').normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').replace(/ß/g,'ss').replace(/[æÆ]/g,'ae').replace(/[œŒ]/g,'oe').replace(/[øØ]/g,'o').replace(/[łŁ]/g,'l').replace(/[đĐ]/g,'d').replace(/[þÞ]/g,'th').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');}
 function confLevel(c){const l={'★':1,'★★':2,'★★★':3,'★★★★':4,'★★★★★':5};return l[c]||0;}
 const CONF_SCALE_INLINE={0:'Confidence: not rated yet',1:'Confidence: 1 of 5 — One source, basic details only',2:'Confidence: 2 of 5 — Two sources; some details unconfirmed',3:'Confidence: 3 of 5 — Three or more sources; title, year and director verified',4:'Confidence: 4 of 5 — Multiple sources; well documented',5:'Confidence: 5 of 5 — Comprehensive; backed by scholarly or archival sources'};
 function confPips(c){const n=confLevel(c);const lbl=CONF_SCALE_INLINE[n];return '<span class="confidence-pips-inner" title="'+lbl+'" aria-label="'+lbl+'"><span class="filled" aria-hidden="true">'+'■'.repeat(n)+'</span><span class="empty" aria-hidden="true">'+'□'.repeat(5-n)+'</span></span>';}
@@ -6624,6 +6641,34 @@ ${urls.map(u => `  <url>
 </urlset>`;
 }
 
+function generateAboutPage() {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — Global Animation Archive</title>
+<meta name="description" content="Why the Global Animation Archive exists, how entries are researched and verified, and what the confidence ratings mean.">
+<link rel="canonical" href="${SITE_URL}/about.html">
+<meta property="og:title" content="About — Global Animation Archive"><meta property="og:url" content="${SITE_URL}/about.html"><meta property="og:image" content="${OG_IMAGE}">
+<meta name="twitter:card" content="summary_large_image">
+${FAVICON}
+${fontHead('')}
+<link rel="stylesheet" href="${ASSET_URLS.css}">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><p class="masthead-title">Global Animation Archive</p></div>
+</header>
+<nav class="main-nav" aria-label="Main navigation"><a href="index.html">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="studios/">Studios</a><a href="directors/">Directors</a><a href="series/">Series</a><a href="decades/">Decades</a><a href="platforms/">Platforms</a><a href="about.html" class="active" aria-current="page">About</a></nav>
+<main id="main-content">
+${aboutSectionHtml().replace('<h2', '<h1').replace(/<\/h2>/, '</h1>')}
+</main>
+${generateFooter('')}
+</body></html>`;
+}
+
 function generate404Page() {
   // Pre-pick a pool of random film URLs so the click-handler can rotate
   // without loading the full 1.85MB films-index.js on a 404. Pool size 50
@@ -6943,6 +6988,30 @@ function canonicalizeSiteUrls(dir = './dist') {
   console.log(`  ✓ canonical URLs extensionless in ${changed} of ${files} files`);
 }
 
+// 301s from the old letter-dropping slugs to the transliterated ones, for
+// every page whose file name changed (Netlify _redirects; both the
+// extensionless URL Netlify serves and the .html form).
+function writeSlugRedirects(dir = './dist') {
+  const lines = [];
+  const pairs = [...slugChanges.entries()];
+  for (const sub of fs.readdirSync(dir, { withFileTypes: true }).filter(e => e.isDirectory() && e.name !== 'posters' && e.name !== 'fonts')) {
+    for (const f of fs.readdirSync(`${dir}/${sub.name}`)) {
+      if (!f.endsWith('.html')) continue;
+      const base = f.slice(0, -5);
+      for (const [old, now] of pairs) {
+        if (base === now || base.startsWith(now + '-')) {
+          const oldBase = old + base.slice(now.length);
+          if (oldBase === base) continue;
+          lines.push(`/${sub.name}/${oldBase} /${sub.name}/${base} 301`, `/${sub.name}/${oldBase}.html /${sub.name}/${base} 301`);
+        }
+      }
+    }
+  }
+  const unique = [...new Set(lines)];
+  fs.writeFileSync(`${dir}/_redirects`, `# Generated by build-site.js: transliterated slugs (site audit #17)\n${unique.join('\n')}\n`);
+  console.log(`  ✓ _redirects: ${unique.length / 2} renamed pages redirected (301)`);
+}
+
 async function build() {
   console.log('🔨 Building static site...');
 
@@ -7167,9 +7236,12 @@ async function build() {
   console.log('  ✓ license.html (CC BY 4.0)');
 
   writeFileSync('./dist/404.html', generate404Page());
+  writeFileSync('./dist/about.html', generateAboutPage());
+  console.log('  ✓ about.html');
   console.log('  ✓ 404.html');
 
   canonicalizeSiteUrls();
+  writeSlugRedirects();
   console.log(`\n✅ Build complete! Output in ./dist/`);
   console.log(`\n📊 Features:`);
   console.log(`   • Pagination: Initial load ${FILMS_PER_PAGE} films`);
