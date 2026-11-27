@@ -162,3 +162,39 @@ export function normalizeLegacyStatus(status) {
   if (status === 'Dead' || status === 'Redirect') return 'Broken';
   return status;
 }
+
+/**
+ * Decide the status to write, given the automated verdict and what a person
+ * (or the research skill) already recorded in Notion.
+ *
+ * Automated checks may upgrade a link or report a definitive miss, but must
+ * never overwrite curation they cannot see:
+ *   - 'Unavailable' is a human "not in this catalog" verdict: always kept.
+ *   - 'Verified' with a Last Verified date was checked by someone who could
+ *     see inside the paywall; a platform policy ("Netflix pings are
+ *     meaningless") is weaker evidence than that, so it is kept.
+ *   - Only a real 404/410 response demotes a link. Timeouts, connection
+ *     errors, redirects and odd status codes are inconclusive (datacenter
+ *     IPs get blocked, shortlinks redirect) and leave the status unchanged.
+ *
+ * The first scheduled run without these rules (2026-11-27) demoted 478
+ * hand-verified links and 98 'Unavailable' ones; see ops/CRON-DIAGNOSIS.md.
+ */
+export function reconcileStatus(entry, verdict) {
+  const current = entry.currentStatus;
+  if (current === 'Unavailable') return current;
+
+  if (verdict.source === 'policy') {
+    if (current === 'Verified' && entry.lastVerified) return current;
+    return verdict.status;
+  }
+  if (verdict.source === 'pattern' || verdict.source === 'no-url') return verdict.status;
+
+  // HTTP check
+  if (verdict.status === 'Verified') return 'Verified';
+  const definitive = verdict.code === 404 || verdict.code === 410;
+  if (definitive) return 'Broken';
+  // Inconclusive: keep the recorded status, but still drain the legacy
+  // 'Dead' / 'Redirect' options into 'Broken' on the way through.
+  return normalizeLegacyStatus(current);
+}
