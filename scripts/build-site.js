@@ -499,9 +499,24 @@ function posterStrip(entityFilms, basePath = '../', limit = 8) {
   return `<div class="poster-strip" aria-label="Featured posters">${withArt.map(f => `<a class="poster-strip-item" href="${getFilmUrl(f, basePath)}" title="${escapeHtml(`${f.titleEnglish || 'Untitled'}${f.year ? ` (${f.year})` : ''}`)}">${posterThumb(f, basePath, { sizes: '110px' })}<span class="visually-hidden">${escapeHtml(f.titleEnglish || 'Untitled')}</span></a>`).join('')}</div>`;
 }
 
+// K1 (site audit, decided 2026-11-27): unreleased titles and mainstream
+// US/Japanese TV stay in the catalog but are hidden from the default
+// homepage view, the counts it shows, and the default sort. A "Show
+// everything" filter brings them back; search always covers everything.
+const THIS_YEAR = new Date().getFullYear();
+function isUnreleased(f) { return (f.year || 0) > THIS_YEAR || /\b(TBA|unreleased|upcoming|in production)\b/i.test(f.runtime || ''); }
+function isMainstreamTV(f) { return f.format === 'Series' && (f.country === 'USA' || f.country === 'Japan'); }
+function isHiddenByDefault(f) { return isUnreleased(f) || isMainstreamTV(f); }
+// Default "Recommended" order: verified-watchable first, then confidence,
+// then work from outside the two dominant industries. Mirrors recScore() in generateJS.
+function recommendScore(f) {
+  const link = getBestWatchLink(f);
+  return (link ? (isWatchable(link) ? 3 : 1) : 0) + String(f.confidence || '').length + (f.country !== 'USA' && f.country !== 'Japan' ? 1 : 0);
+}
+
 // Homepage: the most recently added films that have artwork.
 function generatePosterShowcase(list) {
-  const withArt = list.filter(f => f.poster && f.poster.file);
+  const withArt = list.filter(f => f.poster && f.poster.file && !isHiddenByDefault(f));
   if (withArt.length === 0) return '';
   const items = [...withArt]
     .sort((a, b) => (b.dateAdded || '').localeCompare(a.dateAdded || '') || (b.year || 0) - (a.year || 0))
@@ -1317,7 +1332,7 @@ function generateFeaturedPicksPanel(filmsByIdMap) {
   <div class="featured-picks-grid">${cards}
   </div>
   <div class="featured-picks-foot">
-    <a href="#main-content" class="featured-picks-cta">Browse all ${verifiedTotal} verified-watchable films <span aria-hidden="true">↓</span></a>
+    <a href="#main-content" class="featured-picks-cta" data-browse-verified>Browse all ${verifiedTotal} verified-watchable films <span aria-hidden="true">↓</span></a>
   </div>
 </section>`;
 }
@@ -1841,8 +1856,11 @@ function generateIndexPage() {
     if (aFuture !== bFuture) return aFuture - bFuture;
     return (b.year || 0) - (a.year || 0);
   });
-  const initialFilms = sortedFilms.slice(0, FILMS_PER_PAGE);
-  const hasMore = sortedFilms.length > FILMS_PER_PAGE;
+  const defaultFilms = films.filter(f => !isHiddenByDefault(f))
+    .sort((a, b) => recommendScore(b) - recommendScore(a) || (b.year || 0) - (a.year || 0));
+  const hiddenCount = films.length - defaultFilms.length;
+  const initialFilms = defaultFilms.slice(0, FILMS_PER_PAGE);
+  const hasMore = defaultFilms.length > FILMS_PER_PAGE;
   
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1936,6 +1954,7 @@ ${/* Rec #2 (2026-05-03): featured-picks panel moved here from inside main-
       </div></div>
       <div class="sidebar-section"><div class="sidebar-header">Status</div><div class="filter-list" role="listbox" aria-label="Filter by watch status">
         <div class="filter-item" data-filter-type="watchable" data-filter-value="true" role="option" title="Films where we surface a watch button — verified or auth-gated"><span class="name">Has Watch Link</span><span class="count">${stats.accessible}</span></div>
+        <div class="filter-item" data-filter-type="everything" data-filter-value="true" role="option" title="Also show unreleased titles and mainstream US/Japanese TV series, hidden by default"><span class="name">Show everything</span><span class="count">+${hiddenCount}</span></div>
         <div class="filter-item" data-filter-type="verified" data-filter-value="true" role="option" title="Films with at least one verified, streamable link"><span class="name">Verified Watchable</span><span class="count">${stats.watchable}</span></div>
         <div class="filter-item" data-filter-type="subtitles" data-filter-value="true" role="option"><span class="name">EN Subtitles</span><span class="count">${stats.withSubtitles}</span></div>
       </div></div>
@@ -1964,7 +1983,7 @@ ${/* Rec #2 (2026-05-03): featured-picks panel moved here from inside main-
   </aside>
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
   <main class="content" id="main-content">
-    <div class="content-header"><div><h2 class="content-title">From the Collection</h2><span class="content-meta" id="results-count">${stats.total.toLocaleString()} films</span></div><div class="search-actions"><div class="search-box"><label for="search-input" class="visually-hidden">Search films</label><input type="text" id="search-input" placeholder="Search titles, directors..." aria-describedby="results-count" /></div><button class="mobile-filter-toggle" id="mobile-filter-toggle" aria-label="Open filters">FILTERS</button><button id="random-film-btn" class="random-btn" aria-label="Go to random film">🎲 Random</button></div><div class="keyboard-hints"><kbd>/</kbd> search <kbd>r</kbd> random <kbd>esc</kbd> clear</div></div>
+    <div class="content-header"><div><h2 class="content-title">From the Collection</h2><span class="content-meta" id="results-count">${defaultFilms.length.toLocaleString()} films</span></div><div class="search-actions"><div class="search-box"><label for="search-input" class="visually-hidden">Search films</label><input type="text" id="search-input" placeholder="Search titles, directors..." aria-describedby="results-count" /></div><button class="mobile-filter-toggle" id="mobile-filter-toggle" aria-label="Open filters">FILTERS</button><button id="random-film-btn" class="random-btn" aria-label="Go to random film">🎲 Random</button></div><div class="keyboard-hints"><kbd>/</kbd> search <kbd>r</kbd> random <kbd>esc</kbd> clear</div></div>
     ${/* Picks panel relocated above the stats bar (rec #2, 2026-05-03). */ ''}
     <div class="active-filters-bar" id="active-filters-bar"><span class="active-filters-label">Filtered:</span></div>
     ${/* First-visit library hint. Hidden by default; library-hint-bootstrap.js
@@ -1981,11 +2000,11 @@ ${/* Rec #2 (2026-05-03): featured-picks panel moved here from inside main-
         (not assertive) — table changes shouldn't preempt other speech.
         aria-atomic="false" so only the changed rows are announced, not
         the entire table on every keystroke. */ ''}
-    <div class="catalog-bar"><h2 class="catalog-bar-title">All films</h2><div class="catalog-bar-controls"><label class="grid-sort"><span class="visually-hidden">Sort films</span><select id="grid-sort"><option value="year:desc">Newest first</option><option value="year:asc">Oldest first</option><option value="title:asc">Title A–Z</option></select></label><div class="view-toggle" role="group" aria-label="Catalog view"><button type="button" class="view-toggle-btn" data-view="grid" aria-pressed="true">Posters</button><button type="button" class="view-toggle-btn" data-view="list" aria-pressed="false">List</button></div></div></div>
+    <div class="catalog-bar"><h2 class="catalog-bar-title">All films</h2><div class="catalog-bar-controls"><label class="grid-sort"><span class="visually-hidden">Sort films</span><select id="grid-sort"><option value="recommended:desc">Recommended</option><option value="verified:desc">Recently verified</option><option value="confidence:desc">Confidence</option><option value="year:desc">Newest first</option><option value="year:asc">Oldest first</option><option value="title:asc">Title A–Z</option></select></label><div class="view-toggle" role="group" aria-label="Catalog view"><button type="button" class="view-toggle-btn" data-view="grid" aria-pressed="true">Posters</button><button type="button" class="view-toggle-btn" data-view="list" aria-pressed="false">List</button></div></div></div>
     <div id="film-grid" class="poster-grid catalog-grid" aria-live="polite" aria-atomic="false">${initialFilms.map(f => renderCatalogCard(f)).join('')}</div>
     <div class="table-wrapper catalog-table" aria-live="polite" aria-atomic="false"><table class="film-table"><thead><tr><th scope="col" class="col-year sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th><th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col">Director / Studio</th><th scope="col" class="col-technique sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col" class="col-runtime hide-mobile">Runtime</th><th scope="col" class="col-confidence hide-mobile">Confidence</th><th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
     <div id="no-results" class="no-results" hidden><h3 class="no-results-title">No films match your criteria</h3><p class="no-results-message" id="no-results-detail">Try adjusting your search or filters.</p><button id="clear-all-btn" class="clear-all-btn" hidden>Clear All Filters</button></div>
-    ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${sortedFilms.length}">Load More <span class="load-more-count">(${sortedFilms.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
+    ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${defaultFilms.length}">Load More <span class="load-more-count">(${defaultFilms.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
   </main>
 </div>
 <section class="about-section" id="about">
@@ -2086,6 +2105,10 @@ function buildFilmsIndexJs(sortedFilms, studios, directorsData) {
     // (file stem is the full page id, so it can't be derived from id8).
     px: f.poster && f.poster.file ? f.poster.file.replace(/\.webp$/, '') : undefined,
     pc: f.poster && f.poster.file ? f.poster.color : undefined,
+    // K1 default-hidden flags and latest verification date (sort: Recently verified)
+    u: isUnreleased(f) ? 1 : undefined,
+    m: isMainstreamTV(f) ? 1 : undefined,
+    lv: (f.watchLinks || []).filter(l => l && l.status === 'Verified' && l.lastVerified).map(l => l.lastVerified).sort().pop() || undefined,
     genres: f.genres || []
     // keywords lazy-loaded 2026-04-26 (perf trim): pulled out of the slim
     // catalog (~111 KB raw / ~30 KB gz off the critical path) and emitted
@@ -3011,6 +3034,7 @@ ul.watch-order-list{list-style:disc}
 .poster-empty{background:var(--data-bg);border:1px solid var(--rule);box-shadow:none;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--ink-muted);box-sizing:border-box}
 .poster-empty--initial span{font-family:var(--font-display);font-size:17px}
 .poster-empty--title span{font-family:var(--font-display);font-size:15px;line-height:1.25;padding:12px;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink)}
+body.is-filtering .poster-showcase{display:none}
 .catalog-bar{display:flex;justify-content:space-between;align-items:center;gap:var(--space-4);padding:var(--space-6) var(--space-6) 0;flex-wrap:wrap;border-top:1px solid var(--rule)}
 .catalog-bar-title{font-family:var(--font-display);font-size:24px;font-weight:400;margin:0}
 .catalog-bar-controls{display:flex;gap:var(--space-3);align-items:center}
@@ -3200,7 +3224,7 @@ function loadKeywords(){
 }
 let loadedCount=parseInt(loadMoreBtn?.dataset.loaded||allFilms.length);
 const BATCH_SIZE=50;
-let currentSort={column:'year',direction:'desc'};
+let currentSort={column:'recommended',direction:'desc'};
 
 // Hydrate SSR'd library buttons on initial paint. Subsequent re-renders
 // pick up state automatically via the calls in updateDisplay.
@@ -3300,6 +3324,8 @@ function getStudioLinks(f){
 }
 
 const CURRENT_YEAR=new Date().getFullYear();
+// Mirrors recommendScore() in build-site.js.
+function recScore(f){const l=getBestLink(f.watchLinks);return (l?(isWatchable(l)?3:1):0)+String(f.confidence||'').length+((f.country!=='USA'&&f.country!=='Japan')?1:0);}
 function sortFilms(films,column,direction){
   return [...films].sort((a,b)=>{
     // When sorting by year desc, push future films to end
@@ -3314,6 +3340,9 @@ function sortFilms(films,column,direction){
       case 'title':valA=(a.title||'').toLowerCase();valB=(b.title||'').toLowerCase();break;
       case 'country':valA=(a.country||'zzz').toLowerCase();valB=(b.country||'zzz').toLowerCase();break;
       case 'technique':valA=(a.technique&&a.technique[0]||'zzz').toLowerCase();valB=(b.technique&&b.technique[0]||'zzz').toLowerCase();break;
+      case 'recommended':valA=recScore(a);valB=recScore(b);if(valA===valB){valA=a.year||0;valB=b.year||0;}break;
+      case 'confidence':valA=confLevel(a.confidence);valB=confLevel(b.confidence);if(valA===valB){valA=a.year||0;valB=b.year||0;}break;
+      case 'verified':valA=a.lv||'';valB=b.lv||'';break;
       default:return 0;
     }
     if(valA<valB)return direction==='asc'?-1:1;
@@ -3391,23 +3420,23 @@ function renderLibBtnsClient(f){
   '</div>';
 }
 
+// Search: every word must match somewhere (title, original title,
+// director, studio, genres, keywords); case- and accent-insensitive.
+function foldText(s){return String(s||'').normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase()
+  .replace(/sh?t(?:ey|ei|ej)n/g,'stein');}
+function haystack(f){
+  const fk=keywordsCache[f.id]||[];
+  if(f._h&&f._hk===fk.length)return f._h;
+  f._h=foldText([f.title,f.original,f.director,f.studio,(f.genres||[]).join(' '),fk.join(' ')].join(' | '));f._hk=fk.length;
+  return f._h;
+}
 function getFilteredFilms(){
-  const term=searchInput.value.toLowerCase();
+  const words=foldText(searchInput.value).split(/[^\\p{L}\\p{N}']+/u).filter(Boolean);
+  const term=words.length>0;
   const filtered=allFilms.filter(f=>{
-    if(term){
-      const t=(f.title||'').toLowerCase();
-      const o=(f.original||'').toLowerCase();
-      const d=(f.director||'').toLowerCase();
-      const s=(f.studio||'').toLowerCase();
-      const g=(f.genres||[]).join(' ').toLowerCase();
-      // Keywords lazy-loaded — once keywordsCache is populated this
-      // matches against them too. Until then, search just covers the
-      // SSR'd fields (title/original/director/studio/genres). Search
-      // input listener triggers loadKeywords() on first keystroke.
-      const fk=keywordsCache[f.id]||[];
-      const k=fk.length?fk.join(' ').toLowerCase():'';
-      if(!t.includes(term)&&!o.includes(term)&&!d.includes(term)&&!s.includes(term)&&!g.includes(term)&&!k.includes(term))return false;
-    }
+    if(term){const h=haystack(f);if(!words.every(w=>h.includes(w)))return false;}
+    // K1: unreleased + mainstream US/JP TV hidden unless searched for or "Show everything" is on
+    else if(!activeFilters.everything&&(f.u||f.m))return false;
     if(activeFilters.format&&f.format!==activeFilters.format)return false;
     if(activeFilters.country&&f.country!==activeFilters.country)return false;
     if(activeFilters.decade){const dec=f.year?Math.floor(f.year/10)*10:0;if(dec!=activeFilters.decade)return false;}
@@ -3470,7 +3499,7 @@ function updateDisplay(resetPagination){
       loadMoreBtn.querySelector('.load-more-count').textContent='('+rem+' remaining)';
     }
   }
-  resultsCount.textContent=sorted.length.toLocaleString()+' films';
+  resultsCount.textContent=sorted.length.toLocaleString()+(sorted.length===1?' film':' films');
   // Round 9 #5: hide FotD when any filter/search is active. Showing a
   // randomly-rotated daily pick alongside a "you searched for X" view
   // breaks the page's implicit promise that visible content reflects
@@ -3478,6 +3507,7 @@ function updateDisplay(resetPagination){
   // styles can override if needed.
   const fotdMount=document.getElementById('film-of-day-mount');
   if(fotdMount)fotdMount.classList.toggle('is-hidden',!!isFiltered);
+  document.body.classList.toggle('is-filtering',!!isFiltered);
   // Same hide-on-filter rule for the curated picks panel: when the user
   // is actively narrowing, the table reflects their query — picks would
   // contradict it.
@@ -3622,6 +3652,15 @@ document.querySelectorAll('.view-toggle-btn').forEach(btn=>{
   });
   btn.setAttribute('aria-pressed',btn.dataset.view===(document.documentElement.dataset.view==='list'?'list':'grid')?'true':'false');
 });
+// "Browse all N verified-watchable films" turns that filter on, then scrolls to the results.
+document.querySelectorAll('[data-browse-verified]').forEach(function(a){
+  a.addEventListener('click',function(e){
+    e.preventDefault();
+    // "all N" means all: include the entries hidden by default (K1) so the count matches.
+    ['verified','everything'].forEach(function(t){const item=document.querySelector('.filter-item[data-filter-type="'+t+'"]');if(item&&!item.classList.contains('active'))item.click();});
+    ensureCatalog().then(function(){updateDisplay(true);const bar=document.querySelector('.catalog-bar')||document.getElementById('main-content');if(bar)bar.scrollIntoView({behavior:'smooth',block:'start'});});
+  });
+});
 const gridSort=document.getElementById('grid-sort');
 if(gridSort){
   gridSort.addEventListener('change',function(){
@@ -3702,8 +3741,11 @@ function updateActiveFiltersBar(){
   if(keys.length===0){activeFiltersBar.classList.remove('has-filters');return;}
   activeFiltersBar.classList.add('has-filters');
   let html='<span class="active-filters-label">Filtered:</span>';
+  // Boolean filters get a readable label instead of their raw "true" value.
+  const FLAG_LABELS={verified:'Verified watchable',watchable:'Has watch link',everything:'Showing everything',subtitles:'EN subtitles'};
   keys.forEach(type=>{
-    html+='<span class="active-filter-tag">'+activeFilters[type]+' <span class="remove" data-type="'+type+'" tabindex="0" role="button" aria-label="Remove filter">×</span></span>';
+    const label=FLAG_LABELS[type]&&activeFilters[type]==='true'?FLAG_LABELS[type]:(type==='decade'?activeFilters[type]+'s':activeFilters[type]);
+    html+='<span class="active-filter-tag">'+escHtml(String(label))+' <span class="remove" data-type="'+type+'" tabindex="0" role="button" aria-label="Remove filter: '+escHtml(String(label))+'">×</span></span>';
   });
   html+='<button class="clear-filters-btn" id="clear-filters-btn2">Clear all</button>';
   activeFiltersBar.innerHTML=html;
