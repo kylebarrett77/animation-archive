@@ -145,7 +145,7 @@ const filmNames = film => [film.titleEnglish, film.originalTitle, film.romanized
 const NOT_THE_WORK = /manga|franchise|novel|comic|video game|game|book|character|soundtrack|album|song|toy|media mix/i;
 // Sequel / part markers: "Tekkaman Blade II" must not take the image of the
 // parent "Tekkaman Blade" article (that is the earlier series' artwork).
-const SEQUEL_TOKEN = /^(ii|iii|iv|v|vi|vii|viii|ix|x|\d+|part|season|movie|film|final|chapter|episode|ova|special|returns|reborn|zero|next|new|sequel|gaiden|kai|shippuden)$/;
+const SEQUEL_TOKEN = /^(ii|iii|iv|v|vi|vii|viii|ix|x|\d+|part|season|movie|film|final|chapter|episode|ova|special|returns|reborn|zero|sequel|gaiden|kai|shippuden)$/;
 function sequelMismatch(filmTitle, articleTitle) {
   const art = new Set(norm(articleTitle).split(' '));
   return norm(filmTitle).split(' ').filter(t => t && !art.has(t) && SEQUEL_TOKEN.test(t));
@@ -315,7 +315,13 @@ async function main() {
           const c = await tmdbByImdb(imdb);
           if (c) {
             const doubt = tmdbIdentity(film, c);
-            if (doubt) { c.match = 'review'; c.detail += ` · review: ${doubt}`; suspects.set(film.id, c); }
+            if (doubt) {
+              c.match = 'review';
+              c.detail += ` · review: ${doubt}`;
+              // Only year/title disagreement is evidence of a wrong IMDb link; a
+              // sequel-marker mismatch is a poster concern, not a bad link.
+              if (doubt.includes('IMDb link may be wrong')) suspects.set(film.id, c);
+            }
             decisions.set(film.id, c);
           }
         }
