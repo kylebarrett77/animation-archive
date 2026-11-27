@@ -133,6 +133,30 @@ function entityCandidates(entities, textField, label) {
     .map(c => ({ kind: label, name: c.name, count: c.films.length, sample: c.films.slice(0, 5) }));
 }
 
+/**
+ * Entity pages that look like the same person/studio under spelling variants
+ * (macrons, long vowels, name order, or a shared native-script name), e.g.
+ * 'Masami Ōbari' vs 'Obari Masami (大張正己)'. Exact-name duplicates are already
+ * reported via linkProposals' ambiguous list.
+ */
+function variantDuplicates(entities, label) {
+  const fold = s => String(s || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const key = s => fold(String(s).replace(/\([^)]*\)/g, ' ')).replace(/ou|oo/g, 'o').replace(/uu/g, 'u').replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean).sort().join(' ');
+  const nat = e => (String(e.name).match(/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]+/g) || []).join('') || (String(e.nativeName || '').match(/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]+/g) || []).join('');
+  const groups = new Map();
+  for (const e of entities) {
+    for (const k of [`k:${key(e.name)}`, nat(e) ? `n:${nat(e)}` : null].filter(Boolean)) groups.set(k, [...(groups.get(k) || []), e]);
+  }
+  const seen = new Set(), out = [];
+  for (const list of groups.values()) {
+    const uniq = [...new Map(list.map(e => [e.id, e])).values()];
+    if (uniq.length < 2 || new Set(uniq.map(e => e.name)).size < 2) continue;
+    const sig = uniq.map(e => e.id).sort().join('|'); if (seen.has(sig)) continue; seen.add(sig);
+    out.push({ kind: label, names: uniq.map(e => e.name), ids: uniq.map(e => e.id) });
+  }
+  return out;
+}
+
 // ------------------------------------------------------------- wikidata
 async function sparql(query) {
   const url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(query);
@@ -284,6 +308,8 @@ function reviewBlocks(plan) {
     x => [rt(`${x.kind}: `), rt(x.name), rt(` — ${x.count} films (${x.sample.join('; ')})`)]);
   section('Duplicate entity pages', 'Two pages share this name, so the film can’t be linked. Merge them.', plan.ambiguous,
     x => [rt(`${x.kind}: ${x.name} — `), mention(x.film)]);
+  section('Possible duplicate entity pages (spelling variants)', 'These pages look like the same person or studio written differently (macrons, long vowels, name order, shared native-script name). Merge if they are, keeping the Western-order name with macrons.', plan.variants,
+    x => [rt(`${x.kind}: `), ...x.ids.flatMap((id, i) => [rt(i ? ' ≈ ' : ''), mention(id)])]);
   section('Free copies on the Internet Archive', 'Films ≥50 years old with no working watch link. Check the upload is legitimate, then add a Watch Links entry (Link Status: Unverified).', plan.watch,
     x => [mention(x.film), rt(' — '), ...x.hits.flatMap((h, i) => [rt(i ? ', ' : ''), rt(String(h.title).includes(String(h.year)) ? h.title : `${h.title} (${h.year})`, `https://archive.org/details/${h.id}`)])]);
   return blocks;
@@ -362,13 +388,15 @@ ${section('applied', 'Automatic fixes in this plan', APPLY ? 'Written to Notion 
 
 // ---------------------------------------------------------------- main
 async function main() {
-  const plan = { generated: new Date().toISOString(), links: [], ambiguous: [], fill: [], facts: [], identity: [], entities: [], watch: [] };
+  const plan = { generated: new Date().toISOString(), links: [], ambiguous: [], variants: [], fill: [], facts: [], identity: [], entities: [], watch: [] };
 
   if (runs('links')) {
     const s = linkProposals(studios, 'studio', 'studioEntities', 'studio');
     const d = linkProposals(directors, 'director', 'directorEntities', 'director');
     plan.links = [...s.exact, ...d.exact];
     plan.ambiguous = [...s.ambiguous, ...d.ambiguous];
+    plan.variants = [...variantDuplicates(directors, 'director'), ...variantDuplicates(studios, 'studio')];
+    console.log(`Variant duplicates: ${plan.variants.length} groups of entity pages that look like the same name`);
     console.log(`Links: ${s.exact.length} studio + ${d.exact.length} director relations to add; ${plan.ambiguous.length} ambiguous`);
   }
   if (runs('entities')) {
