@@ -147,7 +147,9 @@ async function downloadPosters(films) {
         // can turn out to be a full film (Wikimedia lead media can be video).
         const type = res.headers.get('content-type') || '';
         const size = Number(res.headers.get('content-length') || 0);
-        if (!type.startsWith('image/')) { res.body?.cancel(); throw new Error(`not an image (${type || 'unknown type'})`); }
+        // Only reject types that are clearly not images; some CDNs omit the
+        // header or send octet-stream for real images (sharp validates those).
+        if (type && !type.startsWith('image/') && !type.includes('octet-stream')) { res.body?.cancel(); throw new Error(`not an image (${type})`); }
         if (size > 30 * 1024 * 1024) { res.body?.cancel(); throw new Error(`too large (${Math.round(size / 1048576)} MB)`); }
         const card = await renderCard(Buffer.from(await res.arrayBuffer()));
         writeFileSync(`./data/posters/${file}`, card.buffer);
