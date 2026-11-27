@@ -26,7 +26,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { classifyByPolicy, normalizeLegacyStatus } from './lib/platform-trust.js';
+import { classifyByPolicy, reconcileStatus } from './lib/platform-trust.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -189,7 +189,7 @@ async function validateBatch(entries) {
     if (policyVerdict) {
       results.push({
         ...entry,
-        newStatus: policyVerdict.status,
+        newStatus: reconcileStatus(entry, policyVerdict),
         code: null,
         error: policyVerdict.source === 'pattern' ? null : `policy: ${policyVerdict.source}`,
         redirect: null,
@@ -207,7 +207,7 @@ async function validateBatch(entries) {
     // are explicitly marked legacy ("migrate to Broken on next touch").
     results.push({
       ...entry,
-      newStatus: normalizeLegacyStatus(result.status),
+      newStatus: reconcileStatus(entry, { ...result, source: 'http' }),
       code: result.code,
       error: result.error,
       redirect: result.redirect || null,

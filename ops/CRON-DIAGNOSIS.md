@@ -68,3 +68,20 @@ gh run watch -R kylebarrett77/animation-archive
 Merge the branch **before** adding the secret if the schedule is enabled:
 otherwise the next run commits fresh data onto the old April code on `main`
 and Netlify deploys that.
+
+## 2026-11-27: first scheduled run overwrote curation
+
+The first dry run after re-enabling (Actions run 46026572911) ran
+`validate-watch-links.js --fix`, which applied the April platform policy
+(`platform-trust.js`) to every link regardless of its recorded status. It
+demoted 478 hand-verified links (Crunchyroll, Netflix, Amazon…) to
+Restricted, clearing their Last Verified dates, flipped 98 curated
+'Unavailable' links to Restricted, and marked 8 links Broken on timeouts
+from the GitHub runner.
+
+Fix: `reconcileStatus()` in `scripts/lib/platform-trust.js`. Automated
+checks may upgrade a link or demote it on a real 404/410, but never
+override 'Unavailable', never demote a dated 'Verified' on policy alone,
+and treat timeouts/redirects/odd codes as inconclusive. The cron was
+disabled again until this merged and Notion was restored from the
+pre-run snapshot.
