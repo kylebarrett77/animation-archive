@@ -2243,7 +2243,7 @@ ${film.poster && film.poster.file
 ${film.year ? `<meta property="video:release_date" content="${film.year}">` : ''}
 
 <!-- Twitter Card -->
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${escapeHtml(film.titleEnglish || 'Untitled')} (${film.year || '?'})">
 <meta name="twitter:description" content="${escapeHtml(description.substring(0, 200))}">
 <meta name="twitter:image" content="${film.poster && film.poster.file ? `${SITE_URL}/posters/${film.poster.file}` : OG_IMAGE}">
@@ -3421,13 +3421,13 @@ function renderLibBtnsClient(f){
 }
 
 // Search: every word must match somewhere (title, original title,
-// director, studio, genres, keywords); case- and accent-insensitive.
+// director, studio, country, technique, genres, keywords); case- and accent-insensitive.
 function foldText(s){return String(s||'').normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase()
   .replace(/sh?t(?:ey|ei|ej)n/g,'stein');}
 function haystack(f){
   const fk=keywordsCache[f.id]||[];
   if(f._h&&f._hk===fk.length)return f._h;
-  f._h=foldText([f.title,f.original,f.director,f.studio,(f.genres||[]).join(' '),fk.join(' ')].join(' | '));f._hk=fk.length;
+  f._h=foldText([f.title,f.original,f.director,f.studio,f.country,(f.technique||[]).join(' '),(f.genres||[]).join(' '),fk.join(' ')].join(' | '));f._hk=fk.length;
   return f._h;
 }
 function getFilteredFilms(){
@@ -3463,6 +3463,18 @@ function currentView(){return (filmGrid&&document.documentElement.dataset.view!=
 function paint(list){
   if(currentView()==='grid'){filmGrid.innerHTML=list.map(renderCard).join('');}
   else{tbody.innerHTML=list.map(renderRow).join('');Watchlist.refreshButtons(tbody);}
+}
+// Mirror search / filters / sort into the URL so a view can be shared.
+function writeUrlState(){
+  try{
+    const p=new URLSearchParams();
+    if(searchInput.value)p.set('q',searchInput.value);
+    const f=Object.keys(activeFilters).map(function(k){return k+':'+activeFilters[k];}).join('|');
+    if(f)p.set('f',f);
+    if(currentSort.column!=='recommended')p.set('sort',currentSort.column+':'+currentSort.direction);
+    const qs=p.toString();
+    history.replaceState(null,'',location.pathname+(qs?'?'+qs:'')+(location.hash==='#about'?'':location.hash));
+  }catch(e){}
 }
 function updateDisplay(resetPagination){
   const sorted=getFilteredFilms();
@@ -3508,6 +3520,7 @@ function updateDisplay(resetPagination){
   const fotdMount=document.getElementById('film-of-day-mount');
   if(fotdMount)fotdMount.classList.toggle('is-hidden',!!isFiltered);
   document.body.classList.toggle('is-filtering',!!isFiltered);
+  writeUrlState();
   // Same hide-on-filter rule for the curated picks panel: when the user
   // is actively narrowing, the table reflects their query — picks would
   // contradict it.
@@ -3855,6 +3868,22 @@ function rotateFilmOfDay(){
   '</div>';
 }
 rotateFilmOfDay();
+
+// Restore search / filters / sort from the URL (shareable views).
+(function readUrlState(){
+  const p=new URLSearchParams(location.search);
+  const q=p.get('q'),f=p.get('f'),so=p.get('sort');
+  if(!q&&!f&&!so)return;
+  if(q)searchInput.value=q;
+  if(f)f.split('|').forEach(function(pair){
+    const i=pair.indexOf(':');if(i<1)return;
+    const t=pair.slice(0,i),v=pair.slice(i+1);activeFilters[t]=v;
+    filterItems.forEach(function(fi){if(fi.dataset.filterType===t&&fi.dataset.filterValue===v){fi.classList.add('active');fi.setAttribute('aria-selected','true');}});
+  });
+  if(so){const parts=so.split(':');currentSort={column:parts[0],direction:parts[1]||'desc'};if(gridSort)gridSort.value=currentSort.column+':'+currentSort.direction;}
+  ensureCatalog().then(function(){updateDisplay(true);updateActiveFiltersBar();if(q)loadKeywords().then(function(){updateDisplay(true);});
+    const bar=document.querySelector('.catalog-bar');if(bar)bar.scrollIntoView({block:'start'});});
+})();
 });`;
 }
 
@@ -3940,7 +3969,7 @@ ${FAVICON}
 <meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${escapeHtml(country)} Animation">
 <meta name="twitter:description" content="${escapeHtml(description)}">
 <meta name="twitter:image" content="${OG_IMAGE}">
@@ -4087,7 +4116,7 @@ ${FAVICON}
 <meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Countries — Global Animation Archive">
 <meta name="twitter:description" content="${escapeHtml(description)}">
 <meta name="twitter:image" content="${OG_IMAGE}">
@@ -4270,7 +4299,7 @@ ${FAVICON}
 <meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${escapeHtml(technique)} Animation">
 <meta name="twitter:description" content="${escapeHtml(description)}">
 <meta name="twitter:image" content="${OG_IMAGE}">
@@ -4399,7 +4428,7 @@ ${FAVICON}
 <meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Techniques — Global Animation Archive">
 <meta name="twitter:description" content="${escapeHtml(description)}">
 <meta name="twitter:image" content="${OG_IMAGE}">
@@ -4530,7 +4559,7 @@ ${FAVICON}
 <meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Directors — Global Animation Archive">
 <meta name="twitter:description" content="${escapeHtml(description)}">
 <meta name="twitter:image" content="${OG_IMAGE}">
@@ -4788,7 +4817,7 @@ ${FAVICON}
 <meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${decadeLabel} Animation">
 <meta name="twitter:description" content="${escapeHtml(description)}">
 <meta name="twitter:image" content="${OG_IMAGE}">
@@ -5068,7 +5097,7 @@ ${FAVICON}
 <meta property="og:image" content="${OG_IMAGE}">
 
 <!-- Twitter Card -->
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Decades — Global Animation Archive">
 <meta name="twitter:description" content="${escapeHtml(description)}">
 <meta name="twitter:image" content="${OG_IMAGE}">
@@ -6816,6 +6845,29 @@ async function buildPosterThumbs(dir) {
   console.log(`  ✓ ${total - failed} poster thumbnails in ${((Date.now() - t0) / 1000).toFixed(1)}s${failed ? ` (${failed} failed)` : ''}`);
 }
 
+// Canonical URLs are extensionless, matching the links Netlify's pretty-URL
+// rewriting serves (/films/slug, not /films/slug.html). This pass rewrites
+// every absolute site URL in pages, the sitemap and the feed: canonical,
+// og:url, JSON-LD and <loc>. Relative links stay .html in source because
+// Netlify rewrites them, and the local preview needs the real file names.
+function canonicalizeSiteUrls(dir = './dist') {
+  const esc = SITE_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(${esc}/[^"'<>\\s]*?)(?:/index)?\\.html(?=["'<\\s#?])`, 'g');
+  let files = 0, changed = 0;
+  const walk = d => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const f = `${d}/${e.name}`;
+      if (e.isDirectory()) { if (e.name !== 'posters') walk(f); continue; }
+      if (!/\.(html|xml)$/.test(e.name)) continue;
+      const src = fs.readFileSync(f, 'utf8');
+      const out = src.replace(re, (m, base) => (base === SITE_URL ? `${SITE_URL}/` : base));
+      files++; if (out !== src) { fs.writeFileSync(f, out); changed++; }
+    }
+  };
+  walk(dir);
+  console.log(`  ✓ canonical URLs extensionless in ${changed} of ${files} files`);
+}
+
 async function build() {
   console.log('🔨 Building static site...');
 
@@ -7042,6 +7094,7 @@ async function build() {
   writeFileSync('./dist/404.html', generate404Page());
   console.log('  ✓ 404.html');
 
+  canonicalizeSiteUrls();
   console.log(`\n✅ Build complete! Output in ./dist/`);
   console.log(`\n📊 Features:`);
   console.log(`   • Pagination: Initial load ${FILMS_PER_PAGE} films`);
