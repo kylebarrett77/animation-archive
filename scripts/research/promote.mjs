@@ -105,7 +105,7 @@ for (const f of draft.films) {
   if (!orphan && resumeOnly && errors.some(e => e.startsWith(f.queueTitle + ':'))) { log.films.push({ film: p['Title (English)'], skipped: 'duplicate (not an orphan to resume)' }); continue; }
   if (DRY) { log.films.push({ film: p['Title (English)'], dry: orphan ? 'would resume orphan page' : 'would create', blocks: blocks(f.content).length }); continue; }
   try {
-    let page = orphan;
+    let page = orphan; let iconFallback = false;
     if (!page) {
       const props = {
         'Title (English)': { title: richText(p['Title (English)']) }, 'Original Title': text(p['Original Title'] || 'N/A'), 'Romanized Title': text(p['Romanized Title'] || 'N/A'),
@@ -118,7 +118,9 @@ for (const f of draft.films) {
       };
       const ser = f.series && seriesList.find(s => s.name === f.series); if (ser) props['Series/Universe'] = { relation: [{ id: ser.id }] };
       const all = blocks(f.content);
-      page = await n.pages.create({ parent: { type: 'data_source_id', data_source_id: DS.films }, icon: f.icon ? { type: 'emoji', emoji: f.icon } : undefined, properties: props, children: all.slice(0, 100) });
+      const createWith = icon => n.pages.create({ parent: { type: 'data_source_id', data_source_id: DS.films }, icon: icon ? { type: 'emoji', emoji: icon } : undefined, properties: props, children: all.slice(0, 100) });
+      try { page = await createWith(f.icon); }
+      catch (e) { if (!/body\.icon/.test(e.message)) throw e; page = await createWith('🎬'); iconFallback = true; }   // Notion's emoji list lags Unicode
       for (let i = 100; i < all.length; i += 100) await n.blocks.children.append({ block_id: page.id, children: all.slice(i, i + 100) });
     }
     const existingLinks = orphan ? (orphan.properties['Watch Links (Linked)']?.relation || []).length : 0;
@@ -134,7 +136,7 @@ for (const f of draft.films) {
     notes.push({ type: 'text', text: { content: `Validated ${today()} Session ${session}. Films DB entry: ${page.id}` } });
     await n.pages.update({ page_id: q.id, properties: { Status: { select: { name: 'Validated' } }, 'Film DB Entry': { relation: [{ id: page.id }] }, 'Films DB Checked': { checkbox: true }, Notes: { rich_text: notes.slice(0, 100) } } });
     pageFor[f.queueTitle] = page.id; pageFor[p['Title (English)']] = page.id;
-    log.films.push({ film: p['Title (English)'], year: p.Year, page: page.id, queue: q.id, watchLinks: wl, resumed: !!orphan, directors: f.directors, studios: f.studios, confidence: p.Confidence, note: (f.conflicts || '').slice(0, 300) });
+    log.films.push({ film: p['Title (English)'], year: p.Year, page: page.id, queue: q.id, watchLinks: wl, resumed: !!orphan, directors: f.directors, studios: f.studios, confidence: p.Confidence, ...(iconFallback ? { iconFallback: `${f.icon} rejected by Notion, used 🎬` } : {}), note: (f.conflicts || '').slice(0, 300) });
   } catch (e) { log.films.push({ film: p['Title (English)'], error: e.message }); }
 }
 

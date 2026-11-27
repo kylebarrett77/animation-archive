@@ -24,6 +24,8 @@ export async function lint(draft, ctx = {}) {
   const REQ = ['Title (English)', 'Year', 'Country', 'Director', 'Studio', 'Format', 'Runtime', 'Technique', 'Color', 'Sound', 'Synopsis', 'Historical Context', 'Key Credits', 'Notes', 'Research Sources', 'IMDB', 'Wikipedia', 'Confidence', 'Alternate Titles'];
   for (const f of draft.films) {
     const p = f.properties || {}; const w = f.queueTitle || p['Title (English)'] || '(untitled)';
+    if (f.icon && !/^\p{RGI_Emoji}$/v.test(f.icon)) E(w, `icon "${f.icon}" is not a standard emoji (Notion rejects it); pick a single common emoji`);
+    else if (f.icon && f.icon.includes('\u200d')) W(w, `icon "${f.icon}" is a joined emoji; Notion rejects some newer ones (promote falls back to 🎬)`);
     // queue
     const q = queue.filter(x => x.title === f.queueTitle);
     if (q.length !== 1) E(w, `queueTitle must match exactly one Queue item (matched ${q.length})`);
