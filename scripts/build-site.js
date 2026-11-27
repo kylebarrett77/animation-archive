@@ -1822,7 +1822,7 @@ ${FAVICON}
 <script type="application/ld+json">${generateCollectionJsonLd()}</script>
 
 ${FONT_HEAD}
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -2162,7 +2162,7 @@ ${film.year ? `<meta property="video:release_date" content="${film.year}">` : ''
 <script type="application/ld+json">${generateFilmJsonLd(film)}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -3750,7 +3750,7 @@ ${FAVICON}
 <script type="application/ld+json">${generateCountryJsonLd(country, countryFilms)}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -3908,7 +3908,7 @@ ${FAVICON}
   })}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -4079,7 +4079,7 @@ ${FAVICON}
 <script type="application/ld+json">${generateTechniqueJsonLd(technique, techniqueFilms)}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -4219,7 +4219,7 @@ ${FAVICON}
   })}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -4350,7 +4350,7 @@ ${FAVICON}
   })}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -4596,7 +4596,7 @@ ${FAVICON}
 <script type="application/ld+json">${generateDecadeJsonLd(decade, decadeFilms)}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -4887,7 +4887,7 @@ ${FAVICON}
   })}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -5232,7 +5232,7 @@ ${FAVICON}
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:image" content="${OG_IMAGE}">
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -5384,7 +5384,7 @@ ${FAVICON}
 <meta property="og:title" content="Studios — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -5524,7 +5524,7 @@ ${FAVICON}
 <meta property="og:title" content="${escapeHtml(director.name)} — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -5740,7 +5740,7 @@ ${FAVICON}
 <meta property="og:title" content="${escapeHtml(series.name)} — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -5832,7 +5832,7 @@ ${FAVICON}
 <meta property="og:title" content="Series & Universes — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -5904,7 +5904,7 @@ function generateGenrePages() {
       `Browse ${sorted.length} animation genres from around the world. ${total} films categorized in the Global Animation Archive.`,
     deps: {
       slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
-      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'),
+      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'), CSS_HREF: ASSET_URLS.css,
       writeFileSync, mkdirSync,
       entityIndexControls, entityIndexEnhanceScript, entityIndexTopChips,
     },
@@ -5937,7 +5937,7 @@ function generateKeywordPages() {
       `Browse ${sorted.length} animation keywords and themes. ${total} films tagged in the Global Animation Archive.`,
     deps: {
       slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
-      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'),
+      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'), CSS_HREF: ASSET_URLS.css,
       writeFileSync, mkdirSync,
       entityIndexControls, entityIndexEnhanceScript, entityIndexTopChips,
     },
@@ -6103,7 +6103,7 @@ function generatePlatformPages() {
       `Browse ${sorted.length} streaming platforms. ${total} animated films with verified watch links in the Global Animation Archive.`,
     deps: {
       slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
-      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'),
+      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'), CSS_HREF: ASSET_URLS.css,
       writeFileSync, mkdirSync,
       // Rec #2 (2026-05-03): pass the search/chips helpers so the
       // tag-cloud index gets the same affordances as country/director
@@ -6525,7 +6525,7 @@ function generateLicensePage() {
 <link rel="canonical" href="${SITE_URL}/license.html">
 ${FAVICON}
 ${FONT_HEAD}
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -6583,10 +6583,15 @@ Sitemap: ${SITE_URL}/sitemap.xml
 // Batch D2: module-level holder populated at the top of build() before
 // generateIndexPage() runs. index.html reads these as content-hashed
 // script URLs so we can serve the JS with immutable cache headers.
-const ASSET_URLS = { filmsIndex: 'films-index.js', app: 'app.js' };
+const ASSET_URLS = { filmsIndex: 'films-index.js', app: 'app.js', css: 'styles.css' };
 
 function build() {
   console.log('🔨 Building static site...');
+
+  // Version the stylesheet URL by content (styles.css?v=<hash>). styles.css is
+  // cached for an hour (netlify.toml), so without this, a deploy that adds CSS
+  // serves new HTML with the old stylesheet to returning visitors.
+  ASSET_URLS.css = `styles.css?v=${contentHash(generateCSS())}`;
   mkdirSync('./dist', { recursive: true });
   mkdirSync('./dist/films', { recursive: true });
 

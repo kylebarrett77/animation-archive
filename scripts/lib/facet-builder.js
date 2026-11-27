@@ -128,7 +128,7 @@ ${FAVICON}
 <meta name="twitter:image" content="${SITE_URL}/og-image.png">
 ${typeof config.detailJsonLd === 'function' ? `<script type="application/ld+json">${config.detailJsonLd(value, sorted)}</script>` : ''}
 ${deps.FONT_HEAD || ''}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${deps.CSS_HREF || 'styles.css'}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -230,7 +230,7 @@ ${FAVICON}
 <meta property="og:title" content="${escapeHtml(label)} — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
 ${deps.FONT_HEAD || ''}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${deps.CSS_HREF || 'styles.css'}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
