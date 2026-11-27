@@ -88,6 +88,35 @@ whole over a blurred copy of themselves, so nothing is cropped.
   footer. Poster images are © their rights-holders; TMDB requires the
   attribution notice shown in the footer.
 
+## Data check (self-refinement)
+
+Every nightly refresh runs `scripts/refine-data.js` (`npm run refine`), an
+automated **Cleanup/Audit** pass that follows the Validation Protocol in
+Notion (🎬 Animation Archive → 📝 Validation Protocol).
+
+It writes only two kinds of change, and only additively:
+
+- **Relations**: a film's Studio/Director text names an existing entity page
+  as a whole credit, but `Studio (Link)` / `Director (Link)` was never set.
+- **Empty fields**: Wikipedia/IMDB filled from Wikidata when title and year
+  agree.
+
+Everything else is a research task, published nightly as a checklist on
+**🔎 Automated Data Check** in Notion: wrong IMDb links, facts that disagree
+with Wikidata/TMDB, studios/directors needing a page, duplicate entity pages,
+and Internet Archive copies of films 50+ years old. Runs that write are
+logged as a session in the Sessions database.
+
+The integration must be shared with the 🔎 Automated Data Check page and the
+Sessions database (••• → Connections → Animation Archive).
+
+```bash
+node scripts/refine-data.js                # plan + local review page, no writes
+node scripts/refine-data.js --apply        # write relations + fills, log a Session
+node scripts/refine-data.js --publish      # publish the checklist to Notion
+node scripts/refine-data.js --only links   # run one check (links, fill, facts, entities, watch)
+```
+
 ## Project Structure
 
 ```
