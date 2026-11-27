@@ -97,7 +97,9 @@ function extractFilm(page) {
 // signed S3 URLs that expire, so a static site cannot link them directly.
 //
 // - The first file in the property is the film's artwork.
-// - Cards live at data/posters/<id8>.webp; build-site.js copies them to dist/.
+// - Cards live at data/posters/<full page id>.webp; build-site.js copies them
+//   to dist/. (Not an 8-char prefix: Notion IDs created together share long
+//   prefixes, e.g. 100+ films start with 2dc9fae4-b254, so prefixes collide.)
 // - A card is only re-rendered when its source changes. The stable source key
 //   is a hash of the URL without its query string (Notion re-signs URLs on
 //   every fetch, but the file path stays the same; hashing keeps workspace
@@ -128,7 +130,7 @@ async function downloadPosters(films) {
       const src = film.posterFiles[0];
       const srcKey = createHash('sha1').update(src.url.split('?')[0]).digest('hex').slice(0, 16);
       const source = sourceOf(src.name);
-      const file = `${film.id.slice(0, 8)}.webp`;
+      const file = `${film.id.replace(/-/g, '')}.webp`;
       const prev = previous.get(film.id);
       const prevUsable = prev && prev.file === file && prev.srcKey && existsSync(`./data/posters/${file}`);
 

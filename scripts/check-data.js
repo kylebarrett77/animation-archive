@@ -65,6 +65,11 @@ if (existsSync('data/films.json')) {
   const films = JSON.parse(readFileSync('data/films.json', 'utf8'));
   const withPoster = films.filter(f => f.poster && f.poster.file);
   const missing = withPoster.filter(f => !existsSync(`data/posters/${f.poster.file}`));
+  // Two films pointing at one card file means one shows the other's poster.
+  const owners = new Map();
+  for (const f of withPoster) owners.set(f.poster.file, [...(owners.get(f.poster.file) || []), f]);
+  const shared = [...owners.values()].filter(v => v.length > 1);
+  if (shared.length) problems.push(`${shared.length} poster file(s) shared by several films (e.g. ${shared[0][0].poster.file}: ${shared[0].slice(0, 3).map(f => `"${f.titleEnglish}"`).join(", ")})`);
   console.log(`  ${'posters'.padEnd(12)} ${String(withPoster.length).padStart(5)} referenced, ${missing.length} missing`);
   for (const f of missing.slice(0, 5)) {
     problems.push(`poster file missing for "${f.titleEnglish || f.id}": data/posters/${f.poster.file}`);
