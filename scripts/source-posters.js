@@ -88,7 +88,28 @@ async function tmdbByImdb(imdbId) {
     via: 'tmdb', match: 'exact',
     detail: `TMDB ${hit.media_type || (hit.title ? 'movie' : 'tv')} #${hit.id} “${hit.title || hit.name}” (${yearOf(hit.release_date || hit.first_air_date) || '?'}) via IMDb ${imdbId}`,
     link: `https://www.themoviedb.org/${hit.title ? 'movie' : 'tv'}/${hit.id}`,
+    imdbId,
+    tmdbTitle: hit.title || hit.name || '',
+    tmdbOriginal: hit.original_title || hit.original_name || '',
+    tmdbYear: yearOf(hit.release_date || hit.first_air_date),
   };
+}
+
+// An IMDb-ID match is only as good as the IMDb link stored in Notion, and
+// some are wrong (e.g. "Megas XLR" (2004) linked to "Face the Nation"
+// (1954)). Returns a reason when TMDB's record disagrees with the film.
+function tmdbIdentity(film, c) {
+  const yd = film.year && c.tmdbYear ? Math.abs(film.year - c.tmdbYear) : null;
+  const best = Math.max(...filmNames(film).flatMap(n => [titleSimilarity(n, c.tmdbTitle), titleSimilarity(n, c.tmdbOriginal)]));
+  const what = `IMDb ${c.imdbId} is “${c.tmdbTitle}” (${c.tmdbYear ?? '?'}) on TMDB`;
+  if (yd !== null && yd > 5) return `${what}, ${yd} years from the archive's ${film.year}: IMDb link may be wrong`;
+  if (yd !== null && yd >= 2 && best < 0.6) return `${what}; year and title disagree: IMDb link may be wrong`;
+  if (best < 0.3) return `${what}; titles don't match: IMDb link may be wrong`;
+  // A sequel linked to its parent (e.g. "Starzinger II" -> "Starzinger") gets
+  // the earlier work's poster.
+  const extra = sequelMismatch(film.titleEnglish, `${c.tmdbTitle} ${c.tmdbOriginal}`);
+  if (extra.length) return `${what}; film title has “${extra.join(' ')}” that TMDB's lacks (sequel/part?)`;
+  return null;
 }
 
 async function tmdbTitleGuess(film) {
@@ -120,6 +141,7 @@ function titleSimilarity(a, b) {
   const inter = [...A].filter(w => B.has(w)).length;
   return inter / new Set([...A, ...B]).size;
 }
+const filmNames = film => [film.titleEnglish, film.originalTitle, film.romanizedTitle, ...String(film.alternateTitles || '').split(/[;,|\n]/)].filter(Boolean);
 const NOT_THE_WORK = /manga|franchise|novel|comic|video game|game|book|character|soundtrack|album|song|toy|media mix/i;
 // Sequel / part markers: "Tekkaman Blade II" must not take the image of the
 // parent "Tekkaman Blade" article (that is the earlier series' artwork).
@@ -135,8 +157,7 @@ function wikiIdentity(film, articleTitle, imageName) {
   const qYear = (qual.match(/\b(19|20)\d{2}\b/) || [])[0];
   if (qYear && film.year && Math.abs(Number(qYear) - film.year) > 1) return `article is the ${qYear} work`;
   if (COVER_FILE.test(String(imageName || '').replace(/_/g, ' '))) return `image looks like a book/manga cover (${imageName})`;
-  const names = [film.titleEnglish, film.originalTitle, film.romanizedTitle, ...String(film.alternateTitles || '').split(/[;,|\n]/)];
-  const best = Math.max(...names.map(n => titleSimilarity(n, articleTitle)));
+  const best = Math.max(...filmNames(film).map(n => titleSimilarity(n, articleTitle)));
   if (best < 0.6) return `article title “${articleTitle}” differs from the film title`;
   const extra = sequelMismatch(film.titleEnglish, articleTitle);
   if (extra.length) return `film title has “${extra.join(' ')}” that the article “${articleTitle}” lacks (sequel/part?)`;
@@ -284,24 +305,33 @@ async function main() {
 
   // 1. TMDB exact, by IMDb ID
   const decisions = new Map();
+  const suspects = new Map(); // film.id -> TMDB candidate whose IMDb link looks wrong
   if (HAS_TMDB) {
     let done = 0;
     await pool(candidates, 6, async ({ film }) => {
       const imdb = imdbIdOf(film);
       if (imdb) {
-        try { const c = await tmdbByImdb(imdb); if (c) decisions.set(film.id, c); }
+        try {
+          const c = await tmdbByImdb(imdb);
+          if (c) {
+            const doubt = tmdbIdentity(film, c);
+            if (doubt) { c.match = 'review'; c.detail += ` · review: ${doubt}`; suspects.set(film.id, c); }
+            decisions.set(film.id, c);
+          }
+        }
         catch (e) { if (/401/.test(e.message)) throw e; console.warn(`  ⚠ ${film.titleEnglish}: ${e.message}`); }
       }
       if (++done % 250 === 0) console.log(`  TMDB: ${done}/${candidates.length} checked, ${decisions.size} posters found`);
     });
-    console.log(`  TMDB by IMDb ID: ${decisions.size} posters found`);
+    console.log(`  TMDB by IMDb ID: ${decisions.size} posters found; ${suspects.size} look like wrong IMDb links (sent to review)`);
   }
 
   // 2. Wikipedia lead image, for films that still have no art (not for
   //    title cards: a series' lead image is usually that same title card).
-  const needWiki = candidates.filter(c => c.reason === 'missing' && !decisions.has(c.film.id)).map(c => c.film);
+  const needWiki = candidates.filter(c => c.reason === 'missing' && decisions.get(c.film.id)?.match !== 'exact').map(c => c.film);
   const wiki = await wikipediaLeadImages(needWiki);
-  for (const [id, c] of wiki) decisions.set(id, c);
+  // An exact Wikipedia image beats a doubtful TMDB one; otherwise keep TMDB's.
+  for (const [id, c] of wiki) if (c.match === 'exact' || !decisions.has(id)) decisions.set(id, c);
   const wikiReview = [...wiki.values()].filter(c => c.match === 'review').length;
   console.log(`  Wikipedia lead images: ${wiki.size} found (of ${needWiki.length} looked up); ${wikiReview} need review (franchise/source article)`);
 
@@ -321,9 +351,13 @@ async function main() {
     const c = decisions.get(film.id) || null;
     return { id: film.id, title: film.titleEnglish, year: film.year, country: film.country, notion: film.url,
              reason, match: c ? c.match : 'none', candidate: c,
+             imdbSuspect: suspects.has(film.id) ? suspects.get(film.id).detail.split(' · review: ')[1] : null,
              current: film.poster ? `posters/${film.poster.file}` : null };
   });
   writeFileSync(`${REPORTS}/poster-plan.json`, JSON.stringify(plan, null, 2));
+  const imdbFix = plan.filter(p => p.imdbSuspect).map(p => ({ id: p.id, title: p.title, year: p.year, notion: p.notion, problem: p.imdbSuspect }));
+  writeFileSync(`${REPORTS}/imdb-suspects.json`, JSON.stringify(imdbFix, null, 2));
+  if (imdbFix.length) console.log(`  ${imdbFix.length} IMDb links look wrong → reports/imdb-suspects.json`);
   writeReviewPage(plan);
 
   const exact = plan.filter(p => p.match === 'exact');
@@ -377,13 +411,16 @@ function writeReviewPage(plan) {
 .c{margin:0;background:#fff;border-radius:8px;padding:8px;box-shadow:0 1px 4px #0002}.c.review{outline:2px solid #d97706}
 .imgs{display:flex;gap:4px;align-items:flex-end}.imgs img{width:100%;aspect-ratio:2/3;object-fit:contain;background:#222;border-radius:4px}
 .imgs img.cur{width:38%;opacity:.8}figcaption{margin-top:6px;line-height:1.35}figcaption span{opacity:.6}
-small{display:block;opacity:.75;margin-top:3px;word-break:break-word}code{font-size:10px}</style>
+small{display:block;opacity:.75;margin-top:3px;word-break:break-word}table{border-collapse:collapse;font-size:12px}td{padding:3px 10px 3px 0;border-bottom:1px solid #0001;vertical-align:top}code{font-size:10px}</style>
 <h1>Poster sourcing — ${new Date().toISOString().slice(0, 10)}</h1>
 <p class=n>${exact.length} exact matches (written by <code>--apply</code>) · ${review.length} title guesses (need approval) · ${none.length} not found. For title-card upgrades the current card is shown small on the left.</p>
 <h2>Needs your review (${review.length})</h2>
 <p class=n>Approve with: <code>node scripts/source-posters.js --approve id1,id2,…</code></p>
 <div class=g>${review.map(p => card(p, true)).join('')}</div>
 <h2>Exact matches (${exact.length})</h2><div class=g>${exact.map(p => card(p, false)).join('')}</div>
+<h2>IMDb links that look wrong (${plan.filter(p => p.imdbSuspect).length})</h2>
+<p class=n>TMDB says these films' IMDb IDs belong to a different title or year. Worth fixing in Notion (the site links to IMDb too).</p>
+<table>${plan.filter(p => p.imdbSuspect).map(p => `<tr><td><a href="${esc(p.notion)}" target="_blank" rel="noopener">${esc(p.title)}</a> (${p.year || '?'})</td><td>${esc(p.imdbSuspect)}</td></tr>`).join('')}</table>
 <h2>Not found (${none.length})</h2><p class=n>${none.map(p => `${esc(p.title)} (${p.year || '?'})`).join(' · ')}</p>`);
 }
 
