@@ -5,6 +5,8 @@
  *   node scripts/research/brief.mjs --next 10            # next items from the promotion backlog
  *   node scripts/research/brief.mjs "Title A" "Title B"  # specific Queue titles
  *   options: --status Validated|New  --split 5  --batch NAME
+ *            --world           skip USA/Japan items (audit priority: work beyond the two biggest industries)
+ *            --country NAME    only items from this Queue country
  *
  * Writes <RESEARCH_DIR>/<batch>/precheck.json, brief-<n>.md (one per agent)
  * and prints the pre-check: duplicate candidates (exact/similar/director+year)
@@ -20,7 +22,8 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const N = Number(opt('--next', 0)); const status = opt('--status', 'Validated'); const split = Number(opt('--split', 5));
 const batch = opt('--batch', `batch-${stamp()}`);
-const titles = args.filter((a, i) => !a.startsWith('--') && !['--next', '--status', '--split', '--batch'].includes(args[i - 1]));
+const WORLD = args.includes('--world'); const onlyCountry = opt('--country', null);
+const titles = args.filter((a, i) => !a.startsWith('--') && !['--next', '--status', '--split', '--batch', '--country'].includes(args[i - 1]));
 
 const PRIO = { High: 0, Medium: 1, Low: 2 };
 const queue = (await queryAll(DB.queue)).map(p => ({ id: p.id, title: plain(p.properties.Title), status: p.properties.Status?.select?.name, prio: p.properties.Priority?.select?.name,
@@ -28,8 +31,9 @@ const queue = (await queryAll(DB.queue)).map(p => ({ id: p.id, title: plain(p.pr
   orig: plain(p.properties['Original Title']), notes: plain(p.properties['Research Notes']), src: plain(p.properties['Source Found']), linked: (p.properties['Film DB Entry']?.relation || []).length }));
 let picks;
 if (titles.length) picks = titles.map(t => { const m = queue.filter(q => q.title === t); if (m.length !== 1) throw new Error(`Queue title "${t}" matched ${m.length}`); return m[0]; });
-else picks = queue.filter(q => q.status === status && !q.linked && !/session 46/i.test(q.src))   // Session 46 import is flagged unreliable
-  .sort((a, b) => (PRIO[a.prio] ?? 3) - (PRIO[b.prio] ?? 3) || (a.year || 0) - (b.year || 0)).slice(0, N);
+else picks = queue.filter(q => q.status === status && !q.linked && !/session 46/i.test(q.src)   // Session 46 import is flagged unreliable
+    && (!WORLD || !['USA', 'Japan'].includes(q.country)) && (!onlyCountry || q.country === onlyCountry))
+  .sort((a, b) => (PRIO[a.prio] ?? 3) - (PRIO[b.prio] ?? 3) || (a.year ?? 9999) - (b.year ?? 9999)).slice(0, N);   // undated items last
 
 const [films, ents, schema] = await Promise.all([filmsIndex(), entityIndex(), schemaOptions()]);
 const pre = picks.map(q => {

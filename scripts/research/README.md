@@ -7,6 +7,9 @@ Code for the Validation Protocol (🎬 Animation Archive → 📝 Validation Pro
 node scripts/research/brief.mjs --next 10 --batch session189
 #    → reports/research/session189/{precheck.json, brief-1.md, brief-2.md}
 #    Items with an exact/similar Films duplicate are held out for review.
+#    The Validated backlog is almost all US TV, so world work comes from New items:
+#      node scripts/research/brief.mjs --status New --world --next 10 --batch session190
+#      node scripts/research/brief.mjs --status New --country Iran --next 10 --batch session190
 
 # 2. Research agents write draft-N.json and must pass the linter before handing back
 node scripts/research/lint.mjs reports/research/session189/draft-1.json
