@@ -58,6 +58,36 @@ Notion ──(daily 06:00 UTC)──▶ GitHub Action "Fetch Notion data"
 - A keepalive step stops GitHub from disabling the schedule after 60 days
   without commits. See `ops/CRON-DIAGNOSIS.md` for why that matters.
 
+## Artwork
+
+Every film's artwork is rendered at fetch time into one standard **2:3 poster
+card** (`scripts/lib/poster-card.js`, 480×720 WebP) and committed in
+`data/posters/`. Real posters fill the card; title cards and logos are fitted
+whole over a blurred copy of themselves, so nothing is cropped.
+
+- **By hand:** upload an image to the film's *Poster images* property in
+  Notion. The first file is the one used.
+- **Automatically:** `npm run posters:source` finds art for films that have
+  none, and real posters for films that only have a wide title card.
+  - TMDB, matched by the film's IMDb ID (needs `TMDB_TOKEN` in `.env`, and as
+    a GitHub secret for the daily run)
+  - Wikipedia, the lead image of the film's own article; articles about the
+    manga, novel or franchise, or an earlier part of a series, are sent to
+    review instead (title, sequel and Wikidata checks)
+
+  ```bash
+  npm run posters:source                          # dry run → reports/poster-review.html
+  npm run posters:source -- --apply               # write exact matches to Notion
+  npm run posters:source -- --approve <id>,<id>   # write reviewed title guesses
+  ```
+
+  New images go first in *Poster images*; anything already there is kept
+  after them. Every write is logged in `reports/`. The daily refresh runs
+  this for new films only (`--only-missing`).
+- **Credits:** auto-sourced images are credited on film pages and in the
+  footer. Poster images are © their rights-holders; TMDB requires the
+  attribution notice shown in the footer.
+
 ## Project Structure
 
 ```
@@ -66,8 +96,10 @@ scripts/
   fetch-watch-links.js   watch links, merged into films.json
   validate-watch-links.js  probe links, write changed statuses to Notion
   check-data.js          snapshot sanity guard
+  source-posters.js      find artwork (TMDB, Wikipedia) and write it to Notion
   build-site.js          generates the static site into dist/
   lib/notion.js          shared Notion client (API 2025-09-03)
+  lib/poster-card.js     renders the standard 2:3 poster card
 data/                    committed Notion snapshot (+ posters/)
 dist/                    generated site (gitignored)
 .github/workflows/
