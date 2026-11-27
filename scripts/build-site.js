@@ -451,6 +451,54 @@ function posterFrame(film, basePath = '', { lazy = true } = {}) {
   return `<span class="poster-frame" style="background-color:${p.color || '#2b2a28'}"><img src="${basePath}posters/${p.file}" alt="${escapeHtml(film.titleEnglish || 'Untitled')} poster" width="${POSTER_CARD_W}" height="${POSTER_CARD_H}"${lazy ? ' loading="lazy"' : ''} decoding="async"></span>`;
 }
 
+// Small 2:3 poster for lists, grids and cards. Uses the 240px thumbnail
+// (generated at build time, see buildPosterThumbs) with the full card as the
+// 2x source. Films without art get a lettered placeholder of the same shape,
+// so every list keeps one rhythm. alt is empty because the title is always
+// rendered next to it; the image would only repeat it to screen readers.
+const POSTER_THUMB_W = 240;
+const POSTER_THUMB_H = 360;
+function posterThumb(film, basePath = '', { sizes = '48px', label = 'initial' } = {}) {
+  const p = film.poster;
+  if (!p || !p.file) {
+    const title = film.titleEnglish || 'Untitled';
+    const text = label === 'title' ? title : (title.replace(/^(the|a|an)\s+/i, '').trim()[0] || '?');
+    return `<span class="poster-frame poster-empty poster-empty--${label}" aria-hidden="true"><span>${escapeHtml(text)}</span></span>`;
+  }
+  return `<span class="poster-frame" style="background-color:${p.color || '#2b2a28'}"><img src="${basePath}posters/thumbs/${p.file}" srcset="${basePath}posters/thumbs/${p.file} ${POSTER_THUMB_W}w, ${basePath}posters/${p.file} ${POSTER_CARD_W}w" sizes="${sizes}" alt="" width="${POSTER_THUMB_W}" height="${POSTER_THUMB_H}" loading="lazy" decoding="async"></span>`;
+}
+
+// Catalog grid card (homepage grid view). Mirrors renderCard() in generateJS.
+function renderCatalogCard(film, basePath = '') {
+  const link = getBestWatchLink(film);
+  const badge = link && isWatchable(link) ? '<span class="poster-badge" aria-label="Watchable">▶</span>' : '';
+  return `<a class="poster-card catalog-card" href="${getFilmUrl(film, basePath)}">${posterThumb(film, basePath, { sizes: '(max-width:768px) 30vw, 170px', label: 'title' })}${badge}<span class="poster-title">${escapeHtml(film.titleEnglish || 'Untitled')}</span><span class="poster-year">${film.year || '—'} · ${getCountryCode(film.country)}</span></a>`;
+}
+
+// A row of up to `limit` posters for facet and entity heroes: highest
+// confidence first, then newest. Returns '' when fewer than 3 films have art.
+function posterStrip(entityFilms, basePath = '../', limit = 8) {
+  const conf = f => (f.confidence || '').length;
+  const ranked = entityFilms.filter(f => f.poster && f.poster.file)
+    .sort((a, b) => conf(b) - conf(a) || (b.year || 0) - (a.year || 0));
+  if (ranked.length < 3) return '';
+  // Round-robin across decades so a long history isn't all recent titles:
+  // the best film of each decade first, then the next best, and so on.
+  const byDecade = new Map();
+  for (const f of ranked) {
+    const d = f.year ? Math.floor(f.year / 10) : -1;
+    if (!byDecade.has(d)) byDecade.set(d, []);
+    byDecade.get(d).push(f);
+  }
+  const buckets = [...byDecade.entries()].sort((a, b) => a[0] - b[0]).map(([, list]) => list);
+  const picked = [];
+  for (let round = 0; picked.length < limit && buckets.some(b => b.length > round); round++) {
+    for (const b of buckets) if (b[round] && picked.length < limit) picked.push(b[round]);
+  }
+  const withArt = picked.sort((a, b) => (a.year || 0) - (b.year || 0));
+  return `<div class="poster-strip" aria-label="Featured posters">${withArt.map(f => `<a class="poster-strip-item" href="${getFilmUrl(f, basePath)}" title="${escapeHtml(`${f.titleEnglish || 'Untitled'}${f.year ? ` (${f.year})` : ''}`)}">${posterThumb(f, basePath, { sizes: '110px' })}<span class="visually-hidden">${escapeHtml(f.titleEnglish || 'Untitled')}</span></a>`).join('')}</div>`;
+}
+
 // Homepage: the most recently added films that have artwork.
 function generatePosterShowcase(list) {
   const withArt = list.filter(f => f.poster && f.poster.file);
@@ -1117,6 +1165,7 @@ function generateFilmOfTheDayCard(film) {
         <span class="film-of-day-date">${buildDateISO}</span>
       </div>
       <div class="film-of-day-content">
+        <a href="${getFilmUrl(film)}" class="film-of-day-poster" tabindex="-1" aria-hidden="true">${posterThumb(film, '', { sizes: '72px' })}</a>
         <div class="film-of-day-info">
           <a href="${getFilmUrl(film)}" class="film-of-day-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>
           <div class="film-of-day-meta">
@@ -1242,12 +1291,15 @@ function generateFeaturedPicksPanel(filmsByIdMap) {
     const director = film.director ? escapeHtml(film.director.split(',')[0].trim()) : '';
     const platform = escapeHtml(link.platform || 'a free archive');
     return `
-    <article class="pick-card">
+    <article class="pick-card pick-card--poster">
+      <a href="${getFilmUrl(film)}" class="pick-poster" tabindex="-1" aria-hidden="true">${posterThumb(film, '', { sizes: '96px' })}</a>
+      <div class="pick-body">
       <div class="pick-meta"><span class="pick-year">${year}</span><span class="pick-divider">·</span><span class="pick-country">${cc}</span><span class="pick-divider">·</span><span class="pick-platform">${platform}</span></div>
       <h3 class="pick-title"><a href="${getFilmUrl(film)}">${title}</a></h3>
       ${director ? `<div class="pick-credit">${director}</div>` : ''}
       <p class="pick-blurb">${escapeHtml(blurb)}</p>
       <a href="${escapeHtml(link.url)}" class="pick-watch-btn" target="_blank" rel="noopener" aria-label="Watch ${title} on ${platform} (opens in new tab)">▶ Watch on ${platform}</a>
+      </div>
     </article>`;
   }).join('');
 
@@ -1454,6 +1506,7 @@ function generateRelatedFilmsSection(film) {
             : '';
           return `
         <a href="${getFilmFilename(f)}" class="related-card">
+          ${posterThumb(f, '../', { sizes: '(max-width:768px) 30vw, 150px', label: 'title' })}
           <span class="related-title">${escapeHtml(f.titleEnglish) || 'Untitled'}</span>
           <span class="related-meta">${f.year || '?'}${f.director ? ` · ${escapeHtml(f.director.split(',')[0].trim())}` : ''}</span>
           ${indicator}
@@ -1717,7 +1770,7 @@ function generateTableRows(filmList, opts = '') {
     return `
     <tr data-film-id="${escapeHtml(film.id)}" data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-verified="${isPlayable(film) ? 'true' : 'false'}" data-payment-tier="${paymentTierForFilm(film) || ''}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}" data-confidence="${confNum}">
       <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
-      <td><a href="${getFilmUrl(film, basePath)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${renderOriginalTitle(film.originalTitle, film.country)}</div>` : ''}</td>
+      <td><div class="title-cell"><a href="${getFilmUrl(film, basePath)}" class="row-thumb" tabindex="-1" aria-hidden="true">${posterThumb(film, basePath)}</a><div><a href="${getFilmUrl(film, basePath)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${renderOriginalTitle(film.originalTitle, film.country)}</div>` : ''}</div></div></td>
       ${metaCell}
       <td class="table-technique hide-mobile">${escapeHtml(film.technique?.[0]) || '—'}</td>
       <td class="table-runtime hide-mobile">${escapeHtml(film.runtime) || '—'}</td>
@@ -1773,6 +1826,7 @@ function generateFilmJsonLd(film) {
   if (film.studio) data.productionCompany = { "@type": "Organization", "name": film.studio };
   if (film.runtime) data.duration = film.runtime;
   if (film.originalTitle) data.alternateName = film.originalTitle;
+  if (film.poster && film.poster.file) data.image = `${SITE_URL}/posters/${film.poster.file}`;
   // Clean undefined values
   Object.keys(data).forEach(key => data[key] === undefined && delete data[key]);
   return JSON.stringify(data);
@@ -1808,6 +1862,7 @@ ${FAVICON}
 <meta property="og:url" content="${SITE_URL}/">
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:locale" content="en_US">
+<script>try{if(localStorage.getItem('gaa-view')==='list')document.documentElement.dataset.view='list'}catch(e){}</script>
 <meta property="og:image" content="${OG_IMAGE}">
 <meta property="og:image:alt" content="Global Animation Archive &mdash; ${stats.watchable.toLocaleString()} films you can watch, from ${Object.keys(stats.countries).length} countries">
 
@@ -1926,7 +1981,9 @@ ${/* Rec #2 (2026-05-03): featured-picks panel moved here from inside main-
         (not assertive) — table changes shouldn't preempt other speech.
         aria-atomic="false" so only the changed rows are announced, not
         the entire table on every keystroke. */ ''}
-    <div class="table-wrapper" aria-live="polite" aria-atomic="false"><table class="film-table"><thead><tr><th scope="col" class="col-year sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th><th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col">Director / Studio</th><th scope="col" class="col-technique sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col" class="col-runtime hide-mobile">Runtime</th><th scope="col" class="col-confidence hide-mobile">Confidence</th><th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
+    <div class="catalog-bar"><h2 class="catalog-bar-title">All films</h2><div class="catalog-bar-controls"><label class="grid-sort"><span class="visually-hidden">Sort films</span><select id="grid-sort"><option value="year:desc">Newest first</option><option value="year:asc">Oldest first</option><option value="title:asc">Title A–Z</option></select></label><div class="view-toggle" role="group" aria-label="Catalog view"><button type="button" class="view-toggle-btn" data-view="grid" aria-pressed="true">Posters</button><button type="button" class="view-toggle-btn" data-view="list" aria-pressed="false">List</button></div></div></div>
+    <div id="film-grid" class="poster-grid catalog-grid" aria-live="polite" aria-atomic="false">${initialFilms.map(f => renderCatalogCard(f)).join('')}</div>
+    <div class="table-wrapper catalog-table" aria-live="polite" aria-atomic="false"><table class="film-table"><thead><tr><th scope="col" class="col-year sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th><th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col">Director / Studio</th><th scope="col" class="col-technique sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col" class="col-runtime hide-mobile">Runtime</th><th scope="col" class="col-confidence hide-mobile">Confidence</th><th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
     <div id="no-results" class="no-results" hidden><h3 class="no-results-title">No films match your criteria</h3><p class="no-results-message" id="no-results-detail">Try adjusting your search or filters.</p><button id="clear-all-btn" class="clear-all-btn" hidden>Clear All Filters</button></div>
     ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${sortedFilms.length}">Load More <span class="load-more-count">(${sortedFilms.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
   </main>
@@ -2025,6 +2082,10 @@ function buildFilmsIndexJs(sortedFilms, studios, directorsData) {
       ? f.watchLinks.map(l => ({ url: l.url, platform: l.platform, status: l.status }))
       : [],
     hasSubtitles: f.hasSubtitles,
+    // Poster file stem + dominant colour, only for films with art
+    // (file stem is the full page id, so it can't be derived from id8).
+    px: f.poster && f.poster.file ? f.poster.file.replace(/\.webp$/, '') : undefined,
+    pc: f.poster && f.poster.file ? f.poster.color : undefined,
     genres: f.genres || []
     // keywords lazy-loaded 2026-04-26 (perf trim): pulled out of the slim
     // catalog (~111 KB raw / ~30 KB gz off the critical path) and emitted
@@ -2149,14 +2210,20 @@ ${FAVICON}
 <meta property="og:description" content="${escapeHtml(description.substring(0, 200))}">
 <meta property="og:url" content="${SITE_URL}/${getFilmUrl(film)}">
 <meta property="og:site_name" content="Global Animation Archive">
-<meta property="og:image" content="${OG_IMAGE}">
+${film.poster && film.poster.file
+  ? `<meta property="og:image" content="${SITE_URL}/posters/${film.poster.file}">
+<meta property="og:image:type" content="image/webp">
+<meta property="og:image:width" content="${POSTER_CARD_W}">
+<meta property="og:image:height" content="${POSTER_CARD_H}">
+<meta property="og:image:alt" content="${escapeHtml(film.titleEnglish || 'Untitled')} poster">`
+  : `<meta property="og:image" content="${OG_IMAGE}">`}
 ${film.year ? `<meta property="video:release_date" content="${film.year}">` : ''}
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="${escapeHtml(film.titleEnglish || 'Untitled')} (${film.year || '?'})">
 <meta name="twitter:description" content="${escapeHtml(description.substring(0, 200))}">
-<meta name="twitter:image" content="${OG_IMAGE}">
+<meta name="twitter:image" content="${film.poster && film.poster.file ? `${SITE_URL}/posters/${film.poster.file}` : OG_IMAGE}">
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateFilmJsonLd(film)}</script>
@@ -2932,7 +2999,49 @@ ul.watch-order-list{list-style:disc}
 .poster-card:hover .poster-frame,.poster-card:focus-visible .poster-frame{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.25)}
 .poster-title{display:block;margin-top:6px;font-size:var(--type-meta);font-weight:600;line-height:1.3}
 .poster-year{display:block;font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted)}
-@media(max-width:768px){.detail-hero-flex{flex-direction:column;gap:20px}.detail-poster{flex-basis:auto;max-width:160px;margin:0}.poster-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px 12px;padding:0 var(--space-4)}}`;
+@media(max-width:768px){.detail-hero-flex{flex-direction:column;gap:20px}.detail-poster{flex-basis:auto;max-width:160px;margin:0}.poster-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px 12px;padding:0 var(--space-4)}}
+/* ---- Posters across the site: rows, grid view, picks, related, strips ---- */
+.title-cell{display:flex;gap:12px;align-items:flex-start}
+.title-cell>div{flex:1;min-width:0}
+.main-layout>.content{min-width:0}
+@media(max-width:768px){.film-table .table-meta{overflow-wrap:anywhere}}
+.title-cell .table-original{overflow-wrap:anywhere}
+.row-thumb{flex:0 0 40px;width:40px;display:block}
+.row-thumb .poster-frame,.poster-strip .poster-frame{border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.poster-empty{background:var(--data-bg);border:1px solid var(--rule);box-shadow:none;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--ink-muted);box-sizing:border-box}
+.poster-empty--initial span{font-family:var(--font-display);font-size:17px}
+.poster-empty--title span{font-family:var(--font-display);font-size:15px;line-height:1.25;padding:12px;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink)}
+.catalog-bar{display:flex;justify-content:space-between;align-items:center;gap:var(--space-4);padding:var(--space-6) var(--space-6) 0;flex-wrap:wrap;border-top:1px solid var(--rule)}
+.catalog-bar-title{font-family:var(--font-display);font-size:24px;font-weight:400;margin:0}
+.catalog-bar-controls{display:flex;gap:var(--space-3);align-items:center}
+.view-toggle{display:inline-flex;border:1px solid var(--ink)}
+.view-toggle-btn{font-family:var(--mono);font-size:var(--type-data-sm);padding:7px 14px;background:var(--paper);color:var(--ink);border:0;cursor:pointer;min-height:36px}
+.view-toggle-btn[aria-pressed=true]{background:var(--ink);color:var(--cream)}
+.grid-sort select{font-family:var(--mono);font-size:var(--type-data-sm);padding:7px 10px;min-height:36px;border:1px solid var(--rule);background:var(--paper);color:var(--ink)}
+html:not([data-view=list]) .catalog-table{display:none}
+html[data-view=list] #film-grid,html[data-view=list] .grid-sort{display:none}
+.catalog-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));padding-bottom:var(--space-6)}
+.poster-card{position:relative}
+.poster-badge{position:absolute;top:6px;right:6px;background:rgba(20,20,20,.78);color:#fff;font-size:9px;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;padding-left:2px;box-sizing:border-box}
+@media(min-width:1100px){.featured-picks-grid{grid-template-columns:repeat(3,1fr)}}
+.pick-card--poster{flex-direction:row;align-items:flex-start;gap:var(--space-4)}
+.pick-poster{flex:0 0 84px;display:block}
+.featured-picks .pick-card--poster>.pick-poster{flex-basis:96px}
+.pick-body{display:flex;flex-direction:column;gap:var(--space-2);min-width:0;flex:1}
+.pick-card--poster .pick-meta{flex-wrap:wrap}
+.decade-context-grid>*{min-width:0}
+.film-of-day-poster{flex:0 0 72px;display:block}
+.related-card{padding:0;border:0;background:none}
+.related-card:hover{border-color:transparent;box-shadow:none}
+.related-card .poster-frame{margin-bottom:8px;transition:transform .12s ease,box-shadow .12s ease}
+.related-card:hover .poster-frame,.related-card:focus-visible .poster-frame{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.related-card .related-watch{top:6px;right:6px;background:rgba(20,20,20,.78);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px}
+.related-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+.poster-strip{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px;margin-top:var(--space-5);max-width:820px;min-width:0}
+.poster-strip-item{display:block;min-width:0}
+.poster-strip-item .poster-frame{transition:transform .12s ease}
+.poster-strip-item:hover .poster-frame{transform:translateY(-2px)}
+@media(max-width:768px){.catalog-bar{padding:var(--space-5) var(--space-4) 0}.catalog-grid{grid-template-columns:repeat(auto-fill,minmax(105px,1fr))}.row-thumb{flex-basis:34px;width:34px}.pick-poster,.featured-picks .pick-card--poster>.pick-poster{flex-basis:72px}.poster-strip{grid-template-columns:repeat(4,minmax(0,1fr))}.related-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}}`;
 }
 
 function generateJS() {
@@ -3213,13 +3322,30 @@ function sortFilms(films,column,direction){
   });
 }
 
+// Poster thumbnail / catalog card. Mirrors posterThumb() and
+// renderCatalogCard() in build-site.js; px/pc come from the slim catalog.
+function thumbHtml(f,sizes,label){
+  if(!f.px){
+    const t=f.title||'Untitled';
+    const txt=label==='title'?t:((t.replace(/^(the|a|an)\\s+/i,'').trim()[0])||'?');
+    return '<span class="poster-frame poster-empty poster-empty--'+label+'" aria-hidden="true"><span>'+escHtml(txt)+'</span></span>';
+  }
+  return '<span class="poster-frame" style="background-color:'+(f.pc||'#2b2a28')+'"><img src="posters/thumbs/'+f.px+'.webp" srcset="posters/thumbs/'+f.px+'.webp 240w, posters/'+f.px+'.webp 480w" sizes="'+sizes+'" alt="" width="240" height="360" loading="lazy" decoding="async"></span>';
+}
+function filmHref(f){return 'films/'+slugify(f.title)+'-'+f.id.slice(0,8)+'.html';}
+function renderCard(f){
+  const link=getBestLink(f.watchLinks);
+  const badge=(link&&isWatchable(link))?'<span class="poster-badge" aria-label="Watchable">▶</span>':'';
+  return '<a class="poster-card catalog-card" href="'+filmHref(f)+'">'+thumbHtml(f,'(max-width:768px) 30vw, 170px','title')+badge+
+    '<span class="poster-title">'+(escHtml(f.title)||'Untitled')+'</span><span class="poster-year">'+(f.year||'—')+' · '+getCC(f.country)+'</span></a>';
+}
 function renderRow(f){
   const dec=f.year?Math.floor(f.year/10)*10:'';
   const dirLinks=getDirectorLinks(f);
   const stuLinks=getStudioLinks(f);
   return '<tr data-film-id="'+escHtml(f.id)+'" data-country="'+escHtml(f.country||'')+'" data-decade="'+dec+'" data-technique="'+escHtml((f.technique||[]).join(','))+'" data-watchable="'+(hasWatchLinksClient(f.watchLinks)?'true':'false')+'" data-verified="'+((f.watchLinks||[]).some(isWatchable)?'true':'false')+'" data-payment-tier="'+paymentTierClient(f.watchLinks)+'" data-subs="'+(f.hasSubtitles?'true':'false')+'" data-director="'+escHtml(f.director||'')+'">'+
     '<td><div class="table-year">'+(f.year||'—')+'</div><div class="table-country">'+getCC(f.country)+'</div></td>'+
-    '<td><a href="films/'+slugify(f.title)+'-'+f.id.slice(0,8)+'.html" class="table-title">'+(escHtml(f.title)||'Untitled')+'</a>'+(f.original?'<div class="table-original">'+escHtml(f.original)+'</div>':'')+'</td>'+
+    '<td><div class="title-cell"><a href="'+filmHref(f)+'" class="row-thumb" tabindex="-1" aria-hidden="true">'+thumbHtml(f,'48px','initial')+'</a><div><a href="'+filmHref(f)+'" class="table-title">'+(escHtml(f.title)||'Untitled')+'</a>'+(f.original?'<div class="table-original">'+escHtml(f.original)+'</div>':'')+'</div></div></td>'+
     '<td class="table-meta">'+(dirLinks?'<strong>'+dirLinks+'</strong><br>':'')+stuLinks+'</td>'+
     '<td class="table-technique hide-mobile">'+((f.technique&&f.technique[0])?f.technique[0]:'—')+'</td>'+
     '<td class="table-runtime hide-mobile">'+(escHtml(f.runtime)||'—')+'</td>'+
@@ -3301,6 +3427,14 @@ function getFilteredFilms(){
   return sortFilms(filtered,currentSort.column,currentSort.direction);
 }
 
+// Grid / list view. The choice lives on <html data-view> (set before
+// first paint by the inline head script) and in localStorage.
+const filmGrid=document.getElementById('film-grid');
+function currentView(){return (filmGrid&&document.documentElement.dataset.view!=='list')?'grid':'list';}
+function paint(list){
+  if(currentView()==='grid'){filmGrid.innerHTML=list.map(renderCard).join('');}
+  else{tbody.innerHTML=list.map(renderRow).join('');Watchlist.refreshButtons(tbody);}
+}
 function updateDisplay(resetPagination){
   const sorted=getFilteredFilms();
   const isFiltered=searchInput.value||Object.keys(activeFilters).length>0;
@@ -3310,7 +3444,7 @@ function updateDisplay(resetPagination){
   if(resetPagination)loadedCount=BATCH_SIZE;
   if(isFiltered){
     if(sorted.length===0){
-      tbody.innerHTML='';
+      paint([]);
       if(noResultsEl){
         noResultsEl.style.display='block';
         // Build detailed message about active filters
@@ -3323,13 +3457,13 @@ function updateDisplay(resetPagination){
         if(clearAllBtn)clearAllBtn.style.display='inline-block';
       }
     }else{
-      tbody.innerHTML=sorted.map(renderRow).join('');Watchlist.refreshButtons(tbody);
+      paint(sorted);
       if(noResultsEl)noResultsEl.style.display='none';
     }
     if(loadMoreBtn)loadMoreBtn.style.display='none';
   }else{
     if(noResultsEl)noResultsEl.style.display='none';
-    tbody.innerHTML=sorted.slice(0,loadedCount).map(renderRow).join('');Watchlist.refreshButtons(tbody);
+    paint(sorted.slice(0,loadedCount));
     if(loadMoreBtn){
       loadMoreBtn.style.display=loadedCount>=sorted.length?'none':'inline-block';
       const rem=sorted.length-loadedCount;
@@ -3395,12 +3529,13 @@ if(loadMoreBtn){
     const sorted=getFilteredFilms();
     const newCount=Math.min(loadedCount+BATCH_SIZE,sorted.length);
     const fragment=document.createDocumentFragment();
+    const asGrid=currentView()==='grid';
     for(let i=loadedCount;i<newCount;i++){
       const temp=document.createElement('template');
-      temp.innerHTML=renderRow(sorted[i]);
+      temp.innerHTML=asGrid?renderCard(sorted[i]):renderRow(sorted[i]);
       fragment.appendChild(temp.content.firstChild);
     }
-    tbody.appendChild(fragment);
+    (asGrid?filmGrid:tbody).appendChild(fragment);
     loadedCount=newCount;
     this.dataset.loaded=loadedCount;
     updateDisplay();
@@ -3474,6 +3609,27 @@ sortableHeaders.forEach(th=>{
     if(e.key==='Enter'||e.key===' '){e.preventDefault();handler();}
   });
 });
+
+// View toggle (grid / list) and the grid's sort menu (table headers are
+// hidden in grid view, so the menu drives the same currentSort).
+document.querySelectorAll('.view-toggle-btn').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    const v=this.dataset.view;
+    document.documentElement.dataset.view=v;
+    try{localStorage.setItem('gaa-view',v);}catch(e){}
+    document.querySelectorAll('.view-toggle-btn').forEach(b=>b.setAttribute('aria-pressed',b.dataset.view===v?'true':'false'));
+    if(catalogReady)updateDisplay(false);
+  });
+  btn.setAttribute('aria-pressed',btn.dataset.view===(document.documentElement.dataset.view==='list'?'list':'grid')?'true':'false');
+});
+const gridSort=document.getElementById('grid-sort');
+if(gridSort){
+  gridSort.addEventListener('change',function(){
+    const parts=this.value.split(':');
+    currentSort={column:parts[0],direction:parts[1]};
+    ensureCatalog().then(function(){updateSortIndicators();updateDisplay(true);});
+  });
+}
 
 // Footer random link
 const footerRandomLink=document.getElementById('footer-random-link');
@@ -3641,6 +3797,7 @@ function rotateFilmOfDay(){
       '<span class="film-of-day-date">'+todayKey+'</span>'+
     '</div>'+
     '<div class="film-of-day-content">'+
+      '<a href="'+url+'" class="film-of-day-poster" tabindex="-1" aria-hidden="true">'+thumbHtml(film,'72px','initial')+'</a>'+
       '<div class="film-of-day-info">'+
         '<a href="'+url+'" class="film-of-day-title">'+(escHtml(film.title)||'Untitled')+'</a>'+
         '<div class="film-of-day-meta">'+
@@ -3788,6 +3945,7 @@ ${generateBreadcrumb([
   </div>
   ${intro}
   ${eraNote}
+  ${posterStrip(countryFilms)}
 </section>`;
   })()}
 
@@ -4098,6 +4256,7 @@ ${generateBreadcrumb([
       <h1 class="technique-name">${escapeHtml(technique)}</h1>
       <p class="technique-description">${escapeHtml(techniqueDesc)}</p>
       <p class="technique-subtitle">${techniqueFilms.length} films in the archive</p>
+      ${posterStrip(techniqueFilms)}
     </div>
     <nav class="technique-nav" aria-label="Technique navigation">
       <a href="index.html" class="technique-back-link">← All Techniques</a>
@@ -4162,7 +4321,7 @@ function generateTechniqueTableRows(filmList) {
     return `
     <tr data-film-id="${escapeHtml(film.id)}" data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-verified="${isPlayable(film) ? 'true' : 'false'}" data-payment-tier="${paymentTierForFilm(film) || ''}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
       <td><div class="table-year">${film.year || '—'}</div></td>
-      <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${renderOriginalTitle(film.originalTitle, film.country)}</div>` : ''}</td>
+      <td><div class="title-cell"><a href="../${getFilmUrl(film)}" class="row-thumb" tabindex="-1" aria-hidden="true">${posterThumb(film, '../')}</a><div><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${renderOriginalTitle(film.originalTitle, film.country)}</div>` : ''}</div></div></td>
       <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
       <td class="table-country-cell hide-mobile"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
       <td class="table-runtime hide-mobile">${escapeHtml(film.runtime) || '—'}</td>
@@ -4498,7 +4657,7 @@ function generateDecadeTableRows(filmList) {
     return `
     <tr data-film-id="${escapeHtml(film.id)}" data-country="${escapeHtml(film.country || '')}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-verified="${isPlayable(film) ? 'true' : 'false'}" data-payment-tier="${paymentTierForFilm(film) || ''}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}" data-confidence="${confNum}">
       <td><div class="table-year">${film.year || '—'}</div></td>
-      <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${renderOriginalTitle(film.originalTitle, film.country)}</div>` : ''}</td>
+      <td><div class="title-cell"><a href="../${getFilmUrl(film)}" class="row-thumb" tabindex="-1" aria-hidden="true">${posterThumb(film, '../')}</a><div><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${renderOriginalTitle(film.originalTitle, film.country)}</div>` : ''}</div></div></td>
       <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
       <td class="table-country-cell hide-mobile"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
       <td class="table-technique hide-mobile">${escapeHtml(film.technique?.[0]) || '—'}</td>
@@ -4637,6 +4796,7 @@ ${generateBreadcrumb([
       </div>
     </div>
     ${intro ? `<p class="facet-hero-lede">${escapeHtml(intro)}</p>` : ''}
+    ${posterStrip(decadeFilms)}
   </section>
 
   ${/* Watchability gradient — same verified/with-leads/floor framing as the
@@ -5062,6 +5222,7 @@ function renderEntityHero({ entity, type, entityFilms, tagline = '' }) {
       <span class="facet-hero-stat-label">${entityFilms.length === 1 ? 'film catalogued' : 'films catalogued'}${yearRange ? ` &middot; ${yearRange}` : ''}</span>
     </div>
   </div>
+  ${posterStrip(entityFilms)}
 </section>`;
 }
 
@@ -5170,10 +5331,13 @@ function renderEntityHighlights({ type, entityFilms, basePath = '../', decade = 
     const year = film.year || '';
     const cc = getCountryCode(film.country);
     const platform = escapeHtml(link.platform || '');
-    return `<article class="pick-card">
+    return `<article class="pick-card pick-card--poster">
+      <a href="${basePath}${getFilmUrl(film)}" class="pick-poster" tabindex="-1" aria-hidden="true">${posterThumb(film, basePath, { sizes: '84px' })}</a>
+      <div class="pick-body">
       <div class="pick-meta"><span class="pick-year">${year}</span><span class="pick-divider">·</span><span class="pick-country">${cc}</span><span class="pick-divider">·</span><span class="pick-platform">${platform}</span></div>
       <${pickTitleTag} class="pick-title"><a href="${basePath}${getFilmUrl(film)}">${title}</a></${pickTitleTag}>
       <a href="${escapeHtml(link.url)}" class="pick-watch-btn" target="_blank" rel="noopener" aria-label="Watch ${title} on ${platform} (opens in new tab)">▶ Watch</a>
+      </div>
     </article>`;
   }).join('');
 
@@ -5764,6 +5928,7 @@ ${generateBreadcrumb([
   </div>
 
   ${series.description ? `<div class="entity-description"><p>${escapeHtml(series.description)}</p></div>` : ''}
+  ${posterStrip(seriesFilms)}
 
   <div class="entity-meta-grid">
     ${studioInfo ? `
@@ -5903,7 +6068,7 @@ function generateGenrePages() {
     describeIndex: (sorted, total) =>
       `Browse ${sorted.length} animation genres from around the world. ${total} films categorized in the Global Animation Archive.`,
     deps: {
-      slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
+      slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter, posterStrip,
       SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'), CSS_HREF: ASSET_URLS.css,
       writeFileSync, mkdirSync,
       entityIndexControls, entityIndexEnhanceScript, entityIndexTopChips,
@@ -5936,7 +6101,7 @@ function generateKeywordPages() {
     describeIndex: (sorted, total) =>
       `Browse ${sorted.length} animation keywords and themes. ${total} films tagged in the Global Animation Archive.`,
     deps: {
-      slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
+      slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter, posterStrip,
       SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'), CSS_HREF: ASSET_URLS.css,
       writeFileSync, mkdirSync,
       entityIndexControls, entityIndexEnhanceScript, entityIndexTopChips,
@@ -6040,6 +6205,7 @@ function generatePlatformPages() {
   </div>
   ${intro}
   ${linkOut ? `<div class="facet-hero-meta">${linkOut}</div>` : ''}
+  ${posterStrip(sorted)}
 </section>`;
     },
     detailCuratorPicks: (value, sorted) => {
@@ -6102,7 +6268,7 @@ function generatePlatformPages() {
     describeIndex: (sorted, total) =>
       `Browse ${sorted.length} streaming platforms. ${total} animated films with verified watch links in the Global Animation Archive.`,
     deps: {
-      slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
+      slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter, posterStrip,
       SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'), CSS_HREF: ASSET_URLS.css,
       writeFileSync, mkdirSync,
       // Rec #2 (2026-05-03): pass the search/chips helpers so the
@@ -6585,7 +6751,30 @@ Sitemap: ${SITE_URL}/sitemap.xml
 // script URLs so we can serve the JS with immutable cache headers.
 const ASSET_URLS = { filmsIndex: 'films-index.js', app: 'app.js', css: 'styles.css' };
 
-function build() {
+// 240x360 thumbnails of every poster card for lists and grids (a full card
+// is ~45 KB; a thumbnail ~14 KB). Generated per build from the committed
+// cards rather than committed themselves, which would add ~27 MB per art
+// refresh. ~16 s locally with 8 workers.
+async function buildPosterThumbs(dir) {
+  const { default: sharp } = await import('sharp');
+  const out = `${dir}/thumbs`;
+  mkdirSync(out, { recursive: true });
+  const queue = readdirSync(dir).filter(f => f.endsWith('.webp'));
+  const total = queue.length;
+  let failed = 0;
+  const t0 = Date.now();
+  await Promise.all(Array.from({ length: 8 }, async () => {
+    while (queue.length) {
+      const f = queue.pop();
+      try {
+        await sharp(`${dir}/${f}`).resize(POSTER_THUMB_W, POSTER_THUMB_H).webp({ quality: 72, effort: 4 }).toFile(`${out}/${f}`);
+      } catch { failed++; }
+    }
+  }));
+  console.log(`  ✓ ${total - failed} poster thumbnails in ${((Date.now() - t0) / 1000).toFixed(1)}s${failed ? ` (${failed} failed)` : ''}`);
+}
+
+async function build() {
   console.log('🔨 Building static site...');
 
   // Version the stylesheet URL by content (styles.css?v=<hash>). styles.css is
@@ -6660,6 +6849,7 @@ function build() {
       catch { /* skip unreadable */ }
     }
     console.log(`  ✓ ${posterCount} posters copied to dist/posters/`);
+    await buildPosterThumbs('./dist/posters');
   }
 
   // ----- Batch D2: hash + emit JS assets BEFORE index.html -----
@@ -6826,4 +7016,4 @@ function build() {
   console.log(`   • Accessibility: Skip links, ARIA labels, keyboard navigation`);
 }
 
-build();
+build().catch(err => { console.error(err); process.exit(1); });
