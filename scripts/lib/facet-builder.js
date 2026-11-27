@@ -147,7 +147,7 @@ ${generateBreadcrumb([
     : `<div class="tag-header">
         <span class="tag-type">${escapeHtml(singularName)}</span>
         <h1 class="tag-name">${escapeHtml(value)}</h1>
-        <p class="tag-count">${sorted.length} films</p>
+        <p class="tag-count">${sorted.length} ${sorted.length === 1 ? 'film' : 'films'}</p>
         ${typeof config.detailBadges === 'function' ? config.detailBadges(value, sorted) : ''}
         ${deps.posterStrip ? deps.posterStrip(sorted) : ''}
       </div>

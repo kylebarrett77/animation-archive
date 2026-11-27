@@ -39,6 +39,32 @@ function cleanHashedAssets(dir, prefix, ext) {
 }
 
 const films = JSON.parse(readFileSync('./data/films.json', 'utf-8'));
+
+// ---- Display hygiene (site audit #8). Only what visitors see changes;
+// data/films.json is never written by the build.
+//  - Exact placeholder values ("N/A", "None", "Unknown", "—") become empty,
+//    so templates hide the field instead of printing the placeholder.
+//  - Internal research notes (database IDs, disambiguation memos) are
+//    stripped from the Curator's Notes shown on film pages.
+//  - Curator's Notes that mostly repeat the Background are hidden.
+(function sanitizeForDisplay() {
+  const PLACEHOLDER = /^\s*(n\/?a|none|unknown|tba|tbd|-|—|–)\s*$/i;
+  const fields = ['originalTitle', 'romanizedTitle', 'alternateTitles', 'director', 'studio', 'sourceMaterial', 'keyCredits', 'historicalContext', 'notes', 'synopsis'];
+  const INTERNAL = /\b(MAL|AniList|ANN|Kitsu|TMDB|IMDb|Wikidata)\s*(ID)?\s*[:#]\s*\w+|\bNOT the same as\b|\bdisambiguation\b|\bdo not confuse\b/i;
+  const words = t => new Set(String(t || '').toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) || []);
+  for (const f of films) {
+    for (const k of fields) if (typeof f[k] === 'string' && PLACEHOLDER.test(f[k])) f[k] = '';
+    if (f.notes) {
+      const kept = f.notes.split(/(?<=[.!?])\s+/).filter(s => !INTERNAL.test(s)).join(' ').trim();
+      f.notes = kept;
+      if (f.notes && f.historicalContext) {
+        const a = words(f.notes), b = words(f.historicalContext);
+        const overlap = [...a].filter(w => b.has(w)).length / Math.max(1, a.size);
+        if (overlap >= 0.7) f.notes = '';   // repeats the Background
+      }
+    }
+  }
+})();
 const stats = JSON.parse(readFileSync('./data/stats.json', 'utf-8'));
 
 // Hand-curated free-to-watch picks for the homepage. Optional file —
@@ -98,7 +124,7 @@ const facetStatClass = (count, baseClass = 'facet-hero-stat-value') =>
 // ===== Derived stats computed at build time (not persisted to stats.json) =====
 // Platform stats: count of films reachable per streaming platform via their
 // embedded watchLinks array. Feeds the sidebar Platform filter + /platforms/ facet.
-// A film counts toward a platform if it has at least one non-Dead link with a URL.
+// A film counts toward a platform if it has at least one visible link (see below).
 (function computePlatformStats() {
   const counts = {};
   for (const f of films) {
@@ -106,7 +132,9 @@ const facetStatClass = (count, baseClass = 'facet-hero-stat-value') =>
     const seen = new Set();
     for (const l of links) {
       if (!l || !l.platform || !l.url) continue;
-      if (l.status === 'Dead') continue;
+      // Same rule as the /platforms/ pages (isVisible): only links shown to
+      // visitors count (Verified, or gated Restricted/Unverified).
+      if (!['Verified', 'Restricted', 'Unverified'].includes(l.status)) continue;
       if (seen.has(l.platform)) continue;
       seen.add(l.platform);
       counts[l.platform] = (counts[l.platform] || 0) + 1;
@@ -191,6 +219,21 @@ const seriesMap = new Map(seriesData.map(s => [s.id, s]));
 const BUILD_DATE = new Date().toISOString().split('T')[0];
 const BUILD_TIMESTAMP = new Date().toISOString();
 const SITE_URL = 'https://animationarchive.netlify.app';
+/** Split a comma/semicolon list on top-level separators only, so
+ *  "Wikipedia (Payut Ngaokrachang, Thai animation)" stays one item. */
+function splitTopLevel(text) {
+  const out = []; let depth = 0, cur = '';
+  for (const ch of String(text || '')) {
+    if (ch === '(' || ch === '[') depth++;
+    else if ((ch === ')' || ch === ']') && depth > 0) depth--;
+    if ((ch === ',' || ch === ';') && depth === 0) { if (cur.trim()) out.push(cur.trim()); cur = ''; continue; }
+    cur += ch;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+/** '1 film' / '2 films' (used for every count shown to visitors). */
+const plural = (n, word) => `${typeof n === 'number' ? n.toLocaleString() : n} ${Number(String(n).replace(/,/g, '')) === 1 ? word : word + 's'}`;
 // Single source of truth for the corrections / contributions intake address.
 // Referenced by the About section and any other contact CTAs. Replace
 // before public launch — must NOT be a personal address.
@@ -2337,7 +2380,7 @@ ${generateBreadcrumb([
       ${film.keyCredits ? `<section class="detail-section detail-section--credits"><h2>Production</h2><p>${escapeHtml(film.keyCredits)}</p></section>` : ''}
       ${film.notes ? `<section class="detail-section detail-section--curator"><h2>Curator's Notes</h2><p class="section-dek">Working notes from the catalog &mdash; corrections welcome.</p><p>${escapeHtml(film.notes)}</p></section>` : ''}
       ${film.researchSources ? (() => {
-        const sources = film.researchSources.split(',').map(s => s.trim()).filter(Boolean);
+        const sources = splitTopLevel(film.researchSources);
         const chips = sources.map(linkifySource).join('');
         return `<section class="research-sources detail-section" id="film-sources"><h2>Research Sources</h2><p class="section-dek">${sources.length} ${sources.length === 1 ? 'source' : 'sources'} consulted; clickable where the publication has a stable home.</p><p class="sources-list">${chips}</p><p class="sources-disclaimer">Sources are curator-attested; click-through where verifiable. The catalog cross-references multiple sources where possible &mdash; see <a href="../#about">methodology</a>.</p></section>`;
       })() : ''}
@@ -2366,7 +2409,7 @@ ${generateBreadcrumb([
       ${film.runtime ? `<div class="data-row"><dt class="data-label">Runtime</dt><dd class="data-value">${escapeHtml(film.runtime)}</dd></div>` : ''}
       <div class="data-row"><dt class="data-label">Confidence</dt><dd class="data-value confidence-pips">${confidenceToPips(film.confidence)}</dd></div>
       ${film.researchSources ? (() => {
-        const count = film.researchSources.split(',').map(s => s.trim()).filter(Boolean).length;
+        const count = splitTopLevel(film.researchSources).length;
         return `<div class="data-row"><dt class="data-label">Sources</dt><dd class="data-value"><a href="#film-sources" class="data-value-link">${count} cited &darr;</a></dd></div>`;
       })() : ''}
       <div class="data-row"><dt class="data-label">Updated</dt><dd class="data-value">${film.lastUpdated?.split('T')[0] || '—'}</dd></div>
@@ -4183,7 +4226,7 @@ ${generateBreadcrumb([
       <div class="country-card-info">
         <h2 class="country-card-name">${escapeHtml(country)}</h2>
         <div class="country-card-meta">
-          <span class="country-card-count">${countryFilms.length} films</span>
+          <span class="country-card-count">${plural(countryFilms.length, 'film')}</span>
           <span class="country-card-years">${yearRange}</span>
         </div>
         <div class="country-card-technique">${escapeHtml(topTechnique)}</div>
@@ -4326,7 +4369,7 @@ ${generateBreadcrumb([
     <div class="technique-title-section">
       <h1 class="technique-name">${escapeHtml(technique)}</h1>
       <p class="technique-description">${escapeHtml(techniqueDesc)}</p>
-      <p class="technique-subtitle">${techniqueFilms.length} films in the archive</p>
+      <p class="technique-subtitle">${plural(techniqueFilms.length, 'film')} in the archive</p>
       ${posterStrip(techniqueFilms)}
     </div>
     <nav class="technique-nav" aria-label="Technique navigation">
@@ -4478,7 +4521,7 @@ ${generateBreadcrumb([
         <h2 class="technique-card-name">${escapeHtml(technique)}</h2>
         <p class="technique-card-desc">${escapeHtml(desc)}</p>
         <div class="technique-card-meta">
-          <span class="technique-card-count">${techniqueFilms.length} films</span>
+          <span class="technique-card-count">${plural(techniqueFilms.length, 'film')}</span>
           <span class="technique-card-years">${yearRange}</span>
         </div>
       </div>
@@ -5173,7 +5216,7 @@ ${generateBreadcrumb([
         <h2 class="decade-card-title">${decade}–${parseInt(decade) + 9}</h2>
         <p class="decade-card-desc">${escapeHtml(desc)}</p>
         <div class="decade-card-meta">
-          <span class="decade-card-count">${decadeFilms.length} films</span>
+          <span class="decade-card-count">${plural(decadeFilms.length, 'film')}</span>
           <span class="decade-card-country">Top: ${escapeHtml(topCountry)}</span>
         </div>
       </div>
@@ -5450,7 +5493,7 @@ function generateStudioPage(studio) {
     studio.active ? `${studio.founded || '?'} – Present (Active)` :
     studio.founded ? `Founded ${studio.founded}` : '';
 
-  const description = `${studio.name} animation studio from ${studio.country || 'Unknown'}. ${filmCount} films in the archive.`;
+  const description = `${studio.name} animation studio from ${studio.country || 'Unknown'}. ${plural(filmCount, 'film')} in the archive.`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -5549,7 +5592,7 @@ ${generateBreadcrumb([
 
   ${studioFilms.length > 0 ? `
   <section class="entity-films-section">
-    <h2 class="section-title">Filmography (${filmCount} films)</h2>
+    <h2 class="section-title">Filmography (${plural(filmCount, 'film')})</h2>
     ${entityTableControls(filmCount)}
     <div class="table-wrapper" aria-live="polite" aria-atomic="false">
       <table class="film-table">
@@ -5656,7 +5699,7 @@ ${generateBreadcrumb([
         <h2 class="entity-card-name">${escapeHtml(studio.name)}</h2>
         <div class="entity-card-meta">
           ${studio.country ? `<span class="entity-card-country">${escapeHtml(studio.country)}</span>` : ''}
-          <span class="entity-card-count">${filmCount} films</span>
+          <span class="entity-card-count">${plural(filmCount, 'film')}</span>
         </div>
         ${studio.founded ? `<div class="entity-card-dates">${studio.founded}${studio.closed ? `–${studio.closed}` : studio.active ? '–Present' : ''}</div>` : ''}
       </div>
@@ -5745,7 +5788,7 @@ function generateDirectorDetailPage(director) {
     : '';
 
   const nationalities = Array.isArray(director.nationality) ? director.nationality.join(', ') : (director.nationality || '');
-  const description = `${director.name}${director.nativeName ? ` (${director.nativeName})` : ''} — ${nationalities ? nationalities + ' ' : ''}animator and director. ${filmCount} films in the archive.`;
+  const description = `${director.name}${director.nativeName ? ` (${director.nativeName})` : ''} — ${nationalities ? nationalities + ' ' : ''}animator and director. ${plural(filmCount, 'film')} in the archive.`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -5840,7 +5883,7 @@ ${generateBreadcrumb([
 
   ${directorFilms.length > 0 ? `
   <section class="entity-films-section">
-    <h2 class="section-title">Filmography (${filmCount} films)</h2>
+    <h2 class="section-title">Filmography (${plural(filmCount, 'film')})</h2>
     ${entityTableControls(filmCount)}
     <div class="table-wrapper" aria-live="polite" aria-atomic="false">
       <table class="film-table">
@@ -5961,7 +6004,7 @@ function generateSeriesPage(series) {
     }
   }
 
-  const description = `${series.name} — ${typeLabel}. ${series.description ? series.description.substring(0, 150) : `${filmCount} films in the archive.`}`;
+  const description = `${series.name} — ${typeLabel}. ${series.description ? series.description.substring(0, 150) : `${plural(filmCount, 'film')} in the archive.`}`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -6008,8 +6051,8 @@ ${generateBreadcrumb([
       <div class="meta-card-value">${studioInfo}</div>
     </div>` : ''}
     <div class="entity-meta-card">
-      <div class="meta-card-title">Total Entries</div>
-      <div class="meta-card-value">${series.totalEntries || filmCount}</div>
+      <div class="meta-card-title">Entries in archive</div>
+      <div class="meta-card-value">${filmCount}${series.totalEntries && series.totalEntries > filmCount ? ` of ${series.totalEntries}` : ''}</div>
     </div>
     <div class="entity-meta-card">
       <div class="meta-card-title">In Archive</div>
@@ -6094,7 +6137,7 @@ ${generateBreadcrumb([
         <h2 class="entity-card-name">${escapeHtml(series.name)}</h2>
         <div class="entity-card-meta">
           ${series.country ? `<span class="entity-card-country">${escapeHtml(series.country)}</span>` : ''}
-          <span class="entity-card-count">${filmCount} films</span>
+          <span class="entity-card-count">${plural(filmCount, 'film')}</span>
         </div>
       </div>
     </a>`;
