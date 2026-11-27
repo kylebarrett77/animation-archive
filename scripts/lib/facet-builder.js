@@ -134,7 +134,7 @@ ${deps.FONT_HEAD || ''}
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
   <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
-  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+  <div class="masthead-main"><p class="masthead-title">Global Animation Archive</p></div>
 </header>
 ${generateBreadcrumb([
   { label: 'Home', url: 'index.html' },
@@ -147,7 +147,7 @@ ${generateBreadcrumb([
     : `<div class="tag-header">
         <span class="tag-type">${escapeHtml(singularName)}</span>
         <h1 class="tag-name">${escapeHtml(value)}</h1>
-        <p class="tag-count">${sorted.length} films</p>
+        <p class="tag-count">${sorted.length} ${sorted.length === 1 ? 'film' : 'films'}</p>
         ${typeof config.detailBadges === 'function' ? config.detailBadges(value, sorted) : ''}
         ${deps.posterStrip ? deps.posterStrip(sorted) : ''}
       </div>
@@ -237,7 +237,7 @@ ${deps.FONT_HEAD || ''}
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
   <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
-  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
+  <div class="masthead-main"><p class="masthead-title">Global Animation Archive</p></div>
 </header>
 ${generateBreadcrumb([
   { label: 'Home', url: 'index.html' },
