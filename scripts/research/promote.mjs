@@ -13,7 +13,7 @@
  * Re-running after a failure is safe: finished films are skipped, and a page
  * created without its Queue update is picked up and completed.
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'fs';
 import { getNotion, queryAll } from '../lib/notion.js';
 import { loadEnv, DB, DS, WORK_DIR, plain, today, stamp, schemaOptions, entityIndex, resolve, filmsIndex } from './lib.mjs';
 import { lint } from './lint.mjs';
@@ -55,10 +55,20 @@ const ms = a => ({ multi_select: [].concat(a || []).filter(Boolean).map(name => 
 const ctx = { schema: await schemaOptions(), ents: await entityIndex(), films: await filmsIndex(),
   queue: (await queryAll(DB.queue)).map(p => ({ id: p.id, title: plain(p.properties.Title), linked: (p.properties['Film DB Entry']?.relation || []).length, notes: p.properties.Notes?.rich_text || [] })) };
 const pending = draft.films.filter(f => !ctx.queue.find(q => q.title === f.queueTitle && q.linked));   // resumable: skip finished films
+// Entities this pipeline already created (earlier run of this draft, or a parallel batch) are linked, not re-created.
+// Only exact-name pages whose id appears in a promote log qualify; hand-made pages and variants still fail lint.
+const pipelineIds = new Set(existsSync(WORK_DIR) ? readdirSync(WORK_DIR).filter(f => /^promote-session.*\.json$/.test(f) && !f.includes('-dry'))
+  .flatMap(f => { try { return (JSON.parse(readFileSync(`${WORK_DIR}/${f}`, 'utf8')).entities || []).map(e => e.id); } catch { return []; } }) : []);
+const reused = [];
+for (const kind of ['directors', 'studios']) if (draft.entities?.[kind]) draft.entities[kind] = draft.entities[kind].filter(e => {
+  const r = resolve(ctx.ents[kind], e.Name);
+  if (r.status === 'exact' && r.entity.name === e.Name && pipelineIds.has(r.entity.id)) { reused.push({ [kind.slice(0, -1)]: e.Name, id: r.entity.id, reused: true }); return false; }
+  return true; });
+if (reused.length) console.log(reused.map(r => `reuse   ${r.director || r.studio} → ${r.id} (created by an earlier pipeline run)`).join('\n'));
 const { errors, warnings } = await lint({ ...draft, films: pending }, ctx);
 const resumeOnly = errors.length && errors.every(e => /possible duplicate of Films/.test(e));
 if (errors.length && !resumeOnly) { console.log(errors.map(e => `ERROR  ${e}`).join('\n')); console.log('Aborted: fix the draft (lint.mjs) and re-run. Nothing was written.'); process.exit(1); }
-const log = { session, file, started: new Date().toISOString(), warnings, entities: [], films: [], series: [] };
+const log = { session, file, started: new Date().toISOString(), warnings, entities: [], reusedEntities: reused, films: [], series: [] };
 
 // ---------- 2. entities
 const idOf = (kind, name) => { const r = resolve(ctx.ents[kind], name); return r.entity?.id || created[kind][name]; };
