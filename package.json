@@ -27,7 +27,8 @@
     "ci": "npm run audit && npm run build && npm run audit:a11y"
   },
   "dependencies": {
-    "@notionhq/client": "^5.31.1"
+    "@notionhq/client": "^5.31.1",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "dotenv": "^16.3.1",
