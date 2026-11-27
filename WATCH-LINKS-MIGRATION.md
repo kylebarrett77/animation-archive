@@ -1,5 +1,11 @@
 # Watch Links Database Migration Guide
 
+> **Status: complete (Feb 2026).** The one-time migration ran and the legacy
+> Films `Watch Links` field no longer exists, so `scripts/migrate-watch-links.js`
+> was removed in Nov 2026. It is kept in git history if ever needed:
+> `git show 22ce8b8:scripts/migrate-watch-links.js`. The run instructions below
+> are kept as a historical record.
+
 ## What Changed
 
 The Films DB `Watch Links` field (single URL) has been replaced by a dedicated **Watch Links database** with full metadata per link. This enables:

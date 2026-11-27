@@ -1,0 +1,45 @@
+{
+  "_doc": "Hand-curated free-to-watch picks for the homepage panel. Edit this file to update the picks. Each entry: filmId from data/films.json + a one-line blurb. Build picks the canonical Verified+FREE link from the film's watchLinks; if no such link exists at build time the entry is skipped (with a warning).",
+  "picks": [
+    {
+      "filmId": "2dc9fae4-b254-810b-8e37-e426af800700",
+      "blurb": "The Monkey King epic that proved Chinese animation could rival Disney — and shaped a generation of Asian animators."
+    },
+    {
+      "filmId": "2db9fae4-b254-8129-9ec1-ef9eb782e9b2",
+      "blurb": "Voted the greatest animated film of all time by 140 animators in 2003. Cutout. Mist. A bear with tea."
+    },
+    {
+      "filmId": "2dc9fae4-b254-8192-a037-e1f16ea6d2b6",
+      "blurb": "Norman McLaren's anti-war pixilation classic — won the Best Documentary Oscar even though it wasn't one."
+    },
+    {
+      "filmId": "b7402da2-c3dd-4b86-9623-bf1500c750d3",
+      "blurb": "Švankmajer's three-part stop-motion meditation on what conversation actually is. Direct line from here to the Brothers Quay."
+    },
+    {
+      "filmId": "2dc9fae4-b254-81d4-9712-c5f9a008a57a",
+      "blurb": "Zagreb School cutout adaptation of Poe — proof Yugoslav animation could match anything coming out of Hollywood."
+    },
+    {
+      "filmId": "2dd9fae4-b254-81b4-b924-cb193315ea3d",
+      "blurb": "The first animated short ever made in Thailand. Hand-drawn by one man, Payut Ngaokrachang, in 1955."
+    },
+    {
+      "filmId": "2dc9fae4-b254-819b-bbed-e801e2dd6dc6",
+      "blurb": "Egypt, 1936 — the earliest surviving Arabic animated short, made in Cairo as Disney was still finding its feet."
+    },
+    {
+      "filmId": "2dc9fae4-b254-81ac-8fe0-d5a87f190b4c",
+      "blurb": "Indian National Award winner that taught a generation of children about unity. Twelve minutes every '80s Indian schoolkid remembers by heart."
+    },
+    {
+      "filmId": "2de9fae4-b254-81fa-9864-e7caa82b650d",
+      "blurb": "Juan Padrón's anti-imperial vampire comedy — sequel to Cuba's most internationally screened animated feature."
+    },
+    {
+      "filmId": "2db9fae4-b254-8178-b372-db0af4853c66",
+      "blurb": "Norshteyn's other masterpiece. A wolf, a child, the smell of wet leaves, the inside of memory."
+    }
+  ]
+}

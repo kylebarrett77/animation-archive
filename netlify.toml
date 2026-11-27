@@ -2,24 +2,23 @@
 # Global Animation Archive — Netlify configuration
 #
 # Build strategy:
-#   - Production: `npm run deploy` (fetch:all + build). Netlify pulls
-#     a fresh Notion snapshot at build time, so the live site is always
-#     current with Notion. NOTION_TOKEN must be set in the Netlify UI
-#     (Site settings → Environment variables).
-#   - The .github/workflows/fetch-data.yml cron also commits a daily
-#     snapshot to main, which triggers a Netlify rebuild for free —
-#     belt-and-suspenders freshness without a webhook.
-#   - Preview builds (PRs / branch deploys) use the same fetch+build
-#     so previews always reflect current Notion content.
+#   - Netlify builds ONLY from the data snapshot committed in data/**.
+#     It never calls Notion, so builds are deterministic and need no
+#     NOTION_TOKEN (the old Netlify env var can be deleted).
+#   - .github/workflows/fetch-data.yml is the single place that talks
+#     to Notion: it refreshes data/** daily and commits it to main,
+#     and that push triggers a Netlify production build.
+#   - Deploy previews and branch deploys build that branch's own
+#     committed snapshot.
 #############################################################
 
 [build]
-  command = "npm run deploy"
+  command = "npm run build"
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
-  NPM_VERSION  = "10"
+  # Node version comes from .nvmrc (shared with local nvm and GitHub
+  # Actions). Do not set NODE_VERSION here — it would override .nvmrc.
   NETLIFY_USE_YARN = "false"
 
 #############################################################
@@ -27,13 +26,13 @@
 #############################################################
 
 [context.production]
-  command = "npm run deploy"
+  command = "npm run build"
 
 [context.deploy-preview]
-  command = "npm run deploy"
+  command = "npm run build"
 
 [context.branch-deploy]
-  command = "npm run deploy"
+  command = "npm run build"
 
 #############################################################
 # Security headers (applied to every response)

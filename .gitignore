@@ -4,9 +4,21 @@ dist/
 .vercel/
 .netlify/
 
+# OS / editor / tooling cruft
+.DS_Store
+__pycache__/
+
+# Generated watch-link validation run logs (output of validate-watch-links.js).
+# Timestamped logs, not a build input — keep local.
+data/validation-runs/
+
 # data/ is committed by .github/workflows/fetch-data.yml so Netlify can
 # build without calling Notion. Local developers are encouraged not to
 # stage data/* manually — let the cron own that file. The pre-batch-*
 # snapshots created by audit-data.js stay local.
 data/.*
 
+# Local source folder of original poster images (uploaded to Notion by hand).
+# Notion is the source of truth; fetch-notion.js downloads the build copies
+# into data/posters/.
+assets/poster images/

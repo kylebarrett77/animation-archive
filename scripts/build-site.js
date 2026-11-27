@@ -41,6 +41,60 @@ function cleanHashedAssets(dir, prefix, ext) {
 const films = JSON.parse(readFileSync('./data/films.json', 'utf-8'));
 const stats = JSON.parse(readFileSync('./data/stats.json', 'utf-8'));
 
+// Hand-curated free-to-watch picks for the homepage. Optional file —
+// build proceeds without the panel if it's missing. Schema:
+//   { picks: [ { filmId: '...', blurb: '...' }, ... ] }
+const featuredPicks = existsSync('./data/featured-picks.json')
+  ? JSON.parse(readFileSync('./data/featured-picks.json', 'utf-8'))
+  : { picks: [] };
+
+// Per-platform intro / region / tier metadata. Optional — platforms not
+// listed here just render without the intro section. See data/platform-meta.json.
+const platformMeta = existsSync('./data/platform-meta.json')
+  ? JSON.parse(readFileSync('./data/platform-meta.json', 'utf-8'))
+  : { platforms: {} };
+
+// Per-country editorial metadata (intro + tradition tagline + era note).
+// Optional — countries not listed here render without the hero intro.
+// See data/country-meta.json.
+const countryMeta = existsSync('./data/country-meta.json')
+  ? JSON.parse(readFileSync('./data/country-meta.json', 'utf-8'))
+  : { countries: {} };
+
+// Per-decade editorial metadata (tagline + intro + key movements).
+// Optional — decades not listed here fall back to the legacy
+// `decadeDescriptions` const further down. See data/decade-meta.json.
+const decadeMeta = existsSync('./data/decade-meta.json')
+  ? JSON.parse(readFileSync('./data/decade-meta.json', 'utf-8'))
+  : { decades: {} };
+
+// ===================== DENSITY TIERS =====================
+// Single source of truth for "how dense is this taxonomy hub?" — used by
+// every .facet-hero consumer (decade, country, platform, director, studio)
+// to pick stat-row layout AND hero-stat type size in lockstep. Without
+// this const, individual surfaces drift (e.g. decade page 1940s rendered
+// a small hero with a full stats row because the breakpoints disagreed).
+//
+//   thin: < 10 films  → quickstats single line + small hero stat
+//   mid:  10-49 films → 2-column stats row + small hero stat
+//   full: ≥ 50 films  → 4-column auto-fit stats row + full hero stat
+//
+// New surfaces should import these and the helpers below; never hard-code
+// the boundaries inline.
+const DENSITY_TIERS = { thin: 10, mid: 50 };
+const densityTier = (count) =>
+  count < DENSITY_TIERS.thin ? 'thin'
+  : count < DENSITY_TIERS.mid ? 'mid'
+  : 'full';
+// Returns the value-element class string for a given count. Use in
+// .facet-hero-stat-value templates so the hero stat scales fluidly
+// across all .facet-hero consumers. The optional baseClass parameter
+// is retained for backwards compatibility with the legacy .platform-
+// hero-stat-value family (deleted 2026-05-03 in the audit pass; the
+// .facet-hero--platform variant now shares the .facet-hero base).
+const facetStatClass = (count, baseClass = 'facet-hero-stat-value') =>
+  count < DENSITY_TIERS.mid ? `${baseClass} ${baseClass}--small` : baseClass;
+
 // ===== Derived stats computed at build time (not persisted to stats.json) =====
 // Platform stats: count of films reachable per streaming platform via their
 // embedded watchLinks array. Feeds the sidebar Platform filter + /platforms/ facet.
@@ -64,6 +118,67 @@ const stats = JSON.parse(readFileSync('./data/stats.json', 'utf-8'));
     .sort((a, b) => b.count - a.count);
 })();
 
+/**
+ * Tighten stats.watchable to the honest "actually-Verified" definition.
+ *
+ * fetch-notion.js computes stats.watchable as "film has any watch-link
+ * relationship," which includes Unverified, Dead, Restricted, and Redirect
+ * statuses. The site's headline copy and OG metadata claim "verified watch
+ * links" — using the loose count makes that assertion factually wrong by
+ * a wide margin (1,602 loose vs. 661 actually-verified at last audit).
+ *
+ * The fix is single-source-of-truth correct: this is the same definition
+ * isPlayable() uses for the per-film watch button further down. We just
+ * need it aggregated into the stats bucket too.
+ *
+ * Both numbers are kept:
+ *   - stats.watchable             — films with ≥1 Verified link (headline)
+ *   - stats.cataloguedWithLeads   — films with ≥1 link of ANY status
+ *                                   (legacy meaning, used by the About panel
+ *                                   and any "we have leads but haven't
+ *                                   verified yet" messaging)
+ */
+(function tightenWatchableDefinition() {
+  // Mirrors the predicates defined further down (WATCHABLE_STATUSES /
+  // GATED_STATUSES / payment-tier helpers). Inlined here because those
+  // constants are declared after this IIFE runs.
+  const isVerified = l => l && l.url && l.status === 'Verified';
+  const isGated    = l => l && l.url && (l.status === 'Restricted' || l.status === 'Unverified');
+  const FREE = new Set(['FREE','ADS']);
+  const PAID = new Set(['SUB','RENT','BUY','DISC']);
+  const tierOfLink = l => {
+    if (!l || !l.accessType) return null;
+    if (FREE.has(l.accessType)) return 'free';
+    if (PAID.has(l.accessType)) return 'paid';
+    if (l.accessType === 'REGION') return 'region';
+    return null;
+  };
+
+  let verified = 0;
+  let accessible = 0;
+  const byPaymentTier = { free: 0, paid: 0, region: 0 };
+  for (const f of films) {
+    const links = Array.isArray(f.watchLinks) ? f.watchLinks : [];
+    if (links.some(isVerified)) verified++;
+    const visible = links.filter(l => isVerified(l) || isGated(l));
+    if (visible.length > 0) {
+      accessible++;
+      const tiers = new Set(visible.map(tierOfLink).filter(Boolean));
+      if (tiers.has('free')) byPaymentTier.free++;
+      else if (tiers.has('paid')) byPaymentTier.paid++;
+      else if (tiers.has('region')) byPaymentTier.region++;
+    }
+  }
+  // stats.watchable now means strictly "films with at least one Verified
+  // link" — the only number that survives a "click 50 random ones and
+  // check" audit. The sidebar filter and About-panel breakdown surface
+  // the broader counts so users still see the catalog's full scope.
+  stats.cataloguedWithLeads = stats.watchable;  // legacy: any link relation
+  stats.accessible = accessible;                // has Verified OR Gated link
+  stats.watchable = verified;                   // honest headline
+  stats.byPaymentTier = byPaymentTier;          // {free, paid, region}
+})();
+
 // Load related data files (may not exist yet)
 const studios = existsSync('./data/studios.json') ? JSON.parse(readFileSync('./data/studios.json', 'utf-8')) : [];
 const directorsData = existsSync('./data/directors.json') ? JSON.parse(readFileSync('./data/directors.json', 'utf-8')) : [];
@@ -76,6 +191,47 @@ const seriesMap = new Map(seriesData.map(s => [s.id, s]));
 const BUILD_DATE = new Date().toISOString().split('T')[0];
 const BUILD_TIMESTAMP = new Date().toISOString();
 const SITE_URL = 'https://animationarchive.netlify.app';
+// Single source of truth for the corrections / contributions intake address.
+// Referenced by the About section and any other contact CTAs. Replace
+// before public launch — must NOT be a personal address.
+const CORRECTIONS_EMAIL = 'corrections@animationarchive.app';
+
+/**
+ * Buttondown email signup config.
+ *
+ * Set BUTTONDOWN_USERNAME to your Buttondown handle (the part of your
+ * buttondown.email URL after the slash) to enable the homepage signup
+ * form. Until then, the section renders with a placeholder action and a
+ * subtle "not yet live" hint so the layout doesn't collapse but the
+ * form won't accidentally swallow real signups into nowhere.
+ *
+ * Setup (10 minutes):
+ *   1. Sign up at https://buttondown.email
+ *   2. Pick a username (e.g. "global-animation-archive")
+ *   3. Replace the placeholder below with that username
+ *   4. Rebuild — `npm run deploy`
+ */
+const BUTTONDOWN_USERNAME = '';  // empty = render placeholder; set to enable
+const EMAIL_SIGNUP_ENABLED = Boolean(BUTTONDOWN_USERNAME);
+
+/**
+ * Catalog data license. CC-BY-4.0 by default — researcher-friendly,
+ * attribution-required, no share-alike obligation on derivatives. The
+ * films themselves are owned by their respective rights-holders; this
+ * license covers ONLY the catalog metadata (descriptions, classifications,
+ * compiled watch links, methodology notes). See dist/license.html for
+ * the full text.
+ *
+ * If you want to switch to CC-BY-SA-4.0 (Wikipedia's license — derivatives
+ * must also be BY-SA) or CC0-1.0 (full public domain), set the constants
+ * below; the footer + About + /license.html update automatically.
+ */
+const LICENSE = {
+  shortName: 'CC BY 4.0',
+  fullName: 'Creative Commons Attribution 4.0 International',
+  url: 'https://creativecommons.org/licenses/by/4.0/',
+  attribution: 'Global Animation Archive',
+};
 const FILMS_PER_PAGE = 50;
 const FAVICON = `<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎞️</text></svg>">`;
 const OG_IMAGE = `${SITE_URL}/og-image.png`;
@@ -123,10 +279,26 @@ function fontHead(prefix = '') {
 // per-page edits below.
 const FONT_HEAD = fontHead('');
 
+// Per-level scale text used for both the HTML `title` tooltip (mouse hover)
+// and the SVG-pip wrapper's aria-label (screen-reader announcement). The
+// scale matches the methodology paragraph in /about.html — "Confidence" is
+// our editorial signal, not a quality score for the films themselves.
+const CONFIDENCE_SCALE = {
+  0: 'Confidence: not rated yet',
+  1: 'Confidence: 1 of 5 — Single source, unverified, or speculative entry',
+  2: 'Confidence: 2 of 5 — Limited sourcing; details may be approximate',
+  3: 'Confidence: 3 of 5 — Reasonably documented; one solid source',
+  4: 'Confidence: 4 of 5 — Multiple credible sources cross-reference this entry',
+  5: 'Confidence: 5 of 5 — Authoritative; verified across primary sources',
+};
 function confidenceToPips(confidence) {
   const levels = { '★': 1, '★★': 2, '★★★': 3, '★★★★': 4, '★★★★★': 5 };
   const level = levels[confidence] || 0;
-  return `<span class="filled">${'■'.repeat(level)}</span><span class="empty">${'□'.repeat(5 - level)}</span>`;
+  const label = CONFIDENCE_SCALE[level];
+  // The wrapper carries both the tooltip (title) and aria-label so it works
+  // for sighted users hovering AND screen-reader users tabbing through the
+  // table. Inner spans stay aria-hidden to avoid double announcement.
+  return `<span class="confidence-pips-inner" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"><span class="filled" aria-hidden="true">${'■'.repeat(level)}</span><span class="empty" aria-hidden="true">${'□'.repeat(5 - level)}</span></span>`;
 }
 
 // Complete country code mappings (all 47+ countries)
@@ -262,6 +434,36 @@ function slugify(str) { return (str || 'untitled').toLowerCase().replace(/[^a-z0
 // Helper to filter out N/A values from URLs
 function getValidUrl(url) { return (url && url !== 'N/A' && url.toLowerCase() !== 'n/a' && url.startsWith('http')) ? url : null; }
 function getFilmUrl(film, basePath = '') { return `${basePath}films/${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
+
+// ---- Poster / artwork treatment (see fetch-notion.js downloadPosters) ----
+// Films carry an optional `poster` = { file, w, h, ar }. Aspect ratio drives
+// how each image is presented, since the "Poster images" field holds a mix of
+// tall posters and wide title-cards.
+const POSTER_PORTRAIT_MAX = 0.8;  // ar below this = tall poster → detail-page hero
+const POSTER_SQUARE_MAX = 1.25;   // ar up to this = square-ish; above = wide
+const POSTER_AR_CLAMP = 3.2;      // clamp ultra-wide banners in the justified grid
+// Sort order for the homepage showcase: by shape bucket, then newest-first.
+function posterBucket(ar) { return ar < POSTER_PORTRAIT_MAX ? 0 : (ar <= POSTER_SQUARE_MAX ? 1 : 2); }
+function filmsWithPosters(list) {
+  return list.filter(f => f.poster && f.poster.file)
+    .sort((a, b) => posterBucket(a.poster.ar) - posterBucket(b.poster.ar)
+      || (b.year || 0) - (a.year || 0)
+      || (a.titleEnglish || '').localeCompare(b.titleEnglish || ''));
+}
+// Homepage showcase: aspect-bucketed, justified rows, object-fit:contain (no crop).
+function generatePosterShowcase(list) {
+  const items = filmsWithPosters(list);
+  if (items.length === 0) return '';
+  const cards = items.map(f => {
+    const g = Math.min(f.poster.ar, POSTER_AR_CLAMP);
+    return `<a class="ps-item" href="${getFilmUrl(f)}" style="flex-grow:${g};flex-basis:${Math.round(g * 150)}px" title="${escapeHtml(f.titleEnglish || 'Untitled')}${f.year ? ` (${f.year})` : ''}"><span class="ps-imgwrap"><img src="posters/${f.poster.file}" alt="${escapeHtml(f.titleEnglish || 'Untitled')} artwork" width="${f.poster.w}" height="${f.poster.h}" loading="lazy"></span></a>`;
+  }).join('');
+  return `
+    <section class="poster-showcase" aria-labelledby="poster-showcase-h">
+      <div class="content-header"><div><h2 class="content-title" id="poster-showcase-h">Recently Illustrated</h2><span class="content-meta">${items.length} films with artwork</span></div></div>
+      <div class="ps-grid">${cards}<span class="ps-spacer"></span></div>
+    </section>`;
+}
 function getFilmFilename(film) { return `${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
 function getStudioUrl(studio, basePath = '') { return `${basePath}studios/${slugify(studio.name)}-${studio.id.slice(0,8)}.html`; }
 function getDirectorUrl(director, basePath = '') { return `${basePath}directors/${slugify(director.name)}-${director.id.slice(0,8)}.html`; }
@@ -485,6 +687,45 @@ function isWatchable(link) {
 function isGated(link) {
   return Boolean(link && link.url && GATED_STATUSES.has(link.status));
 }
+
+/**
+ * Notion 'Access Type' vocabulary, mapped onto user-facing payment tiers.
+ *   FREE / ADS               → 'free'   — no payment to watch
+ *   SUB / RENT / BUY / DISC  → 'paid'   — subscription or per-title fee
+ *   REGION                   → 'region' — geo-locked, can't tell free/paid
+ *
+ * Per-link tier; the per-film aggregate (paymentTierForFilm) prefers
+ * 'free' when any visible link is free — the "you can watch this without
+ * paying anything" claim is the most useful filter for users browsing.
+ */
+const FREE_ACCESS_TYPES = new Set(['FREE', 'ADS']);
+const PAID_ACCESS_TYPES = new Set(['SUB', 'RENT', 'BUY', 'DISC']);
+
+function paymentTierForLink(link) {
+  if (!link || !link.accessType) return null;
+  if (FREE_ACCESS_TYPES.has(link.accessType)) return 'free';
+  if (PAID_ACCESS_TYPES.has(link.accessType)) return 'paid';
+  if (link.accessType === 'REGION') return 'region';
+  return null;
+}
+
+/**
+ * Aggregate payment tier for a film. Considers only visible (Watchable
+ * or Gated) links. Returns 'free' if ANY visible link is free, 'paid' if
+ * the only visible options require payment, 'region' if all are region-
+ * locked, or null if the film has no visible links / no tier signal.
+ */
+function paymentTierForFilm(film) {
+  if (!Array.isArray(film.watchLinks)) return null;
+  const visible = film.watchLinks.filter(l => l && l.url && (isWatchable(l) || isGated(l)));
+  if (visible.length === 0) return null;
+  const tiers = new Set(visible.map(paymentTierForLink).filter(Boolean));
+  if (tiers.has('free')) return 'free';
+  if (tiers.has('paid')) return 'paid';
+  if (tiers.has('region')) return 'region';
+  return null;
+}
+
 function isVisible(link) {
   return isWatchable(link) || isGated(link);
 }
@@ -566,33 +807,169 @@ function isAccessible(film) {
  * Returns the inner HTML for the <td class="watch-cell"> contents.
  * Callers wrap it in the <td> themselves.
  */
+/**
+ * Standalone Watchlist + library-button hydration script for any page
+ * that surfaces row-library buttons (detail pages, country pages,
+ * platform pages, etc). Self-contained — uses localStorage directly,
+ * no dependency on the homepage's Watchlist module.
+ *
+ * Inject into pages by wrapping in <script> tags. The button HTML is
+ * produced server-side by renderLibraryButtons; this script just wires
+ * state from localStorage and toggle behavior.
+ */
+/**
+ * Detect the BCP47 language code for a non-English title based on the
+ * Unicode script of its first non-ASCII character, with the film's
+ * country as a tie-breaker for CJK (which is shared across Japanese
+ * kanji, Chinese hanzi, Korean hanja).
+ *
+ * Returns null when the string is plain ASCII (already English or
+ * romanized) — caller should skip the lang attribute in that case.
+ *
+ * Used by renderOriginalTitle below; emit `<span lang="${code}">`
+ * around the original-script title so screen readers in non-English
+ * contexts pronounce it correctly.
+ */
+function detectLangCode(text, country) {
+  if (!text) return null;
+  // Find the first non-ASCII char; if everything is ASCII, no need.
+  let firstNonAscii = null;
+  for (const ch of text) {
+    if (ch.charCodeAt(0) > 127) { firstNonAscii = ch; break; }
+  }
+  if (!firstNonAscii) return null;
+  const cp = firstNonAscii.codePointAt(0);
+  // Per-script ranges. Country is consulted only for CJK ambiguity.
+  if (cp >= 0x3040 && cp <= 0x30FF) return 'ja';                          // Hiragana + Katakana → Japanese
+  if (cp >= 0x4E00 && cp <= 0x9FFF) {                                     // CJK Unified — disambiguate by country
+    if (country === 'Japan') return 'ja';
+    if (country === 'Korea' || country === 'South Korea') return 'ko';
+    return 'zh';                                                          // default Chinese
+  }
+  if (cp >= 0xAC00 && cp <= 0xD7AF) return 'ko';                          // Hangul
+  if (cp >= 0x0400 && cp <= 0x04FF) {                                     // Cyrillic
+    if (country === 'Ukraine') return 'uk';
+    if (country === 'Belarus') return 'be';
+    if (country === 'Bulgaria') return 'bg';
+    if (country === 'Serbia') return 'sr';
+    return 'ru';
+  }
+  if (cp >= 0x0600 && cp <= 0x06FF) return 'ar';                          // Arabic
+  if (cp >= 0x0900 && cp <= 0x097F) return 'hi';                          // Devanagari
+  if (cp >= 0x0E00 && cp <= 0x0E7F) return 'th';                          // Thai
+  if (cp >= 0x0980 && cp <= 0x09FF) return 'bn';                          // Bengali
+  if (cp >= 0x0590 && cp <= 0x05FF) return 'he';                          // Hebrew
+  if (cp >= 0x0370 && cp <= 0x03FF) return 'el';                          // Greek
+  if (cp >= 0x0530 && cp <= 0x058F) return 'hy';                          // Armenian
+  if (cp >= 0x10A0 && cp <= 0x10FF) return 'ka';                          // Georgian
+  // Latin extended (diacritics) — likely European; can't infer specific code, skip
+  return null;
+}
+
+/**
+ * Render an original-script title wrapped in a lang-attributed span when
+ * the script is non-Latin. ASCII / Latin-extended titles render plainly.
+ * Caller is responsible for the surrounding markup (the inner span is
+ * inert HTML — no further escaping needed beyond what's done internally).
+ */
+function renderOriginalTitle(text, country) {
+  if (!text) return '';
+  const lang = detectLangCode(text, country);
+  const escaped = escapeHtml(text);
+  return lang ? `<span lang="${lang}">${escaped}</span>` : escaped;
+}
+
+function generateLibraryButtonScript() {
+  return `<script>(function(){
+var KEY='gaa-watchlist';
+var saved=new Set(),watched=new Set();
+try{var raw=localStorage.getItem(KEY);if(raw){var j=JSON.parse(raw);saved=new Set(j.saved||[]);watched=new Set(j.watched||[]);}}catch(e){}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify({saved:Array.from(saved),watched:Array.from(watched),v:1}));}catch(e){}}
+document.querySelectorAll('.row-library').forEach(function(grp){
+  var id=grp.dataset.filmId;if(!id)return;
+  var sb=grp.querySelector('.row-lib-save'),wb=grp.querySelector('.row-lib-watched');
+  function paint(){
+    if(sb){var s=saved.has(id);sb.setAttribute('aria-pressed',s?'true':'false');sb.classList.toggle('is-active',s);}
+    if(wb){var w=watched.has(id);wb.setAttribute('aria-pressed',w?'true':'false');wb.classList.toggle('is-active',w);}
+  }
+  paint();
+  grp.addEventListener('click',function(e){
+    var b=e.target.closest('button');if(!b)return;e.stopPropagation();e.preventDefault();
+    if(b.classList.contains('row-lib-save')){if(saved.has(id))saved.delete(id);else saved.add(id);}
+    else if(b.classList.contains('row-lib-watched')){if(watched.has(id))watched.delete(id);else watched.add(id);}
+    persist();paint();
+  });
+});
+})();</script>`;
+}
+
+function renderLibraryButtons(film) {
+  // Server-side rendered as inert (aria-pressed="false"). The client-side
+  // WatchlistManager hydrates state from localStorage on page load and
+  // wires click handlers. Rendering server-side keeps the layout stable
+  // even before JS executes (no layout shift on hydration).
+  const title = escapeHtml(film.titleEnglish || film.title || 'this film');
+  return `<div class="row-library" data-film-id="${escapeHtml(film.id)}">
+    <button type="button" class="row-lib-btn row-lib-save" aria-label="Save ${title} to library" aria-pressed="false" title="Save"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 1.5h8v11l-4-2.5-4 2.5z"/></svg></button>
+    <button type="button" class="row-lib-btn row-lib-watched" aria-label="Mark ${title} as watched" aria-pressed="false" title="Mark watched"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7"/></svg></button>
+  </div>`;
+}
+
 function renderWatchCell(film, { compact = false } = {}) {
   const link = getBestWatchLink(film);
-  if (!link) return '<span class="no-link">—</span>';
+  const lib = renderLibraryButtons(film);
+  if (!link) {
+    // Rec #2 (2026-05-03): replace lonely em-dash with a "Suggest" mailto
+    // pill. Same column width, but the affordance now invites users to
+    // contribute corrections rather than reading as a broken/empty state.
+    // Compact variant (used by film detail page sidebar) keeps the dash
+    // since space is tighter and the pill would crowd the data list.
+    if (compact) return `<span class="no-link" aria-label="No watch link yet">—</span>${lib}`;
+    const subject = encodeURIComponent(`Animation Archive — Suggest a watch link for "${film.titleEnglish || 'film'}"`);
+    const body = encodeURIComponent(
+      `Film: ${film.titleEnglish || ''}${film.year ? ` (${film.year})` : ''}\n` +
+      `Suggested URL: \n\nNotes:\n`
+    );
+    return `<a href="mailto:${CORRECTIONS_EMAIL}?subject=${subject}&body=${body}" class="suggest-link-pill" aria-label="No watch link yet for ${escapeHtml(film.titleEnglish || 'this film')} — suggest one by email">+ Suggest</a>${lib}`;
+  }
   const gated = isGated(link);
   const lockSvg = gated
-    ? '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>'
+    ? '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="lock-icon"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>'
     : '';
   const cls = gated ? 'watch-btn watch-btn-gated' : 'watch-btn';
   let label;
   if (compact) {
     label = gated ? lockSvg : '▶';
   } else {
+    // Rec #3 casing reconciliation (2026-05-03): drop forced uppercase on
+    // the gated platform name; preserve source casing (Crunchyroll, NFB,
+    // YouTube). The non-gated label switches from "▶ WATCH" to "▶ Watch"
+    // so the table doesn't shout at the reader from every row.
     label = gated
-      ? `${lockSvg}<span class="watch-btn-platform">${escapeHtml((link.platform || 'OPEN').toUpperCase())}</span>`
-      : '▶ WATCH';
+      ? `${lockSvg}<span class="watch-btn-platform">${escapeHtml(link.platform || 'Open')}</span>`
+      : '▶ Watch';
   }
   const aria = gated
     ? `Open ${escapeHtml(film.titleEnglish || 'this film')} on ${escapeHtml(link.platform || 'platform')} — sign-in or subscription may be required (opens in new tab)`
     : `Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)`;
   const subs = (!compact && !gated && film.hasSubtitles) ? '<span class="subs-badge">EN subs</span>' : '';
-  return `<a href="${escapeHtml(link.url)}" class="${cls}" target="_blank" rel="noopener" aria-label="${aria}">${label}</a>${subs}`;
+  return `<a href="${escapeHtml(link.url)}" class="${cls}" target="_blank" rel="noopener" aria-label="${aria}">${label}</a>${lib}${subs}`;
 }
 
 /**
  * Generate the watch links section for a film detail page.
  */
+/**
+ * Decide whether to render the body Watch section. When the film has
+ * only ONE visible (Watchable or Gated) link, the header detail-watch-btn
+ * already exposes it — rendering the same destination as a card below
+ * is duplicative. With 2+ links, the body section earns its keep as
+ * "Other ways to watch."
+ */
 function generateWatchLinksSection(film) {
+  const links = Array.isArray(film.watchLinks) ? film.watchLinks : [];
+  const visible = links.filter(l => isWatchable(l) || isGated(l));
+  if (visible.length <= 1) return '';
   return generateWatchLinksHTML(film.watchLinks);
 }
 
@@ -685,7 +1062,7 @@ function generateFooter(pathPrefix = '') {
   // pre-filled subject. mailto: works without JavaScript and without an
   // external form provider — appropriate for a personal research archive.
   const reportSubject = encodeURIComponent('Animation Archive: broken/missing watch link');
-  return `<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="${randomUrl}" class="footer-random">🎲 Random Film</a><a href="mailto:kylebarrett1@mac.com?subject=${reportSubject}" class="footer-report">📝 Report broken link</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer><button class="back-to-top" aria-label="Back to top">↑</button>`;
+  return `<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="${randomUrl}" class="footer-random">🎲 Random Film</a><a href="mailto:${CORRECTIONS_EMAIL}?subject=${reportSubject}" class="footer-report">📝 Report broken link</a><a href="${pathPrefix}feed.xml" class="footer-rss" aria-label="Subscribe to RSS feed of new additions">📡 RSS</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div><div class="footer-license"><p>Catalog data is licensed <a href="${LICENSE.url}" target="_blank" rel="noopener">${LICENSE.shortName}</a> &mdash; cite as &ldquo;${LICENSE.attribution}&rdquo;. Films are &copy; their respective rights-holders. <a href="${pathPrefix}license.html">Full terms</a>.</p></div></footer><button class="back-to-top" aria-label="Back to top">↑</button>`;
 }
 
 // Film of the Day: deterministic selection by calendar date.
@@ -746,7 +1123,7 @@ function generateFilmOfTheDayCard(film) {
             // day doesn't lie about Restricted/Plex/Disney+ links.
             const link = getBestWatchLink(film);
             if (!link) return '';
-            const lockSvg = `<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0;margin-right:4px"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>`;
+            const lockSvg = `<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="lock-icon"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>`;
             const gated = isGated(link);
             const cls = gated ? 'film-of-day-watch-btn film-of-day-watch-btn-gated' : 'film-of-day-watch-btn';
             const label = gated
@@ -761,6 +1138,126 @@ function generateFilmOfTheDayCard(film) {
       </div>
     </div>
     </div>`;
+}
+
+/**
+ * Render the email-signup section that lives between About and the footer
+ * on the homepage. Buttondown form action requires the username constant
+ * above to be set — until then we render a placeholder pointing at a
+ * mailto: as a graceful fallback, with a clear hint that the form isn't
+ * wired up yet.
+ */
+function generateEmailSignupSection() {
+  if (EMAIL_SIGNUP_ENABLED) {
+    return `
+<section class="email-signup-section" aria-labelledby="email-signup-title">
+  <div class="email-signup-inner">
+    <div class="email-signup-prose">
+      <h2 id="email-signup-title" class="email-signup-title">New films, <em>by month</em></h2>
+      <p class="email-signup-tagline">A monthly note when films are added &mdash; usually 4&ndash;8 lines, no spam, unsubscribe anytime.</p>
+    </div>
+    <form action="https://buttondown.email/api/emails/embed-subscribe/${escapeHtml(BUTTONDOWN_USERNAME)}" method="post" target="popupwindow" onsubmit="window.open('https://buttondown.email/${escapeHtml(BUTTONDOWN_USERNAME)}','popupwindow')" class="email-signup-form">
+      <label for="email-signup-input" class="visually-hidden">Email address</label>
+      <input type="email" name="email" id="email-signup-input" placeholder="you@email.com" required autocomplete="email">
+      <button type="submit" class="email-signup-submit">Subscribe</button>
+      <input type="hidden" value="1" name="embed">
+    </form>
+  </div>
+</section>`;
+  }
+  // Placeholder state — pre-Buttondown. Reads as an intentional "email
+  // me to subscribe" rather than a broken form. No disabled input, no
+  // fake submit button. When BUTTONDOWN_USERNAME is set the upper branch
+  // takes over and renders the real signup form.
+  return `
+<section class="email-signup-section email-signup-section--placeholder" aria-labelledby="email-signup-title">
+  <div class="email-signup-inner">
+    <div class="email-signup-prose">
+      <h2 id="email-signup-title" class="email-signup-title">New films, <em>by month</em></h2>
+      <p class="email-signup-tagline">A monthly note when films are added &mdash; usually 4&ndash;8 lines, no spam, unsubscribe anytime.</p>
+    </div>
+    <div class="email-signup-cta-block">
+      <p class="email-signup-cta-prose">No signup form yet &mdash; email me to be added manually.</p>
+      <a href="mailto:${CORRECTIONS_EMAIL}?subject=${encodeURIComponent('Animation Archive — add me to monthly updates')}" class="email-signup-cta-link">${CORRECTIONS_EMAIL} &rarr;</a>
+    </div>
+  </div>
+</section>`;
+}
+
+/**
+ * Render the homepage "Watch right now, free" panel.
+ *
+ * Curated picks live in data/featured-picks.json — each entry pairs a
+ * filmId with a one-line blurb. The build looks up each film's canonical
+ * Verified+FREE link and skips entries where that's no longer true (with
+ * a warning). The panel renders nothing if there are no valid picks.
+ *
+ * The whole card is the watch CTA: clicking anywhere outside the title
+ * opens the watch URL in a new tab (single conversion path). The title
+ * goes to the film detail page for users who want context first.
+ */
+function generateFeaturedPicksPanel(filmsByIdMap) {
+  // Rec #3 (2026-05-03): cap homepage picks at 6 — 10 picks at 280px min-
+  // width produced awkward orphan rows on most viewports. 6 fits as 3×2 on
+  // desktop and 2×3 on tablet. The full featured-picks.json roster stays
+  // on disk; the trim is purely a homepage-rendering decision so the panel
+  // pairs cleanly with a "Browse all" CTA at the bottom.
+  const HOMEPAGE_PICK_CAP = 6;
+  const picks = (featuredPicks.picks || [])
+    .map(p => {
+      const f = filmsByIdMap.get(p.filmId);
+      if (!f) {
+        console.warn(`  ⚠ featured-picks: film not found id=${p.filmId}`);
+        return null;
+      }
+      const link = (f.watchLinks || []).find(l =>
+        l && l.url && l.status === 'Verified' && l.accessType === 'FREE'
+      );
+      if (!link) {
+        console.warn(`  ⚠ featured-picks: no Verified+FREE link for "${f.titleEnglish || f.title}" (${p.filmId})`);
+        return null;
+      }
+      return { film: f, link, blurb: p.blurb };
+    })
+    .filter(Boolean)
+    .slice(0, HOMEPAGE_PICK_CAP);
+
+  if (picks.length === 0) return '';
+
+  const cards = picks.map(({ film, link, blurb }) => {
+    const title = escapeHtml(film.titleEnglish || film.title || 'Untitled');
+    const country = escapeHtml(film.country || '');
+    const year = film.year || '';
+    const cc = getCountryCode(film.country);
+    const director = film.director ? escapeHtml(film.director.split(',')[0].trim()) : '';
+    const platform = escapeHtml(link.platform || 'a free archive');
+    return `
+    <article class="pick-card">
+      <div class="pick-meta"><span class="pick-year">${year}</span><span class="pick-divider">·</span><span class="pick-country">${cc}</span><span class="pick-divider">·</span><span class="pick-platform">${platform}</span></div>
+      <h3 class="pick-title"><a href="${getFilmUrl(film)}">${title}</a></h3>
+      ${director ? `<div class="pick-credit">${director}</div>` : ''}
+      <p class="pick-blurb">${escapeHtml(blurb)}</p>
+      <a href="${escapeHtml(link.url)}" class="pick-watch-btn" target="_blank" rel="noopener" aria-label="Watch ${title} on ${platform} (opens in new tab)">▶ Watch on ${platform}</a>
+    </article>`;
+  }).join('');
+
+  // Rec #3 (2026-05-03) cont.: soft scroll-down CTA links the picks panel
+  // to the full catalog below. Anchor target is #main-content (existing
+  // skip-link target) so the footer affordance reuses the same scroll
+  // anchor the keyboard users already have.
+  const verifiedTotal = stats.watchable.toLocaleString();
+  return `
+<section class="featured-picks" aria-labelledby="featured-picks-title">
+  <div class="featured-picks-header">
+    <h2 id="featured-picks-title" class="featured-picks-title">Watch right now, <em>free</em></h2>
+    <p class="featured-picks-subtitle">${picks.length} hand-picked films from across the catalog &mdash; no subscription, no rental, no account.</p>
+  </div>
+  <div class="featured-picks-grid">${cards}
+  </div>
+  <div class="featured-picks-foot">
+    <a href="#main-content" class="featured-picks-cta">Browse all ${verifiedTotal} verified-watchable films <span aria-hidden="true">↓</span></a>
+  </div>
+</section>`;
 }
 
 // Hash string to number for deterministic shuffling
@@ -983,15 +1480,20 @@ function generateRelatedFilmsSection(film) {
 // below can wire up keyboard-accessible click-to-sort. Default sort is year-desc
 // (newest first), matching the homepage convention.
 function entityTableThead() {
+  // Rec #5 (2026-05-03): every column except Watch is now sortable, with the
+  // Director/Studio and Confidence columns added to the existing Year/Title/
+  // Technique set. Confidence in particular is the most useful sort dimension
+  // on a research tool — letting users surface the highest-quality entries
+  // first is a real feature.
   return `<thead>
         <tr>
-          <th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+          <th scope="col" class="col-year sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
           <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
-          <th scope="col">Director / Studio</th>
-          <th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
-          <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
-          <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
-          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+          <th scope="col" class="sortable" data-sort="director" tabindex="0" aria-sort="none">Director / Studio <span class="sort-indicator" aria-hidden="true"></span></th>
+          <th scope="col" class="col-technique sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
+          <th scope="col" class="col-runtime hide-mobile">Runtime</th>
+          <th scope="col" class="col-confidence sortable hide-mobile" data-sort="confidence" tabindex="0" aria-sort="none">Confidence <span class="sort-indicator" aria-hidden="true"></span></th>
+          <th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th>
         </tr>
       </thead>`;
 }
@@ -1056,6 +1558,10 @@ function entityTableEnhanceScript(filmCount) {
   const ths = document.querySelectorAll('.entity-films-section th.sortable');
   let cur = { col: 'year', dir: 'desc' };
   function sortRows(col, dir){
+    // Rec #5 (2026-05-03): added director, country, confidence sort
+    // dimensions. Confidence sorts numerically via data-confidence (0-5);
+    // director/country sort lexically via the data-* attributes that
+    // generateTableRows / generateDecadeTableRows now emit.
     const cmp = (a, b) => {
       let av, bv;
       if (col === 'year'){
@@ -1067,6 +1573,15 @@ function entityTableEnhanceScript(filmCount) {
       } else if (col === 'technique'){
         av = (a.dataset.technique || '').toLowerCase();
         bv = (b.dataset.technique || '').toLowerCase();
+      } else if (col === 'director'){
+        av = (a.dataset.director || '').toLowerCase();
+        bv = (b.dataset.director || '').toLowerCase();
+      } else if (col === 'country'){
+        av = (a.dataset.country || '').toLowerCase();
+        bv = (b.dataset.country || '').toLowerCase();
+      } else if (col === 'confidence'){
+        av = parseInt(a.dataset.confidence || '0', 10) || 0;
+        bv = parseInt(b.dataset.confidence || '0', 10) || 0;
       } else return 0;
       if (av < bv) return dir === 'asc' ? -1 : 1;
       if (av > bv) return dir === 'asc' ? 1 : -1;
@@ -1136,7 +1651,10 @@ function entityIndexEnhanceScript(totalEntities, entityNoun = 'entries') {
 (function(){
   const search = document.getElementById('entity-index-search');
   const countEl = document.getElementById('entity-index-result-count');
-  const cards = Array.from(document.querySelectorAll('.director-card, .country-card, .entity-card'));
+  // Rec #2 (2026-05-03): include .tag-cloud-item so the platforms index
+  // (and any future tag-cloud entity-index) is searchable through the
+  // same affordance that filters card-grid indexes.
+  const cards = Array.from(document.querySelectorAll('.director-card, .country-card, .entity-card, .tag-cloud-item'));
   const sections = Array.from(document.querySelectorAll('.directors-letter-section, .entity-index-letter-section'));
   if (!search || cards.length === 0) return;
   const total = ${totalEntities};
@@ -1145,7 +1663,7 @@ function entityIndexEnhanceScript(totalEntities, entityNoun = 'entries') {
     const q = search.value.trim().toLowerCase();
     let visible = 0;
     for (const card of cards) {
-      const name = (card.querySelector('.director-name, .country-card-name, .entity-card-name') || card).textContent.toLowerCase();
+      const name = (card.querySelector('.director-name, .country-card-name, .entity-card-name, .tag-name') || card).textContent.toLowerCase();
       const show = !q || name.includes(q);
       card.style.display = show ? '' : 'none';
       if (show) visible++;
@@ -1181,12 +1699,17 @@ function generateTableRows(filmList, opts = '') {
     } else {
       metaCell = `<td class="table-meta">—</td>`;
     }
+    // Rec #5 (2026-05-03): data-confidence numeric (0-5) added so the new
+    // sortable Confidence column header can rank rows. Existing data-director
+    // already supported sortable Director/Studio.
+    const confLevelMap = { '★': 1, '★★': 2, '★★★': 3, '★★★★': 4, '★★★★★': 5 };
+    const confNum = confLevelMap[film.confidence] || 0;
     return `
-    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}">
+    <tr data-film-id="${escapeHtml(film.id)}" data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-verified="${isPlayable(film) ? 'true' : 'false'}" data-payment-tier="${paymentTierForFilm(film) || ''}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}" data-confidence="${confNum}">
       <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
-      <td><a href="${getFilmUrl(film, basePath)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
+      <td><a href="${getFilmUrl(film, basePath)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${renderOriginalTitle(film.originalTitle, film.country)}</div>` : ''}</td>
       ${metaCell}
-      <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
+      <td class="table-technique hide-mobile">${escapeHtml(film.technique?.[0]) || '—'}</td>
       <td class="table-runtime hide-mobile">${escapeHtml(film.runtime) || '—'}</td>
       <td class="hide-mobile"><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
       <td class="watch-cell">${renderWatchCell(film)}</td>
@@ -1207,11 +1730,13 @@ function generateFilterItems(items, type) {
 
 // JSON-LD structured data for the collection
 function generateCollectionJsonLd() {
+  const countryCount = Object.keys(stats.countries).length;
+  const platformCount = stats.platformsSorted ? stats.platformsSorted.length : 0;
   return JSON.stringify({
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     "name": "Global Animation Archive",
-    "description": "A comprehensive database of animated films from around the world, documenting the art of animation from every corner of the globe.",
+    "description": `${stats.watchable.toLocaleString()} animated films you can watch right now, from ${countryCount} countries — verified watch links across ${platformCount} platforms, including free archives and streaming services.`,
     "url": SITE_URL,
     "numberOfItems": stats.total,
     "publisher": {
@@ -1259,26 +1784,29 @@ function generateIndexPage() {
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Global Animation Archive — World Animation Database</title>
-<meta name="description" content="Discover ${stats.total.toLocaleString()} animated films from ${Object.keys(stats.countries).length} countries. A comprehensive database documenting the art of animation from every corner of the world.">
-<meta name="keywords" content="animation, animated films, world cinema, film database, international animation, stop motion, hand-drawn animation">
+<title>Global Animation Archive — Watch World Animation</title>
+<meta name="description" content="${stats.watchable.toLocaleString()} animated films you can watch right now &mdash; from ${Object.keys(stats.countries).length} countries, across ${stats.platformsSorted.length} platforms. Verified watch links from free archives to streaming services you already have.">
+<meta name="keywords" content="watch animated films, world animation streaming, international animation database, free animated films, where to watch anime, animation archive, world cinema">
 <link rel="canonical" href="${SITE_URL}/">
+<link rel="alternate" type="application/rss+xml" title="Global Animation Archive — New Additions" href="${SITE_URL}/feed.xml">
 ${FAVICON}
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="Global Animation Archive">
-<meta property="og:description" content="Discover ${stats.total.toLocaleString()} animated films from ${Object.keys(stats.countries).length} countries. Documenting the art of animation from every corner of the world.">
+<meta property="og:title" content="Global Animation Archive — Watch World Animation">
+<meta property="og:description" content="${stats.watchable.toLocaleString()} animated films you can watch right now, from ${Object.keys(stats.countries).length} countries &mdash; verified watch links across ${stats.platformsSorted.length} platforms. Free archives like Internet Archive and NFB plus streaming services you already have.">
 <meta property="og:url" content="${SITE_URL}/">
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="${OG_IMAGE}">
+<meta property="og:image:alt" content="Global Animation Archive &mdash; ${stats.watchable.toLocaleString()} films you can watch, from ${Object.keys(stats.countries).length} countries">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Global Animation Archive">
-<meta name="twitter:description" content="Discover ${stats.total.toLocaleString()} animated films from ${Object.keys(stats.countries).length} countries.">
+<meta name="twitter:title" content="Global Animation Archive — Watch World Animation">
+<meta name="twitter:description" content="${stats.watchable.toLocaleString()} animated films you can watch right now &mdash; ${Object.keys(stats.countries).length} countries, ${stats.platformsSorted.length} platforms, every entry verified.">
 <meta name="twitter:image" content="${OG_IMAGE}">
+<meta name="twitter:image:alt" content="Global Animation Archive &mdash; ${stats.watchable.toLocaleString()} films you can watch, from ${Object.keys(stats.countries).length} countries">
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">${generateCollectionJsonLd()}</script>
@@ -1289,21 +1817,36 @@ ${FONT_HEAD}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span>EST. 2024</span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
-  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1><p class="masthead-subtitle">Documenting the art of animation from every corner of the world</p></div>
+  <div class="masthead-top"><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1><p class="masthead-subtitle"><strong>${stats.watchable.toLocaleString()} animated films you can watch right now.</strong></p></div>
 </header>
+${/* Rec #2 (2026-05-03): featured-picks panel moved here from inside main-
+     content. The picks deliver on the masthead's "watch right now" promise
+     more directly than the stats summary does, so they sit immediately
+     under the masthead and ahead of the stats bar. The .featured-picks--
+     above-fold modifier lets us tighten the surrounding spacing for this
+     placement without affecting the original (now unused on the homepage)
+     in-table positioning. */ ''}
+<div class="featured-picks-above-fold-wrapper">
+  ${generateFeaturedPicksPanel(new Map(films.map(f => [f.id, f])))}
+</div>
 <div class="stats-bar" role="region" aria-label="Archive statistics">
-  <div class="stat-block"><span class="stat-label">Films</span><span class="stat-value">${stats.total.toLocaleString()}</span></div>
+  <div class="stat-block stat-block--headline"><span class="stat-label">Watchable Now</span><span class="stat-value">${stats.watchable.toLocaleString()}</span></div>
+  <div class="stat-block"><span class="stat-label">Catalogued</span><span class="stat-value">${stats.total.toLocaleString()}</span></div>
   <div class="stat-block"><span class="stat-label">Countries</span><span class="stat-value">${Object.keys(stats.countries).length}</span></div>
-  <div class="stat-block"><span class="stat-label">Techniques</span><span class="stat-value">${Object.keys(stats.techniques).length}</span></div>
-  <div class="stat-block"><span class="stat-label">Watchable</span><span class="stat-value">${stats.watchable.toLocaleString()}</span></div>
+  <div class="stat-block"><span class="stat-label">Platforms</span><span class="stat-value">${stats.platformsSorted.length}</span></div>
 </div>
 <nav class="main-nav" aria-label="Main navigation"><a href="index.html" class="active" aria-current="page">Collection</a><a href="countries/">Countries</a><a href="techniques/">Techniques</a><a href="studios/">Studios</a><a href="directors/">Directors</a><a href="series/">Series</a><a href="decades/">Decades</a><a href="platforms/">Platforms</a><a href="#about">About</a></nav>
 <div class="main-layout">
   <aside class="sidebar" role="complementary" aria-label="Browse and filter">
-    <button class="drawer-close-bar" id="drawer-close" aria-label="Close filters">DONE</button>
+    <button class="drawer-close-bar" id="drawer-close" aria-label="Close filters">Apply Filters</button>
+    ${/* Rec #4 (2026-05-03): single-noun group labels with distinct meanings.
+         Was "Browse" / "Watch" / "Browse Catalog" / "Tags" — two of four
+         had a "Browse" prefix that didn't distinguish them. New scheme:
+         Sections (links to taxonomy hubs) / Access (cost / status / library)
+         / Catalog (format / country / technique / era) / Tags (genre / kw). */ ''}
     <div class="sidebar-group">
-      <div class="sidebar-group-header">Browse</div>
+      <div class="sidebar-group-header">Sections</div>
       <nav class="browse-nav" aria-label="Browse sections">
         <a href="countries/" class="browse-link"><span class="browse-arrow">→</span> Countries <span class="count">${Object.keys(stats.countries).length}</span></a>
         <a href="techniques/" class="browse-link"><span class="browse-arrow">→</span> Techniques <span class="count">${Object.keys(stats.techniques).length}</span></a>
@@ -1314,9 +1857,31 @@ ${FONT_HEAD}
         <a href="platforms/" class="browse-link"><span class="browse-arrow">→</span> Platforms <span class="count">${stats.platformsSorted.length}</span></a>
       </nav>
     </div>
+    ${/* Sidebar restructure (post-design-critique): 10 flat filter sections
+         collapsed into 3 super-groups so first-time users see WATCH /
+         BROWSE / TAGS rather than a wall of options. Each group still
+         contains the existing sidebar-section blocks with their counts
+         and click handlers — same data, less density. */ ''}
     <div class="sidebar-group">
-      <div class="sidebar-group-header">Filter</div>
-      ${/* Round 9 #5: .query-display removed — duplicated the above-table FILTERED: pill strip. The active filter-item already shows visual selection via .filter-item.active left-border accent, so the sidebar carries no redundant pill block. */ ''}
+      <div class="sidebar-group-header">Access</div>
+      <div class="sidebar-section"><div class="sidebar-header">Cost</div><div class="filter-list" role="listbox" aria-label="Filter by cost to watch">
+        <div class="filter-item" data-filter-type="payment-tier" data-filter-value="free" role="option" title="At least one watch link is free (no subscription, no rental)"><span class="name">Free to watch</span><span class="count">${stats.byPaymentTier.free}</span></div>
+        <div class="filter-item" data-filter-type="payment-tier" data-filter-value="paid" role="option" title="Available only via subscription, rental, or purchase"><span class="name">Paid only</span><span class="count">${stats.byPaymentTier.paid}</span></div>
+        ${stats.byPaymentTier.region > 0 ? `<div class="filter-item" data-filter-type="payment-tier" data-filter-value="region" role="option" title="Region-locked — availability depends on where you watch from"><span class="name">Region-locked</span><span class="count">${stats.byPaymentTier.region}</span></div>` : ''}
+      </div></div>
+      <div class="sidebar-section"><div class="sidebar-header">Status</div><div class="filter-list" role="listbox" aria-label="Filter by watch status">
+        <div class="filter-item" data-filter-type="watchable" data-filter-value="true" role="option" title="Films where we surface a watch button — verified or auth-gated"><span class="name">Has Watch Link</span><span class="count">${stats.accessible}</span></div>
+        <div class="filter-item" data-filter-type="verified" data-filter-value="true" role="option" title="Films with at least one verified, streamable link"><span class="name">Verified Watchable</span><span class="count">${stats.watchable}</span></div>
+        <div class="filter-item" data-filter-type="subtitles" data-filter-value="true" role="option"><span class="name">EN Subtitles</span><span class="count">${stats.withSubtitles}</span></div>
+      </div></div>
+      <div class="sidebar-section"><div class="sidebar-header">Your Library</div><div class="filter-list" role="listbox" aria-label="Filter by your saved or watched films">
+        <div class="filter-item" data-filter-type="library" data-filter-value="saved" role="option" title="Films you've saved to your library (stored in this browser)"><span class="name">★ Saved</span><span class="count">0</span></div>
+        <div class="filter-item" data-filter-type="library" data-filter-value="watched" role="option" title="Films you've marked as watched (stored in this browser)"><span class="name">✓ Watched</span><span class="count">0</span></div>
+      </div></div>
+      ${stats.platformsSorted && stats.platformsSorted.length > 0 ? `<div class="sidebar-section collapsible"><div class="sidebar-header collapsible-header" data-collapsed="false" role="button" tabindex="0" aria-expanded="true" aria-controls="filter-platform-list">Platform <span class="count">${stats.platformsSorted.length}</span> <span class="collapse-icon" aria-hidden="true">▼</span></div><div id="filter-platform-list" class="filter-list collapsible-content" role="listbox" aria-label="Filter by streaming platform">${generateFilterItems(stats.platformsSorted, 'platform')}</div></div>` : ''}
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-group-header">Catalog</div>
       <div class="sidebar-section"><div class="sidebar-header">Format</div><div class="filter-list" role="listbox" aria-label="Filter by format">
         <div class="filter-item" data-filter-type="format" data-filter-value="Feature" role="option"><span class="name">Feature</span><span class="count">${stats.formats.Feature || 0}</span></div>
         <div class="filter-item" data-filter-type="format" data-filter-value="Short" role="option"><span class="name">Short</span><span class="count">${stats.formats.Short || 0}</span></div>
@@ -1325,42 +1890,78 @@ ${FONT_HEAD}
       <div class="sidebar-section"><div class="sidebar-header">Country <span class="count">${Object.keys(stats.countries).length}</span></div><div class="filter-list" role="listbox" aria-label="Filter by country">${generateFilterItems(stats.countriesSorted, 'country')}</div></div>
       <div class="sidebar-section"><div class="sidebar-header">Technique <span class="count">${Object.keys(stats.techniques).length}</span></div><div class="filter-list" role="listbox" aria-label="Filter by technique">${generateFilterItems(stats.techniquesSorted, 'technique')}</div></div>
       <div class="sidebar-section"><div class="sidebar-header">Era</div><div class="filter-list" role="listbox" aria-label="Filter by decade">${generateFilterItems(stats.decadesSorted.map(d => ({ name: `${d.decade}–${d.decade + 9}`, count: d.count, decade: d.decade })), 'decade')}</div></div>
-      <div class="sidebar-section"><div class="sidebar-header">Watch Status</div><div class="filter-list" role="listbox" aria-label="Filter by watch status">
-        <div class="filter-item" data-filter-type="watchable" data-filter-value="true" role="option"><span class="name">Has Watch Link</span><span class="count">${stats.watchable}</span></div>
-        <div class="filter-item" data-filter-type="subtitles" data-filter-value="true" role="option"><span class="name">EN Subtitles</span><span class="count">${stats.withSubtitles}</span></div>
-      </div></div>
-      ${stats.platformsSorted && stats.platformsSorted.length > 0 ? `<div class="sidebar-section collapsible"><div class="sidebar-header collapsible-header" data-collapsed="false" role="button" tabindex="0" aria-expanded="true" aria-controls="filter-platform-list">Platform <span class="count">${stats.platformsSorted.length}</span> <span class="collapse-icon" aria-hidden="true">▼</span></div><div id="filter-platform-list" class="filter-list collapsible-content" role="listbox" aria-label="Filter by streaming platform">${generateFilterItems(stats.platformsSorted, 'platform')}</div></div>` : ''}
+    </div>
+    ${(stats.genresSorted?.length > 0 || stats.keywordsSorted?.length > 0) ? `<div class="sidebar-group">
+      <div class="sidebar-group-header">Tags</div>
       ${stats.genresSorted && stats.genresSorted.length > 0 ? `<div class="sidebar-section collapsible"><div class="sidebar-header collapsible-header" data-collapsed="false" role="button" tabindex="0" aria-expanded="true" aria-controls="filter-genre-list">Genre <span class="count">${stats.genresSorted.length}</span> <span class="collapse-icon" aria-hidden="true">▼</span></div><div id="filter-genre-list" class="filter-list collapsible-content" role="listbox" aria-label="Filter by genre">${generateFilterItems(stats.genresSorted, 'genre')}</div></div>` : ''}
       ${stats.keywordsSorted && stats.keywordsSorted.length > 0 ? `<div class="sidebar-section collapsible"><div class="sidebar-header collapsible-header" data-collapsed="true" role="button" tabindex="0" aria-expanded="false" aria-controls="filter-keyword-list">Keywords <span class="count">${stats.keywordsSorted.length}</span> <span class="collapse-icon" aria-hidden="true">▶</span></div><div id="filter-keyword-list" class="filter-list collapsible-content collapsed" role="listbox" aria-label="Filter by keyword">${generateFilterItems(stats.keywordsSorted.slice(0, 50), 'keyword')}</div></div>` : ''}
-    </div>
+    </div>` : ''}
   </aside>
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
   <main class="content" id="main-content">
     <div class="content-header"><div><h2 class="content-title">From the Collection</h2><span class="content-meta" id="results-count">${stats.total.toLocaleString()} films</span></div><div class="search-actions"><div class="search-box"><label for="search-input" class="visually-hidden">Search films</label><input type="text" id="search-input" placeholder="Search titles, directors..." aria-describedby="results-count" /></div><button class="mobile-filter-toggle" id="mobile-filter-toggle" aria-label="Open filters">FILTERS</button><button id="random-film-btn" class="random-btn" aria-label="Go to random film">🎲 Random</button></div><div class="keyboard-hints"><kbd>/</kbd> search <kbd>r</kbd> random <kbd>esc</kbd> clear</div></div>
+    ${/* Picks panel relocated above the stats bar (rec #2, 2026-05-03). */ ''}
     <div class="active-filters-bar" id="active-filters-bar"><span class="active-filters-label">Filtered:</span></div>
+    ${/* First-visit library hint. Hidden by default; library-hint-bootstrap.js
+        in the inline script reveals it once per browser via localStorage flag.
+        Dismissable via the × — clicking it sets the flag and never shows again. */ ''}
+    <div class="library-hint" id="library-hint" hidden>
+      <span class="library-hint-text">Click <span class="library-hint-icon" aria-hidden="true">★</span> to save films &middot; <span class="library-hint-icon library-hint-icon--ink" aria-hidden="true">✓</span> to mark watched. Find them later under <strong>Watch &rarr; Your Library</strong>.</span>
+      <button type="button" class="library-hint-dismiss" id="library-hint-dismiss" aria-label="Dismiss hint">&times;</button>
+    </div>
     ${generateFilmOfTheDayCard(getFilmOfTheDay(sortedFilms))}
+    ${generatePosterShowcase(films)}
     ${/* Round 9 #5: aria-live="polite" on the wrapper so screen readers
         announce row updates when the user changes filters/search. Polite
         (not assertive) — table changes shouldn't preempt other speech.
         aria-atomic="false" so only the changed rows are announced, not
         the entire table on every keystroke. */ ''}
-    <div class="table-wrapper" aria-live="polite" aria-atomic="false"><table class="film-table"><thead><tr><th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th><th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col">Director / Studio</th><th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col" style="width:70px" class="hide-mobile">Runtime</th><th scope="col" style="width:90px" class="hide-mobile">Confidence</th><th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
-    <div id="no-results" class="no-results" style="display:none"><h3 class="no-results-title">No films match your criteria</h3><p class="no-results-message" id="no-results-detail">Try adjusting your search or filters.</p><button id="clear-all-btn" class="clear-all-btn" style="display:none">Clear All Filters</button></div>
+    <div class="table-wrapper" aria-live="polite" aria-atomic="false"><table class="film-table"><thead><tr><th scope="col" class="col-year sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th><th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col">Director / Studio</th><th scope="col" class="col-technique sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th><th scope="col" class="col-runtime hide-mobile">Runtime</th><th scope="col" class="col-confidence hide-mobile">Confidence</th><th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th></tr></thead><tbody id="film-tbody">${generateTableRows(initialFilms)}</tbody></table></div>
+    <div id="no-results" class="no-results" hidden><h3 class="no-results-title">No films match your criteria</h3><p class="no-results-message" id="no-results-detail">Try adjusting your search or filters.</p><button id="clear-all-btn" class="clear-all-btn" hidden>Clear All Filters</button></div>
     ${hasMore ? `<div class="load-more-container"><button id="load-more-btn" class="load-more-btn" data-loaded="${FILMS_PER_PAGE}" data-total="${sortedFilms.length}">Load More <span class="load-more-count">(${sortedFilms.length - FILMS_PER_PAGE} remaining)</span></button></div>` : ''}
   </main>
 </div>
 <section class="about-section" id="about">
   <div class="about-inner">
-    <div class="about-text"><h2>World animation,<br><em>made accessible</em></h2><p>Most film databases are Western-centric. This archive documents the full breadth of world animation—with verified watch links and scholarly documentation.</p></div>
+    <div class="about-text">
+      <h2>World animation,<br><em>made accessible</em></h2>
+      <p class="about-lede">A discovery surface for animated films you can actually watch &mdash; not just read about &mdash; built one entry at a time around a single working belief: that world animation deserves a catalog that isn't filtered through any one national tradition.</p>
+
+      <h3>Who</h3>
+      <p>Built and maintained by Kyle Barrett, an independent worldbuilder and researcher. This is a personal project &mdash; not a publication, not a company. Entries are catalogued in evenings and weekends.</p>
+
+      <h3>Why this exists</h3>
+      <p>Most film databases are Western-centric. Letterboxd, IMDb, and even academic indices privilege the canon of three or four national traditions. The other 60 are scattered across regional sites in languages most readers can't search, behind paywalls, or simply not catalogued anywhere indexable. This archive is one attempt to put them on the same surface.</p>
+
+      <h3>Methodology</h3>
+      <p>Each entry is sourced from primary materials &mdash; studio sites, national archives, festival programmes, regional databases &mdash; and cross-referenced where possible. Watch links are checked against schema-stable URL patterns or live HTTP responses before being labelled <strong>Verified</strong>. Entries with platform pages we haven't fully checked yet are labelled <strong>With Watch Leads</strong>. The gradient is explicit because reliability is the point: a database that quietly inflates "watchable" is worse than one that tells you the real number.</p>
+
+      <h3>Confidence ratings</h3>
+      <p>The <span class="confidence-pips" aria-hidden="true"><span class="filled">■■■</span><span class="empty">□□</span></span> pips on each entry are a five-point scale: <strong>★</strong> single uncorroborated source &middot; <strong>★★</strong> reasonable lead, no second source &middot; <strong>★★★</strong> two-plus independent sources &middot; <strong>★★★★</strong> primary-source verification &middot; <strong>★★★★★</strong> studio acknowledgement, archival print, or festival programme on file. Most entries cluster at ★★★, the catalog's working floor.</p>
+
+      <h3>License &amp; reuse</h3>
+      <p>Catalog data &mdash; descriptions, classifications, watch-link compilations, methodology &mdash; is licensed <a href="${LICENSE.url}" target="_blank" rel="noopener"><strong>${LICENSE.shortName}</strong></a>. Cite as &ldquo;${LICENSE.attribution}&rdquo; with a link back. Free to use commercially or non-commercially, with or without modification. Films themselves remain the property of their respective rights-holders &mdash; this license covers only the metadata around them. <a href="license.html">Full terms.</a></p>
+
+      <div class="about-contact">
+        <h3>Corrections welcome</h3>
+        <p>Spotted a broken link, a missing film, a misattributed director? The catalog improves with corrections.</p>
+        <p class="about-contact-cta"><a href="mailto:${CORRECTIONS_EMAIL}?subject=Animation%20Archive%20%E2%80%94%20correction%2Fcontribution">${CORRECTIONS_EMAIL}</a></p>
+        <p class="about-contact-hint">Most useful: regional knowledge (films and platforms underrepresented here), watch-link drift (entries that moved between platforms), and director/studio attribution disputes.</p>
+      </div>
+    </div>
     <div class="about-data"><div class="about-data-title">Archive Statistics</div>
       <div class="about-stat-row"><span class="about-stat-label">Films Catalogued</span><span class="about-stat-value">${stats.total.toLocaleString()}</span></div>
       <div class="about-stat-row"><span class="about-stat-label">Countries</span><span class="about-stat-value">${Object.keys(stats.countries).length}</span></div>
-      <div class="about-stat-row"><span class="about-stat-label">Watchable</span><span class="about-stat-value">${stats.watchable.toLocaleString()}</span></div>
+      <div class="about-stat-row" title="Films with at least one verified watch link"><span class="about-stat-label">Verified Watchable</span><span class="about-stat-value">${stats.watchable.toLocaleString()}</span></div>
+      <div class="about-stat-row" title="Films with a watch link surfaced — verified or auth-gated / pending verification"><span class="about-stat-label">With Watch Leads</span><span class="about-stat-value">${stats.accessible.toLocaleString()}</span></div>
+      <div class="about-stat-row"><span class="about-stat-label">Platforms</span><span class="about-stat-value">${stats.platformsSorted.length}</span></div>
       <div class="about-stat-row"><span class="about-stat-label">EN Subtitles</span><span class="about-stat-value">${stats.withSubtitles.toLocaleString()}</span></div>
+      <div class="about-data-footnote">Updated ${BUILD_DATE}</div>
     </div>
   </div>
 </section>
-<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><a href="#" class="footer-random" id="footer-random-link">🎲 Random</a><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div></footer>
+${generateEmailSignupSection()}
+<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="#" class="footer-random" id="footer-random-link">🎲 Random</a><a href="feed.xml" class="footer-rss" aria-label="Subscribe to RSS feed of new additions">📡 RSS</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div><div class="footer-license"><p>Catalog data is licensed <a href="${LICENSE.url}" target="_blank" rel="noopener">${LICENSE.shortName}</a> &mdash; cite as &ldquo;${LICENSE.attribution}&rdquo;. Films are &copy; their respective rights-holders. <a href="license.html">Full terms</a>.</p></div></footer>
 <button class="back-to-top" aria-label="Back to top">↑</button>
 <!-- Round 9 #4: relative path (no leading /) so the catalog loads regardless of how the site is served — file://, Live Server with project-root, npx serve dist, Netlify. Only injected on the homepage; sub-pages don't filter. -->
 <script>window.__CATALOG_URL=${JSON.stringify(ASSET_URLS.filmsIndex)}</script>
@@ -1450,10 +2051,84 @@ window.DIRECTORS_DATA=${JSON.stringify(slimDirectors)};
 `;
 }
 
+/**
+ * Map of recognized research-source names → homepage URL.
+ * researchSources is curator-authored free text; this dictionary catches
+ * the common publications and turns each chip into a clickable citation,
+ * which materially improves credibility for academic / journalistic
+ * readers. Unknown source names stay as plain-text spans.
+ *
+ * Match is case-insensitive and substring-based ("Reddit r/animation"
+ * matches "Reddit"; "Wikipedia (English)" matches "Wikipedia").
+ */
+const SOURCE_URL_MAP = [
+  // Animation industry press
+  ['Animation Magazine',     'https://www.animationmagazine.net'],
+  ['Cartoon Brew',           'https://www.cartoonbrew.com'],
+  ['Animation World Network','https://www.awn.com'],
+  ['Animation Obsessive',    'https://animationobsessive.substack.com'],
+  // Anime/manga press
+  ['Anime News Network',     'https://www.animenewsnetwork.com'],
+  ['Crunchyroll News',       'https://www.crunchyroll.com/news'],
+  ['MyAnimeList',            'https://myanimelist.net'],
+  // General film press
+  ['Variety',                'https://variety.com'],
+  ['Hollywood Reporter',     'https://www.hollywoodreporter.com'],
+  ['Deadline',               'https://deadline.com'],
+  ['Indiewire',              'https://www.indiewire.com'],
+  ['Screen Daily',           'https://www.screendaily.com'],
+  ['Screen Rant',            'https://screenrant.com'],
+  // Reference databases
+  ['Wikipedia',              'https://en.wikipedia.org'],
+  ['IMDb',                   'https://www.imdb.com'],
+  ['IMDB',                   'https://www.imdb.com'],
+  ['Letterboxd',             'https://letterboxd.com'],
+  // Video / community
+  ['YouTube',                'https://www.youtube.com'],
+  ['Vimeo',                  'https://vimeo.com'],
+  ['BiliBili',               'https://www.bilibili.com'],
+  ['Bilibili',               'https://www.bilibili.com'],
+  ['Reddit',                 'https://www.reddit.com'],
+  ['Facebook',               'https://www.facebook.com'],
+  ['X/Twitter',              'https://twitter.com'],
+  ['Twitter',                'https://twitter.com'],
+  // Studio / national archives
+  ['NFB',                    'https://www.nfb.ca'],
+  ['Internet Archive',       'https://archive.org'],
+  ['Animatsiya.net',         'https://www.animatsiya.net'],
+];
+
+function linkifySource(raw) {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  for (const [name, url] of SOURCE_URL_MAP) {
+    // Case-insensitive substring match — "Reddit r/animation" → Reddit URL
+    if (trimmed.toLowerCase().includes(name.toLowerCase())) {
+      return `<a href="${url}" class="source-chip" target="_blank" rel="noopener">${escapeHtml(trimmed)}</a>`;
+    }
+  }
+  return `<span class="source-chip source-chip--plain">${escapeHtml(trimmed)}</span>`;
+}
+
 function generateFilmPage(film) {
   const techniques = film.technique?.join(', ') || 'Unknown';
   const specs = [film.format, film.color, film.sound].filter(Boolean).join(' · ');
   const description = film.synopsis || `${film.titleEnglish || 'Animated film'} (${film.year || 'Year unknown'}) - ${techniques} animation from ${film.country || 'Unknown country'}`;
+
+  // Poster treatment: a tall poster becomes a hero image beside the title;
+  // wider title-card art drops below the header as an "artwork strip" (no
+  // sliver hero). Both use object-fit:contain so nothing is cropped.
+  const poster = film.poster;
+  const isPortraitPoster = poster && poster.ar < POSTER_PORTRAIT_MAX;
+  const posterAlt = escapeHtml(film.titleEnglish || 'Untitled');
+  const posterHeroOpen = isPortraitPoster
+    ? `<div class="detail-hero-flex">
+    <div class="detail-poster"><img src="../posters/${poster.file}" alt="${posterAlt} poster" width="${poster.w}" height="${poster.h}"></div>`
+    : '';
+  const posterHeroClose = isPortraitPoster ? `</div>` : '';
+  const posterStrip = (poster && !isPortraitPoster)
+    ? `<figure class="detail-artwork"><img src="../posters/${poster.file}" alt="${posterAlt} artwork" width="${poster.w}" height="${poster.h}"></figure>`
+    : '';
   
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1488,7 +2163,7 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -1498,12 +2173,12 @@ ${generateBreadcrumb([
 ], '../')}
 <main class="detail-page" id="main-content">
   <article>
-  <div class="detail-header">
+  ${posterHeroOpen}<div class="detail-header">
     <div class="detail-year-block"><div class="detail-year">${film.year || '?'}</div><div class="detail-country">${getCountryCode(film.country)}</div></div>
     <div class="detail-title-section">
       <div class="detail-technique">${escapeHtml(techniques.toUpperCase())}</div>
       <h1 class="detail-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</h1>
-      ${film.originalTitle ? `<div class="detail-original" lang="${getCountryLang(film.country)}">${escapeHtml(film.originalTitle)}</div>` : ''}
+      ${film.originalTitle ? `<div class="detail-original">${renderOriginalTitle(film.originalTitle, film.country)}</div>` : ''}
       <div class="detail-credits">${getDirectorLink(film, '../') ? `Directed by <strong>${getDirectorLink(film, '../')}</strong><br>` : ''}${getStudioLink(film, '../') ? `Produced by <strong>${getStudioLink(film, '../')}</strong>` : ''}${film.runtime ? ` · ${escapeHtml(film.runtime)}` : ''}</div>
     </div>
     <div class="detail-actions">${(() => {
@@ -1518,9 +2193,9 @@ ${generateBreadcrumb([
         // gives the user a starting message so they don't face a blank email.
         const subj = encodeURIComponent(`Watch link for ${film.titleEnglish || 'this film'}`);
         const body = encodeURIComponent(`Hi — I have a watch link suggestion for ${film.titleEnglish || 'this film'} (${film.year || ''}):\n\nURL: \nPlatform: \nNotes: \n\nThanks!`);
-        return `<a href="mailto:kylebarrett1@mac.com?subject=${subj}&body=${body}" class="detail-suggest-link" aria-label="Help us find a watch link for ${escapeHtml(film.titleEnglish || 'this film')}">Help us find a watch link →</a>`;
+        return `<a href="mailto:${CORRECTIONS_EMAIL}?subject=${subj}&body=${body}" class="detail-suggest-link" aria-label="Help us find a watch link for ${escapeHtml(film.titleEnglish || 'this film')}">Help us find a watch link →</a>`;
       }
-      const lockSvg = `<svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0;margin-right:6px"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>`;
+      const lockSvg = `<svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="lock-icon"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>`;
       const gated = isGated(link);
       const cls = gated ? 'detail-watch-btn detail-watch-btn-gated' : 'detail-watch-btn';
       // Round 9 #2: platform name wrapped in .detail-watch-platform so the
@@ -1528,16 +2203,20 @@ ${generateBreadcrumb([
       // with a tap-to-open) rather than the verb. Round 8 #5 had the
       // ellipsis on the button itself, which clipped "OPEN ON ARCH…"
       // and lost where the user was going.
+      // Rec #3 (2026-05-03): drop forced uppercase; preserve source casing
+      // of platform names. "Watch on Crunchyroll" / "Open on Internet Archive"
+      // reads as a sentence; the previous "WATCH ON CRUNCHYROLL" shouted.
       const label = gated
-        ? `${lockSvg}<span class="detail-watch-prefix">OPEN ON</span> <span class="detail-watch-platform">${escapeHtml((link.platform || 'PLATFORM').toUpperCase())}</span>`
-        : `<span class="detail-watch-prefix">▶ WATCH NOW</span>`;
+        ? `${lockSvg}<span class="detail-watch-prefix">Open on</span> <span class="detail-watch-platform">${escapeHtml(link.platform || 'platform')}</span>`
+        : `<span class="detail-watch-prefix">▶ Watch on</span> <span class="detail-watch-platform">${escapeHtml(link.platform || 'platform')}</span>`;
       const aria = gated
         ? `Open ${escapeHtml(film.titleEnglish || 'this film')} on ${escapeHtml(link.platform || 'platform')} — sign-in or subscription may be required (opens in new tab)`
         : `Watch ${escapeHtml(film.titleEnglish || 'this film')} (opens in new tab)`;
       const subs = (!gated && film.hasSubtitles) ? '<span class="detail-subs">EN SUBTITLES AVAILABLE</span>' : '';
       return `<a href="${escapeHtml(link.url)}" class="${cls}" target="_blank" rel="noopener" aria-label="${aria}">${label}</a>${subs}`;
-    })()}</div>
-  </div>
+    })()}${renderLibraryButtons(film)}</div>
+  </div>${posterHeroClose}
+  ${posterStrip}
   <div class="detail-body">
     <div class="detail-content">
       ${/* Watch links lifted above the prose 2026-04-25 — primary user
@@ -1545,13 +2224,31 @@ ${generateBreadcrumb([
             "tell me about it". The card has its own visual treatment
             (cream box, crimson left border) so it doesn't disrupt the
             editorial rhythm of the prose sections below. */ ''}
+      ${/* Section order is editorial, not alphabetical:
+          1. Watch (only if 2+ links — a multi-link film earns the body card)
+          2. Synopsis     — the hook
+          3. Background   — the scholarship (renamed from "Historical Context"
+                            for less academic stiffness; reads better as a section header)
+          4. Production   — structured-but-prose credits (renamed from "Key Credits")
+          5. Curator's Notes — explicit attribution of the curator's voice;
+                            reads as commentary rather than encyclopedic fact
+          6. Research Sources — citations + methodology link
+          7. Tags         — genre / keyword chips
+        Each section uses <h2> for a flat hierarchy under the page <h1>;
+        the optional dek (italic prose-font subtitle) gives a one-line frame
+        without burdening every section with one when the prose is its own
+        introduction. */ ''}
       ${generateWatchLinksSection(film)}
-      ${film.synopsis ? `<h2>Synopsis</h2><p>${escapeHtml(film.synopsis)}</p>` : ''}
-      ${film.historicalContext ? `<h2>Historical Context</h2><p>${escapeHtml(film.historicalContext)}</p>` : ''}
-      ${film.keyCredits ? `<h2>Key Credits</h2><p>${escapeHtml(film.keyCredits)}</p>` : ''}
-      ${film.notes ? `<h2>Notes</h2><p>${escapeHtml(film.notes)}</p>` : ''}
-      ${film.researchSources ? `<div class="research-sources"><h2>Research Sources</h2><p class="sources-list">${escapeHtml(film.researchSources).split(',').map(s => s.trim()).filter(s => s).join(' · ')}</p></div>` : ''}
-      ${!film.synopsis && !film.historicalContext && !film.keyCredits && !film.notes ? `<div class="empty-state"><p class="empty-state-message">No detailed information available yet.</p><a href="mailto:kylebarrett1@mac.com?subject=${encodeURIComponent('Details for ' + (film.titleEnglish || 'this film'))}&body=${encodeURIComponent('Hi — I have details to contribute for ' + (film.titleEnglish || 'this film') + ' (' + (film.year || '') + '):\n\nSynopsis:\nHistorical context:\nKey credits:\nNotes:\nSources:\n\nThanks!')}" class="empty-state-cta">Help us add details for this film →</a></div>` : ''}
+      ${film.synopsis ? `<section class="detail-section"><h2>Synopsis</h2><p>${escapeHtml(film.synopsis)}</p></section>` : ''}
+      ${film.historicalContext ? `<section class="detail-section"><h2>Background</h2><p class="section-dek">Where this film sits in the moment that produced it.</p><p>${escapeHtml(film.historicalContext)}</p></section>` : ''}
+      ${film.keyCredits ? `<section class="detail-section detail-section--credits"><h2>Production</h2><p>${escapeHtml(film.keyCredits)}</p></section>` : ''}
+      ${film.notes ? `<section class="detail-section detail-section--curator"><h2>Curator's Notes</h2><p class="section-dek">Working notes from the catalog &mdash; corrections welcome.</p><p>${escapeHtml(film.notes)}</p></section>` : ''}
+      ${film.researchSources ? (() => {
+        const sources = film.researchSources.split(',').map(s => s.trim()).filter(Boolean);
+        const chips = sources.map(linkifySource).join('');
+        return `<section class="research-sources detail-section" id="film-sources"><h2>Research Sources</h2><p class="section-dek">${sources.length} ${sources.length === 1 ? 'source' : 'sources'} consulted; clickable where the publication has a stable home.</p><p class="sources-list">${chips}</p><p class="sources-disclaimer">Sources are curator-attested; click-through where verifiable. The catalog cross-references multiple sources where possible &mdash; see <a href="../#about">methodology</a>.</p></section>`;
+      })() : ''}
+      ${!film.synopsis && !film.historicalContext && !film.keyCredits && !film.notes ? `<div class="empty-state"><p class="empty-state-message">No detailed information available yet.</p><a href="mailto:${CORRECTIONS_EMAIL}?subject=${encodeURIComponent('Details for ' + (film.titleEnglish || 'this film'))}&body=${encodeURIComponent('Hi — I have details to contribute for ' + (film.titleEnglish || 'this film') + ' (' + (film.year || '') + '):\n\nSynopsis:\nBackground:\nProduction:\nCurator notes:\nSources:\n\nThanks!')}" class="empty-state-cta">Help us add details for this film →</a></div>` : ''}
       ${generateFilmTags(film)}
     </div>
     <aside class="detail-data-panel" aria-label="Film metadata">
@@ -1571,10 +2268,14 @@ ${generateBreadcrumb([
         const src = film.sourceMaterial;
         const truncated = src.length > 60 ? src.slice(0, 60).trimEnd() + '…' : src;
         const titleAttr = src.length > 60 ? ` title="${escapeHtml(src)}"` : '';
-        return `<div class="data-row"><dt class="data-label">Source</dt><dd class="data-value"${titleAttr}>${escapeHtml(truncated)}</dd></div>`;
+        return `<div class="data-row"><dt class="data-label">Adapted from</dt><dd class="data-value"${titleAttr}>${escapeHtml(truncated)}</dd></div>`;
       })() : ''}
       ${film.runtime ? `<div class="data-row"><dt class="data-label">Runtime</dt><dd class="data-value">${escapeHtml(film.runtime)}</dd></div>` : ''}
       <div class="data-row"><dt class="data-label">Confidence</dt><dd class="data-value confidence-pips">${confidenceToPips(film.confidence)}</dd></div>
+      ${film.researchSources ? (() => {
+        const count = film.researchSources.split(',').map(s => s.trim()).filter(Boolean).length;
+        return `<div class="data-row"><dt class="data-label">Sources</dt><dd class="data-value"><a href="#film-sources" class="data-value-link">${count} cited &darr;</a></dd></div>`;
+      })() : ''}
       <div class="data-row"><dt class="data-label">Updated</dt><dd class="data-value">${film.lastUpdated?.split('T')[0] || '—'}</dd></div>
       </dl>
       ${(() => { const imdb = getValidUrl(film.imdb); const letterboxd = getValidUrl(film.letterboxd); const wikipedia = getValidUrl(film.wikipedia); return (imdb || letterboxd || wikipedia) ? `<nav class="data-links" aria-label="External links">${imdb ? `<a href="${escapeHtml(imdb)}" class="data-link" target="_blank" rel="noopener">IMDb</a>` : ''}${letterboxd ? `<a href="${escapeHtml(letterboxd)}" class="data-link" target="_blank" rel="noopener">Letterboxd</a>` : ''}${wikipedia ? `<a href="${escapeHtml(wikipedia)}" class="data-link" target="_blank" rel="noopener">Wikipedia</a>` : ''}</nav>` : ''; })()}
@@ -1584,6 +2285,7 @@ ${generateBreadcrumb([
   ${generateRelatedFilmsSection(film)}
 </main>
 ${generateFooter('../')}
+${generateLibraryButtonScript()}
 </body></html>`;
 }
 
@@ -1601,10 +2303,12 @@ function coreDesignTokens() {
 --rule:#d6d3d1;--rule-dark:#a8a29e;--accent:#9f1239;--data-bg:#f3f1ec;--mono:'JetBrains Mono',monospace;
 /* Round 15 #2: badge tokens — replace inline style="background:#hex" emitted in watch-link cards. */
 --badge-free:#22c55e;--badge-ads:#eab308;--badge-sub:#3b82f6;--badge-rent:#f97316;--badge-buy:#ef4444;--badge-disc:#6b7280;--badge-region:#8b5cf6;
-/* Round 14 #1/#2: type scale — page/section heros + body/data tokens. */
+/* Round 14 #1/#2: type scale — page/section heroes + body/data tokens. */
 --type-page-hero:42px;--type-section-hero:22px;
 --type-body:16px;--type-body-sm:14px;--type-meta:13px;
 --type-data:12px;--type-data-sm:11px;--type-data-xs:10px;
+/* Audit-rec #2 (2026-05-03): display-tier scale — promoted to tokens after the system audit found the same 38px / 48px / 28px / 22px declarations duplicated 5+ times across hero/title elements with separate mobile media queries. Single source of truth. xl powers facet-hero stat values; lg powers H1 / facet-hero-name / detail-title; md powers .facet-section-title and .stats-bar headline value; sm powers entity-bio-title and other secondary section headings. */
+--type-display-xl:48px;--type-display-lg:38px;--type-display-md:28px;--type-display-sm:22px;
 /* Round 13 #1: spacing scale + outlined-button border width. */
 --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;--space-7:48px;
 --border-emphasis:1.5px;
@@ -1615,56 +2319,78 @@ function coreDesignTokens() {
 
 function generateCSS() {
   return `*{margin:0;padding:0;box-sizing:border-box}${coreDesignTokens()}
-html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);font-size:var(--type-body-sm);line-height:1.6;-webkit-font-smoothing:antialiased}a{color:inherit}.skip-link{position:absolute;top:-40px;left:0;background:var(--ink);color:var(--cream);padding:8px 16px;z-index:1000;font-family:var(--mono);font-size:var(--type-data);text-decoration:none}.skip-link:focus{top:0}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.masthead{background:var(--paper);border-bottom:1px solid var(--rule)}.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:10px 32px;border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}.masthead-main{text-align:center;padding:28px 32px 24px}.masthead-title{font-family:var(--font-display);font-size:36px;font-weight:400;letter-spacing:.02em;margin-bottom:4px}.masthead-subtitle{font-family:var(--font-prose);font-size:var(--type-meta);font-style:italic;color:var(--ink-muted)}.stats-bar{background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:var(--type-data-sm);display:flex}.stat-block{flex:1;padding:8px 20px;border-right:1px solid rgba(255,255,255,.15);display:flex;justify-content:space-between;align-items:baseline;gap:12px}.stat-block:last-child{border-right:none}.stat-label{opacity:.6;text-transform:uppercase;letter-spacing:.1em;font-size:var(--type-data-xs)}.stat-value{font-size:var(--type-meta);font-weight:600}.main-nav{display:flex;justify-content:center;gap:40px;padding:14px 32px;background:var(--cream);border-bottom:2px solid var(--ink)}.main-nav a{font-size:var(--type-data-sm);letter-spacing:.15em;text-transform:uppercase;text-decoration:none;color:var(--ink-light);font-weight:500;transition:color .2s}.main-nav a:hover,.main-nav a.active{color:var(--accent)}.main-layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 200px)}.sidebar{background:var(--paper);border-right:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data)}.sidebar-group{border-bottom:1px solid var(--rule)}.sidebar-group-header{padding:12px 16px;background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;font-weight:600}.browse-nav{display:flex;flex-direction:column}.browse-link{display:flex;align-items:center;padding:12px 16px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);color:var(--ink-light);text-decoration:none;border-bottom:1px solid var(--rule);transition:background .15s,color .15s}.browse-link:last-child{border-bottom:none}.browse-link:hover{background:var(--cream);color:var(--accent)}.browse-link:focus{outline:2px solid var(--accent);outline-offset:-2px;color:var(--accent)}.browse-arrow{margin-right:8px;color:var(--ink-muted)}.browse-link:hover .browse-arrow{color:var(--accent)}.browse-link .count{margin-left:auto;color:var(--ink-muted);font-size:var(--type-data-sm)}.sidebar-section{border-bottom:1px solid var(--rule)}.sidebar-header{padding:12px 16px;background:var(--data-bg);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);display:flex;justify-content:space-between;border-bottom:1px solid var(--rule)}/* Round 9 #5: removed .query-display / .query-label / .query-tags / .query-tag rules. The sidebar block they styled is gone — single source of truth for active filters is the above-table .active-filters-bar. */.filter-list{max-height:200px;overflow-y:auto}.filter-item{display:flex;justify-content:space-between;align-items:center;min-height:44px;padding:10px 16px;cursor:pointer;transition:background .15s;border-left:3px solid transparent}.filter-item:hover{background:var(--cream);border-left-color:var(--rule-dark)}.filter-item:focus{outline:2px solid var(--accent);outline-offset:-2px}.filter-item.active{background:var(--cream);border-left-color:var(--accent)}.filter-item .name{color:var(--ink-light)}.filter-item.active .name{color:var(--ink);font-weight:500}.filter-item .count{color:var(--ink-muted)}.content{background:var(--cream)}.content-header{display:flex;justify-content:space-between;align-items:center;padding:16px 32px;border-bottom:1px solid var(--rule);background:var(--paper)}.content-title{font-family:var(--font-display);font-size:20px;font-weight:400}.content-meta{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}.search-box input{padding:10px 16px;border:1px solid var(--rule);background:var(--cream);font-family:var(--mono);font-size:var(--type-data);width:280px}.search-box input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}.table-wrapper{overflow-x:auto}.film-table{width:100%;border-collapse:collapse;font-size:var(--type-meta)}.film-table thead{position:sticky;top:0;z-index:10;transition:box-shadow .2s}.film-table thead.is-sticky{box-shadow:0 2px 8px rgba(0,0,0,.1)}.film-table th{background:var(--data-bg);padding:12px 16px;text-align:left;font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);border-bottom:2px solid var(--rule-dark);font-weight:600}.film-table td{padding:16px;border-bottom:1px solid var(--rule);vertical-align:top;background:var(--paper)}.film-table tr:hover td{background:var(--cream)}.film-table tr.hidden{display:none}.table-year{font-family:var(--font-display);font-size:24px;font-weight:500;color:var(--ink);line-height:1}.table-country{font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);margin-top:4px;letter-spacing:.05em}.table-title{font-family:var(--font-display);font-size:18px;font-weight:500;margin-bottom:4px;line-height:1.3;text-decoration:none;display:block}.table-title:hover{color:var(--accent)}.table-title:focus{outline:2px solid var(--accent);outline-offset:2px}.table-original{font-family:var(--font-prose);font-size:var(--type-meta);font-style:italic;color:var(--ink-muted)}.table-meta{font-size:var(--type-data);color:var(--ink-light);line-height:1.7}.table-meta strong{font-weight:500;color:var(--ink)}.table-technique{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--accent);font-weight:500}.table-runtime{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-light)}.confidence-pips{font-family:var(--mono);font-size:var(--type-body-sm);letter-spacing:2px}.confidence-pips .filled{color:var(--accent)}.confidence-pips .empty{color:var(--rule)}.watch-cell{text-align:right}/* Round 13 #2: .btn utility family — base + size + variant. New components should compose class=btn+btn-md+btn-primary instead of inventing a new named class. Existing named buttons (.watch-btn, .detail-watch-btn, etc) below are kept for semantic readability in templates but now share a tokenized padding/border idiom. The base .btn carries everything common; size and variant modifiers stack. */.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:44px;box-sizing:border-box;font-family:var(--mono);font-weight:600;letter-spacing:.1em;text-decoration:none;cursor:pointer;border:none;transition:background .2s,color .2s,border-color .2s}.btn-sm{padding:var(--space-2) var(--space-3);font-size:var(--type-data-sm)}.btn-md{padding:var(--space-3) var(--space-5);font-size:var(--type-data)}.btn-lg{padding:var(--space-4) var(--space-6);font-size:var(--type-data)}.btn-primary{background:var(--ink);color:var(--cream)}.btn-primary:hover,.btn-primary:focus{background:var(--accent);outline:none}.btn-secondary{background:transparent;color:var(--ink);border:var(--border-emphasis) solid var(--ink);padding:calc(var(--space-3) - var(--border-emphasis)) calc(var(--space-5) - var(--border-emphasis))}.btn-secondary:hover,.btn-secondary:focus{background:var(--ink);color:var(--cream);outline:none}.btn-ghost{background:transparent;color:var(--ink-muted);text-decoration:underline;text-underline-offset:3px}.btn-ghost:hover,.btn-ghost:focus{color:var(--accent);outline:none}.watch-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);background:var(--ink);color:var(--cream);padding:var(--space-3) calc(var(--space-3) + var(--space-1));min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data-sm);font-weight:500;letter-spacing:.05em;text-decoration:none;transition:background .2s}.watch-btn:hover,.watch-btn:focus{background:var(--accent)}.subs-badge{display:block;margin-top:8px;font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted)}.no-link{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-muted)}.load-more-container{padding:32px;text-align:center;background:var(--paper);border-top:1px solid var(--rule)}.load-more-btn{background:var(--ink);color:var(--cream);border:none;padding:16px 40px;font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.1em;cursor:pointer;transition:background .2s}.load-more-btn:hover,.load-more-btn:focus{background:var(--accent);outline:none}.load-more-btn:disabled{background:var(--ink-muted);cursor:not-allowed}.load-more-count{opacity:.6;font-weight:400}.detail-page{padding:48px 32px;max-width:1200px;margin:0 auto}.detail-header{display:grid;grid-template-columns:180px 1fr auto;gap:40px;padding-bottom:40px;border-bottom:2px solid var(--ink);margin-bottom:40px}.detail-year-block{background:var(--data-bg);padding:32px;text-align:center;border:1px solid var(--rule)}.detail-year{font-family:var(--font-display);font-size:56px;font-weight:400;line-height:1;color:var(--ink)}.detail-country{font-family:var(--mono);font-size:var(--type-data);letter-spacing:.15em;color:var(--ink-muted);margin-top:12px}.detail-title-section{display:flex;flex-direction:column;justify-content:center}.detail-technique{font-family:var(--mono);font-size:var(--type-data-sm);letter-spacing:.15em;color:var(--accent);font-weight:600;margin-bottom:12px}.detail-title{font-family:var(--font-display);font-size:38px;font-weight:400;line-height:1.15;margin-bottom:8px}.detail-original{font-family:var(--font-prose);font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:20px}.detail-credits{font-size:15px;color:var(--ink-light);line-height:1.8}.detail-credits strong{font-weight:500;color:var(--ink)}.detail-actions{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:12px}.detail-watch-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--ink);color:var(--cream);padding:18px 32px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.1em;text-decoration:none;transition:background .2s;max-width:100%}.detail-watch-btn:hover,.detail-watch-btn:focus{background:var(--accent)}/* Round 9 #2: prefix is fixed-length, platform truncates. min-width:0 on the truncating flex child is required (flex children default to min-content, which defeats overflow:hidden). */.detail-watch-prefix{flex:0 0 auto;white-space:nowrap}.detail-watch-platform{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}/* Gated detail CTA — Restricted/Unverified status. Honest about the gating without making the page's primary button look broken. */.detail-watch-btn-gated{background:transparent;color:var(--ink);border:var(--border-emphasis) solid var(--ink);padding:calc(var(--space-4) + 2px - var(--border-emphasis)) calc(var(--space-6) - var(--border-emphasis))}.detail-watch-btn-gated:hover,.detail-watch-btn-gated:focus{background:var(--ink);color:var(--cream)}/* Round 9 #6: promoted .detail-suggest-link from a thin underlined link to a proper outlined button. Mirrors .detail-watch-btn-gated dimensions (transparent + 1.5px ink border, ~44px tall) so the no-watch-link state has the same visual weight as a real CTA — honest about the gap, but visually completes the header column instead of leaving it looking unfinished. */.detail-suggest-link{display:flex;align-items:center;justify-content:center;gap:var(--space-2);background:transparent;color:var(--ink);border:var(--border-emphasis) solid var(--ink);padding:calc(var(--space-4) + 2px - var(--border-emphasis)) calc(var(--space-5) + var(--space-1) - var(--border-emphasis));min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.1em;text-decoration:none;transition:background .2s,color .2s;text-transform:uppercase}.detail-suggest-link:hover,.detail-suggest-link:focus{background:var(--ink);color:var(--cream);outline:none}.detail-subs{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}.detail-body{display:grid;grid-template-columns:1fr 280px;gap:60px}.detail-content h2{font-family:var(--font-display);font-size:var(--type-section-hero);font-weight:400;margin-bottom:16px;margin-top:36px}.detail-content h2:first-child{margin-top:0}.detail-content p{font-family:var(--font-prose);font-size:var(--type-body);line-height:1.9;color:var(--ink-light);margin-bottom:20px}.detail-content .no-content{font-style:italic;color:var(--ink-muted)}.detail-data-panel{background:var(--data-bg);border:1px solid var(--rule);padding:24px;font-family:var(--mono);font-size:var(--type-data);height:fit-content;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto}.data-panel-title{font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule)}.data-list{display:block}.data-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--rule)}.data-row:last-of-type{border-bottom:none}.data-label{color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;font-size:var(--type-data-xs)}.data-value{color:var(--ink);text-align:right;font-weight:500}.data-links{margin-top:24px;padding-top:24px;border-top:1px solid var(--rule)}.data-link{display:flex;align-items:center;padding:12px 0;min-height:44px;box-sizing:border-box;color:var(--ink-light);text-decoration:none;transition:color .15s;border-bottom:1px solid var(--rule)}.data-link:last-child{border-bottom:none}.data-link:hover{color:var(--accent)}.data-link:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}.data-link::before{content:'→';margin-right:8px;color:var(--ink-muted)}.about-section{background:var(--paper);border-top:2px solid var(--ink);padding:80px 32px}.about-inner{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px}.about-text h2{font-family:var(--font-display);font-size:32px;font-weight:400;line-height:1.3;margin-bottom:24px}.about-text h2 em{font-style:italic}.about-text p{font-family:var(--font-prose);font-size:15px;line-height:1.9;color:var(--ink-light);margin-bottom:16px}.about-data{background:var(--data-bg);border:1px solid var(--rule);padding:32px;font-family:var(--mono)}.about-data-title{font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:24px}.about-stat-row{display:flex;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--rule);align-items:baseline}.about-stat-row:last-child{border-bottom:none}.about-stat-label{font-size:var(--type-data);color:var(--ink-light)}.about-stat-value{font-size:24px;font-weight:600;color:var(--ink)}.footer{background:var(--ink);color:var(--cream);padding:32px}.footer-inner{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}.footer-logo{font-family:var(--font-display);font-size:18px}.footer-timestamp{font-family:var(--mono);font-size:var(--type-data-sm);color:rgba(255,255,255,.7)}/* Mobile filter toggle */
-.mobile-filter-toggle{display:none;background:var(--ink);color:var(--cream);border:none;padding:10px 16px;font-family:var(--mono);font-size:var(--type-data-sm);font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .2s;white-space:nowrap}
+html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);font-size:var(--type-body-sm);line-height:1.6;-webkit-font-smoothing:antialiased}a{color:inherit}.skip-link{position:absolute;top:-40px;left:0;background:var(--ink);color:var(--cream);padding:var(--space-2) var(--space-4);z-index:1000;font-family:var(--mono);font-size:var(--type-data);text-decoration:none}.skip-link:focus{top:0}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.masthead{background:var(--paper);border-bottom:1px solid var(--rule)}.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:10px var(--space-6);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}.masthead-main{text-align:center;padding:28px var(--space-6) var(--space-5)}.masthead-title{font-family:var(--font-display);font-size:36px;font-weight:400;letter-spacing:.02em;margin-bottom:var(--space-1)}.masthead-subtitle{font-family:var(--font-prose);font-size:var(--type-meta);font-style:italic;color:var(--ink-muted)}.stats-bar{background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:var(--type-data-sm);display:flex}.stat-block{flex:1;padding:var(--space-2) 20px;border-right:1px solid rgba(255,255,255,.15);display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3)}.stat-block:last-child{border-right:none}.stat-label{opacity:.6;text-transform:uppercase;letter-spacing:.1em;font-size:var(--type-data-xs)}.stat-value{font-size:var(--type-meta);font-weight:600}.stat-block--headline{flex:1.6;background:linear-gradient(90deg,rgba(159,18,57,.18) 0%,rgba(159,18,57,.04) 100%);padding-top:var(--space-3);padding-bottom:var(--space-3);position:relative;border-left:3px solid var(--accent)}.stat-block--headline::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}.stat-block--headline .stat-label{opacity:1;color:var(--accent);font-weight:700}.stat-block--headline .stat-value{font-size:28px;font-weight:700;color:var(--cream)}.main-nav{display:flex;justify-content:center;gap:var(--space-2);padding:0 var(--space-4);background:var(--cream);border-bottom:2px solid var(--ink);flex-wrap:wrap}.main-nav a{display:inline-flex;align-items:center;min-height:44px;padding:10px var(--space-4);font-size:var(--type-data-sm);letter-spacing:.15em;text-transform:uppercase;text-decoration:none;color:var(--ink-light);font-weight:500;transition:color .2s}.main-nav a:hover,.main-nav a.active{color:var(--accent)}.main-layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 200px)}.sidebar{background:var(--paper);border-right:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data)}.sidebar-group{border-bottom:1px solid var(--rule)}.sidebar-group-header{padding:var(--space-3) var(--space-4);background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;font-weight:600}.browse-nav{display:flex;flex-direction:column}.browse-link{display:flex;align-items:center;padding:var(--space-3) var(--space-4);min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);color:var(--ink-light);text-decoration:none;border-bottom:1px solid var(--rule);transition:background .15s,color .15s}.browse-link:last-child{border-bottom:none}.browse-link:hover{background:var(--cream);color:var(--accent)}.browse-link:focus{outline:2px solid var(--accent);outline-offset:-2px;color:var(--accent)}.browse-arrow{margin-right:var(--space-2);color:var(--ink-muted)}.browse-link:hover .browse-arrow{color:var(--accent)}.browse-link .count{margin-left:auto;color:var(--ink-muted);font-size:var(--type-data-sm)}.sidebar-section{border-bottom:1px solid var(--rule)}.sidebar-header{padding:var(--space-3) var(--space-4);background:var(--data-bg);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);display:flex;justify-content:space-between;border-bottom:1px solid var(--rule)}/* Round 9 #5: removed .query-display / .query-label / .query-tags / .query-tag rules. The sidebar block they styled is gone — single source of truth for active filters is the above-table .active-filters-bar. */.filter-list{max-height:200px;overflow-y:auto}.filter-item{display:flex;justify-content:space-between;align-items:center;min-height:44px;padding:10px var(--space-4);cursor:pointer;transition:background .15s;border-left:3px solid transparent}.filter-item:hover{background:var(--cream);border-left-color:var(--rule-dark)}.filter-item:focus{outline:2px solid var(--accent);outline-offset:-2px}.filter-item.active{background:var(--cream);border-left-color:var(--accent)}.filter-item .name{color:var(--ink-light)}.filter-item.active .name{color:var(--ink);font-weight:500}.filter-item .count{color:var(--ink-muted)}.content{background:var(--cream)}.content-header{display:flex;justify-content:space-between;align-items:center;padding:var(--space-4) var(--space-6);border-bottom:1px solid var(--rule);background:var(--paper)}.content-title{font-family:var(--font-display);font-size:20px;font-weight:400}.content-meta{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}.search-box input{padding:10px var(--space-4);border:1px solid var(--rule);background:var(--cream);font-family:var(--mono);font-size:var(--type-data);width:280px}.search-box input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}.table-wrapper{overflow-x:auto}.film-table{width:100%;border-collapse:collapse;font-size:var(--type-meta)}.film-table thead{position:sticky;top:0;z-index:10;transition:box-shadow .2s}.film-table thead.is-sticky{box-shadow:0 2px 8px rgba(0,0,0,.1)}.film-table th{background:var(--data-bg);padding:var(--space-3) var(--space-4);text-align:left;font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);border-bottom:2px solid var(--rule-dark);font-weight:600}.col-year{width:90px}.col-country{width:100px}.col-technique{width:100px}.col-runtime{width:70px}.col-confidence{width:90px}.col-watch{width:110px}.masthead-back{color:inherit;text-decoration:none}.masthead-back:hover,.masthead-back:focus{color:var(--accent);outline:none}.lock-icon{flex-shrink:0}[hidden]{display:none!important}.film-table td{padding:var(--space-4);border-bottom:1px solid var(--rule);vertical-align:top;background:var(--paper)}.film-table tr:hover td{background:var(--cream)}.film-table tr.hidden{display:none}.table-year{font-family:var(--font-display);font-size:24px;font-weight:500;color:var(--ink);line-height:1}.table-country{font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);margin-top:var(--space-1);letter-spacing:.05em}.table-title{font-family:var(--font-display);font-size:18px;font-weight:500;margin-bottom:var(--space-1);line-height:1.3;text-decoration:none;display:block}.table-title:hover{color:var(--accent)}.table-title:focus{outline:2px solid var(--accent);outline-offset:2px}.table-original{font-family:var(--font-prose);font-size:var(--type-meta);font-style:italic;color:var(--ink-muted)}.table-meta{font-size:var(--type-data);color:var(--ink-light);line-height:1.7}.table-meta strong{font-weight:500;color:var(--ink)}.table-technique{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--accent);font-weight:500}.table-runtime{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-light)}.confidence-pips{font-family:var(--mono);font-size:var(--type-body-sm);letter-spacing:2px}.confidence-pips .filled{color:var(--accent)}.confidence-pips .empty{color:var(--rule)}.watch-cell{text-align:right}.watch-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);background:var(--ink);color:var(--cream);padding:var(--space-3) calc(var(--space-3) + var(--space-1));min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data-sm);font-weight:500;letter-spacing:.05em;text-decoration:none;transition:background .2s}.watch-btn:hover,.watch-btn:focus{background:var(--accent)}.subs-badge{display:block;margin-top:var(--space-2);font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted)}.no-link{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-muted)}.load-more-container{padding:var(--space-6);text-align:center;background:var(--paper);border-top:1px solid var(--rule)}.load-more-btn{background:var(--ink);color:var(--cream);border:none;padding:var(--space-4) 40px;font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.1em;cursor:pointer;transition:background .2s}.load-more-btn:hover,.load-more-btn:focus{background:var(--accent);outline:none}.load-more-btn:disabled{background:var(--ink-muted);cursor:not-allowed}.load-more-count{opacity:.6;font-weight:400}.detail-page{padding:var(--space-7) var(--space-6);max-width:1200px;margin:0 auto}.detail-header{display:grid;grid-template-columns:180px 1fr auto;gap:40px;padding-bottom:40px;border-bottom:2px solid var(--ink);margin-bottom:40px}.detail-year-block{background:var(--data-bg);padding:var(--space-6);text-align:center;border:1px solid var(--rule)}.detail-year{font-family:var(--font-display);font-size:56px;font-weight:400;line-height:1;color:var(--ink)}.detail-country{font-family:var(--mono);font-size:var(--type-data);letter-spacing:.15em;color:var(--ink-muted);margin-top:var(--space-3)}.detail-title-section{display:flex;flex-direction:column;justify-content:center}.detail-technique{font-family:var(--mono);font-size:var(--type-data-sm);letter-spacing:.15em;color:var(--accent);font-weight:600;margin-bottom:var(--space-3)}.detail-title{font-family:var(--font-display);font-size:var(--type-display-lg);font-weight:400;line-height:1.15;margin-bottom:var(--space-2)}.detail-original{font-family:var(--font-prose);font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:20px}.detail-credits{font-size:15px;color:var(--ink-light);line-height:1.8}.detail-credits strong{font-weight:500;color:var(--ink)}.detail-actions{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:var(--space-3)}.detail-watch-btn{display:flex;align-items:center;justify-content:center;gap:var(--space-2);background:var(--ink);color:var(--cream);padding:18px var(--space-6);min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.1em;text-decoration:none;transition:background .2s;max-width:100%}.detail-watch-btn:hover,.detail-watch-btn:focus{background:var(--accent)}/* Round 9 #2: prefix is fixed-length, platform truncates. min-width:0 on the truncating flex child is required (flex children default to min-content, which defeats overflow:hidden). */.detail-watch-prefix{flex:0 0 auto;white-space:nowrap}.detail-watch-platform{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}/* Gated detail CTA — Restricted/Unverified status. Honest about the gating without making the page's primary button look broken. */.detail-watch-btn-gated{background:transparent;color:var(--ink);border:var(--border-emphasis) solid var(--ink);padding:calc(var(--space-4) + 2px - var(--border-emphasis)) calc(var(--space-6) - var(--border-emphasis))}.detail-watch-btn-gated:hover,.detail-watch-btn-gated:focus{background:var(--ink);color:var(--cream)}/* Round 9 #6: promoted .detail-suggest-link from a thin underlined link to a proper outlined button. Mirrors .detail-watch-btn-gated dimensions (transparent + 1.5px ink border, ~44px tall) so the no-watch-link state has the same visual weight as a real CTA — honest about the gap, but visually completes the header column instead of leaving it looking unfinished. */.detail-suggest-link{display:flex;align-items:center;justify-content:center;gap:var(--space-2);background:transparent;color:var(--ink);border:var(--border-emphasis) solid var(--ink);padding:calc(var(--space-4) + 2px - var(--border-emphasis)) calc(var(--space-5) + var(--space-1) - var(--border-emphasis));min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.1em;text-decoration:none;transition:background .2s,color .2s;text-transform:uppercase}.detail-suggest-link:hover,.detail-suggest-link:focus{background:var(--ink);color:var(--cream);outline:none}.detail-subs{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}.detail-body{display:grid;grid-template-columns:1fr 280px;gap:60px}.detail-content h2{font-family:var(--font-display);font-size:var(--type-section-hero);font-weight:400;margin-bottom:var(--space-4);margin-top:36px}.detail-content h2:first-child{margin-top:0}.detail-content p{font-family:var(--font-prose);font-size:var(--type-body);line-height:1.9;color:var(--ink-light);margin-bottom:20px}.detail-content .no-content{font-style:italic;color:var(--ink-muted)}.detail-data-panel{background:var(--data-bg);border:1px solid var(--rule);padding:var(--space-5);font-family:var(--mono);font-size:var(--type-data);height:fit-content;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto}.data-panel-title{font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:20px;padding-bottom:var(--space-3);border-bottom:1px solid var(--rule)}.data-list{display:block}.data-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--rule)}.data-row:last-of-type{border-bottom:none}.data-label{color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;font-size:var(--type-data-xs)}.data-value{color:var(--ink);text-align:right;font-weight:500}.data-links{margin-top:var(--space-5);padding-top:var(--space-5);border-top:1px solid var(--rule)}.data-link{display:flex;align-items:center;padding:var(--space-3) 0;min-height:44px;box-sizing:border-box;color:var(--ink-light);text-decoration:none;transition:color .15s;border-bottom:1px solid var(--rule)}.data-link:last-child{border-bottom:none}.data-link:hover{color:var(--accent)}.data-link:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}.data-link::before{content:'→';margin-right:var(--space-2);color:var(--ink-muted)}.footer-license{max-width:1400px;margin:var(--space-5) auto 0;padding:var(--space-4) 0 0;border-top:1px solid rgba(255,255,255,.12)}.footer-license p{font-family:var(--mono);font-size:var(--type-data-xs);line-height:1.7;color:rgba(255,255,255,.78);margin:0}.footer-license a{color:rgba(255,255,255,.85);text-decoration:underline;text-underline-offset:2px}.footer-license a:hover,.footer-license a:focus{color:var(--accent);outline:none}.static-page{padding:var(--space-7) var(--space-6);max-width:780px;margin:0 auto}.static-page-inner h2{font-family:var(--font-display);font-size:28px;font-weight:400;line-height:1.3;margin-bottom:20px;padding-bottom:var(--space-3);border-bottom:1px solid var(--rule)}.static-page-inner h3{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-top:var(--space-6);margin-bottom:var(--space-3)}.static-page-inner p{font-family:var(--font-prose);font-size:16px;line-height:1.8;color:var(--ink-light);margin-bottom:14px}.static-page-inner ul{font-family:var(--font-prose);font-size:15px;line-height:1.8;color:var(--ink-light);padding-left:var(--space-5);margin-bottom:14px}.static-page-inner ul li{margin-bottom:6px}.static-page-inner blockquote{margin:14px 0 18px;padding:var(--space-4) 20px;background:var(--data-bg);border-left:3px solid var(--accent);font-family:var(--font-prose);font-size:15px;line-height:1.7;color:var(--ink-light)}.static-page-inner blockquote p{margin:0}.static-page-inner a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}.static-page-inner a:hover,.static-page-inner a:focus{color:var(--ink)}.sources-list{display:flex;flex-wrap:wrap;gap:6px;font-family:var(--mono)}.source-chip{display:inline-flex;align-items:center;padding:var(--space-1) 10px;font-size:var(--type-data-sm);background:var(--paper);border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:background .15s,color .15s,border-color .15s}.source-chip:hover,.source-chip:focus{background:var(--ink);color:var(--cream);border-color:var(--ink);outline:none}.source-chip--plain{cursor:default;color:var(--ink-muted);font-style:italic}.source-chip--plain:hover{background:var(--paper);color:var(--ink-muted);border-color:var(--rule)}.sources-disclaimer{margin-top:14px;padding-top:var(--space-3);border-top:1px dashed var(--rule);font-family:var(--font-prose);font-size:13px;font-style:italic;color:var(--ink-muted);line-height:1.6}.sources-disclaimer a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}.data-value-link{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}.data-value-link:hover,.data-value-link:focus{color:var(--ink);outline:none}.detail-section{margin-top:36px}.detail-section:first-child{margin-top:0}.detail-section h2{font-family:var(--font-display);font-size:var(--type-section-hero,24px);font-weight:400;line-height:1.25;margin-bottom:6px;padding-bottom:var(--space-2);border-bottom:1px solid var(--rule);position:relative;display:flex;align-items:baseline;gap:var(--space-3)}.detail-section h2::after{content:"";position:absolute;left:0;bottom:-1px;width:48px;height:2px;background:var(--accent)}.detail-section .section-dek{font-family:var(--font-prose);font-size:14px;font-style:italic;color:var(--ink-muted);margin-top:6px;margin-bottom:14px;line-height:1.5}.detail-section--curator{padding-left:14px;border-left:3px solid var(--rule-dark);background:var(--data-bg);padding:18px 20px;margin-top:36px}.detail-section--curator h2{border-bottom-color:var(--rule-dark)}.detail-section--curator h2::after{background:var(--ink-muted)}.detail-section--credits{}.watch-count{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 var(--space-2);font-family:var(--mono);font-size:13px;font-weight:600;color:var(--cream);background:var(--accent);border-radius:12px;letter-spacing:0;text-transform:none}.row-library{display:inline-flex;gap:var(--space-1);margin-top:6px;align-items:center}.row-lib-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:1px solid var(--rule);background:var(--paper);color:var(--ink-muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s}.row-lib-btn:hover,.row-lib-btn:focus{background:var(--cream);color:var(--accent);border-color:var(--accent);outline:none}.row-lib-btn.is-active{background:var(--accent);color:var(--cream);border-color:var(--accent)}.row-lib-btn.row-lib-watched.is-active{background:var(--ink);border-color:var(--ink)}.row-lib-btn svg{flex-shrink:0}.library-hint{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);padding:var(--space-3) 20px;background:var(--cream-dark);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data);color:var(--ink-light)}.library-hint[hidden]{display:none}.library-hint-text{flex:1}.library-hint-text strong{color:var(--accent);font-weight:700}.library-hint-icon{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border:1px solid var(--accent);background:var(--paper);color:var(--accent);font-size:13px;vertical-align:middle;margin:0 2px}.library-hint-icon--ink{border-color:var(--ink);color:var(--ink)}.library-hint-dismiss{flex-shrink:0;width:32px;height:32px;background:transparent;border:1px solid transparent;color:var(--ink-muted);font-size:20px;line-height:1;cursor:pointer;transition:background .15s,color .15s,border-color .15s}.library-hint-dismiss:hover,.library-hint-dismiss:focus{background:var(--paper);color:var(--accent);border-color:var(--rule);outline:none}@media(max-width:600px){.library-hint{font-size:var(--type-data-sm);padding:10px 14px}}.email-signup-cta-block{display:flex;flex-direction:column;gap:var(--space-2);align-items:flex-start}.email-signup-cta-prose{font-family:var(--mono);font-size:var(--type-data-sm);color:rgba(255,255,255,.78);margin:0;font-style:italic}.email-signup-cta-link{display:inline-flex;align-items:center;min-height:44px;padding:var(--space-2) 0;font-family:var(--mono);font-size:var(--type-meta);font-weight:600;color:var(--cream);text-decoration:none;border-bottom:2px solid var(--accent);transition:color .15s,border-color .15s}.email-signup-cta-link:hover,.email-signup-cta-link:focus{color:var(--accent);border-bottom-color:var(--cream);outline:none}.email-signup-section{background:var(--ink);color:var(--cream);padding:var(--space-7) var(--space-6);border-top:2px solid var(--accent)}.email-signup-inner{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1.2fr 1fr;gap:var(--space-7);align-items:center}.email-signup-title{font-family:var(--font-display);font-size:30px;font-weight:400;line-height:1.2;color:var(--cream)}.email-signup-title em{font-style:italic;color:var(--accent)}.email-signup-tagline{font-family:var(--font-prose);font-size:15px;line-height:1.6;margin-top:var(--space-2);color:rgba(255,255,255,.75)}.email-signup-form{display:flex;gap:0;align-items:stretch;background:var(--cream);padding:0;border:1px solid var(--cream);max-width:480px}.email-signup-form input[type=email]{flex:1;min-width:0;border:none;outline:none;padding:14px var(--space-4);font-family:var(--mono);font-size:var(--type-data);background:var(--cream);color:var(--ink);min-height:44px;box-sizing:border-box}.email-signup-form input[type=email]:focus{outline:2px solid var(--accent);outline-offset:-2px}.email-signup-form input[type=email]::placeholder{color:var(--ink-muted)}.email-signup-form input[type=email]:disabled{font-style:italic;background:var(--data-bg)}.email-signup-submit{display:inline-flex;align-items:center;justify-content:center;background:var(--ink);color:var(--cream);border:none;padding:14px 22px;font-family:var(--mono);font-size:var(--type-data-sm);font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;text-decoration:none;transition:background .2s;min-height:44px;box-sizing:border-box;white-space:nowrap}.email-signup-submit:hover,.email-signup-submit:focus{background:var(--accent);outline:none}.email-signup-section--placeholder .email-signup-tagline::after{content:" Form coming soon — email me directly to be added.";opacity:.6;font-style:italic}@media(max-width:780px){.email-signup-inner{grid-template-columns:1fr;gap:var(--space-5)}.email-signup-form{max-width:none}}.tag-badges{display:flex;gap:var(--space-2);justify-content:center;margin-top:var(--space-3);flex-wrap:wrap}.tag-badge{display:inline-flex;align-items:center;padding:var(--space-1) 10px;font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.1em;text-transform:uppercase;font-weight:600;border:1px solid var(--rule);background:var(--paper);color:var(--ink-light)}.tag-badge--tier-free{background:var(--accent);color:var(--cream);border-color:var(--accent)}.tag-badge--tier-paid{background:var(--ink);color:var(--cream);border-color:var(--ink)}.tag-badge--tier-mixed{background:var(--data-bg);color:var(--ink);border-color:var(--rule-dark)}.tag-badge--tier-library{background:var(--cream-dark);color:var(--ink);border-color:var(--rule-dark)}.tag-badge--region{background:transparent;color:var(--ink-light);border-color:var(--ink-light);border-style:dashed}.facet-hero-badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--space-2)}.facet-hero-meta{margin-top:14px;padding-top:14px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data-sm)}.facet-hero-link{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .15s}.facet-hero-link:hover,.facet-hero-link:focus{border-bottom-color:var(--accent);outline:none}.platform-picks{margin-top:var(--space-5)}.platform-picks .featured-picks-header{padding-bottom:var(--space-3)}.entity-picks{margin-top:var(--space-5)}.entity-picks .featured-picks-header{padding-bottom:var(--space-3)}.facet-hero-native{font-family:var(--font-prose);font-size:18px;font-style:italic;color:var(--ink-muted);margin:0 0 var(--space-2);line-height:1.3}.entity-bio{max-width:1100px;margin:0 auto var(--space-6);padding:0 var(--space-6)}.entity-bio-title{font-family:var(--font-display);font-size:24px;font-weight:400;line-height:1.2;margin-bottom:var(--space-4);padding-bottom:var(--space-2);border-bottom:1px solid var(--rule);position:relative}.entity-bio-title::after{content:"";position:absolute;left:0;bottom:-1px;width:48px;height:2px;background:var(--accent)}.entity-bio-block{margin-bottom:20px}.entity-bio-block:last-child{margin-bottom:0}.entity-bio-label{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:var(--space-2)}.entity-bio-block p{font-family:var(--font-prose);font-size:16px;line-height:1.7;color:var(--ink-light);margin:0}.entity-section-label{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:var(--space-3);padding-bottom:6px;border-bottom:1px dashed var(--rule)}.entity-collaborators,.entity-techniques,.entity-awards,.entity-links{max-width:1100px;margin:0 auto var(--space-5);padding:0 var(--space-6)}.entity-awards p{font-family:var(--font-prose);font-size:15px;line-height:1.7;color:var(--ink-light);margin:0}.entity-links-row{display:flex;flex-wrap:wrap;gap:var(--space-2)}.entity-link-chip{display:inline-flex;align-items:center;padding:var(--space-2) 14px;font-family:var(--mono);font-size:var(--type-data-sm);font-weight:500;background:var(--paper);border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:background .15s,color .15s,border-color .15s}.entity-link-chip:hover,.entity-link-chip:focus{background:var(--ink);color:var(--cream);border-color:var(--ink);outline:none}@media(max-width:600px){.entity-bio,.entity-collaborators,.entity-techniques,.entity-awards,.entity-links{padding:0 var(--space-4)}}.stat-tag{padding:6px 10px;min-height:32px;display:inline-flex;align-items:center}.facet-hero{max-width:1100px;margin:0 auto var(--space-6);padding:var(--space-6) var(--space-6) var(--space-5);background:var(--paper);border:1px solid var(--rule);border-top:3px solid var(--accent)}.facet-hero-top{display:grid;grid-template-columns:1fr auto;gap:var(--space-6);align-items:start;padding-bottom:18px;border-bottom:1px solid var(--rule);margin-bottom:18px}.facet-hero-identity{min-width:0}.facet-hero-type{display:block;font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:6px}.country-code-inline{font-family:var(--mono);color:var(--accent);text-decoration:none;border-bottom:1px dotted transparent;font-weight:700}.facet-hero-name{font-family:var(--font-display);font-size:var(--type-display-lg);font-weight:400;line-height:1.1;color:var(--ink);margin:0 0 var(--space-3)}.facet-hero-tagline{font-family:var(--font-prose);font-size:15px;font-style:italic;color:var(--ink-muted);margin:0 0 var(--space-1);line-height:1.5}.facet-hero-stat{flex-shrink:0;text-align:right;padding-left:var(--space-5);border-left:1px solid var(--rule);min-width:160px}.facet-hero-stat-value{display:block;font-family:var(--font-display);font-size:var(--type-display-xl);font-weight:500;line-height:1;color:var(--accent)}.facet-hero-stat-label{display:block;font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);margin-top:6px}.facet-hero-lede{font-family:var(--font-prose);font-size:16px;line-height:1.7;color:var(--ink-light);margin:0 0 var(--space-2)}.facet-hero-era{font-family:var(--font-prose);font-size:14px;line-height:1.6;color:var(--ink-muted);font-style:italic;margin:var(--space-2) 0 0;padding-top:10px;border-top:1px dashed var(--rule)}@media(max-width:700px){.facet-hero{padding:var(--space-5) 20px;margin:0 var(--space-4) var(--space-5)}.facet-hero-top{grid-template-columns:1fr;gap:var(--space-4)}.facet-hero-stat{padding-left:0;border-left:none;border-top:1px solid var(--rule);padding-top:14px;text-align:left;min-width:0}.facet-hero-stat-value{font-size:36px}.facet-hero-name{font-size:30px}}.facet-stats-row{max-width:1100px;margin:0 auto var(--space-6);display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:var(--rule)}.facet-stat-card{background:var(--paper);padding:18px 20px;display:flex;flex-direction:column;gap:6px}.facet-stat-card--headline{background:linear-gradient(135deg,rgba(159,18,57,.06) 0%,rgba(159,18,57,.01) 100%);border-left:3px solid var(--accent);padding-left:18px}.facet-stat-label{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)}.facet-stat-card--headline .facet-stat-label{color:var(--accent);font-weight:700}.facet-stat-value{font-family:var(--font-display);font-size:32px;font-weight:500;line-height:1;color:var(--ink)}.facet-stat-card--headline .facet-stat-value{color:var(--accent);font-size:36px;font-weight:700}.facet-stat-detail{font-family:var(--font-prose);font-size:13px;font-style:italic;color:var(--ink-muted);margin-top:2px}.facet-stat-cloud{display:flex;flex-wrap:wrap;gap:6px;margin-top:var(--space-1)}.facet-stat-card--cloud .facet-stat-value{display:none}@media(max-width:700px){.facet-stats-row{margin:0 var(--space-4) var(--space-5);grid-template-columns:1fr 1fr}.facet-stat-card--cloud{grid-column:1/-1}}/* rec #1 mid-density (2026-05-03): 10–49 films get a 2-column grid that puts headline+watchable on row 1 and techniques+formats on row 2. Communicates "this is a smaller catalog" without the all-zeros wall of the thin variant. */.facet-stats-row--mid{grid-template-columns:repeat(2,minmax(0,1fr))}.facet-stats-row--mid .facet-stat-card--cloud{grid-column:auto}@media(max-width:700px){.facet-stats-row--mid{grid-template-columns:1fr 1fr}.facet-stats-row--mid .facet-stat-card--cloud{grid-column:1/-1}}/* rec #2 fluid hero stat (2026-05-03): step the value down when count is in the mid/thin tier. Updated 2026-05-03 (post-critique rec #3): stepped from 36px → 30px desktop, 30px → 26px mobile, so the small variant has visible distance from the 38px H1 (was nearly equal at 36px, defeating the purpose of the modifier). Applies to both .facet-hero-stat-value--small and .platform-hero-stat-value--small via shared CSS. */.facet-hero-stat-value--small{font-size:30px}@media(max-width:700px){.facet-hero-stat-value--small{font-size:26px}}.decade-histogram{max-width:1100px;margin:0 auto var(--space-6);padding:0 var(--space-6)}.facet-section-title{font-family:var(--font-display);font-size:24px;font-weight:400;line-height:1.2;margin-bottom:var(--space-4);padding-bottom:var(--space-2);border-bottom:1px solid var(--rule);position:relative}.facet-section-title::after{content:"";position:absolute;left:0;bottom:-1px;width:48px;height:2px;background:var(--accent)}.histogram-grid{display:flex;align-items:flex-end;gap:6px;height:140px;padding:var(--space-2) 0}.histogram-bar{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;text-decoration:none;color:var(--ink-light);position:relative;height:100%;background:transparent;border:none;padding:0;cursor:pointer;transition:color .15s}.histogram-bar:hover,.histogram-bar:focus{color:var(--accent);outline:none}.histogram-bar.is-empty{cursor:default;pointer-events:none;opacity:.4}.histogram-fill{width:100%;background:var(--ink);transition:background .15s;min-height:2px;border-top:2px solid var(--accent)}.histogram-bar:hover .histogram-fill,.histogram-bar:focus .histogram-fill{background:var(--accent);border-top-color:var(--ink)}.histogram-bar.is-empty .histogram-fill{background:var(--rule);border-top-color:var(--rule)}.histogram-count{position:absolute;bottom:calc(100% + 4px);left:0;right:0;text-align:center;font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);pointer-events:none;opacity:0;transition:opacity .15s}.histogram-bar:hover .histogram-count,.histogram-bar:focus .histogram-count{opacity:1;color:var(--accent);font-weight:700}.histogram-label{position:absolute;top:calc(100% + 6px);font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);letter-spacing:.05em}@media(max-width:700px){.decade-histogram{padding:0 var(--space-4)}.histogram-grid{height:100px}}.facet-section-subtitle{font-family:var(--font-prose);font-size:14px;font-style:italic;color:var(--ink-muted);margin:-8px 0 var(--space-4);line-height:1.5}/* .facet-hero-movements* removed 2026-05-03 — chip cloud duplicated lede prose. keyMovements still live in decade-meta.json for a future "navigational chips that link to relevant tags" iteration. */.decade-context{max-width:1100px;margin:0 auto var(--space-6);padding:0 var(--space-6)}.decade-context-title{margin-bottom:var(--space-5)}/* rec #5 (2026-05-03): when both Highlights and Most-catalogued countries render, lay them side-by-side at ≥1024px. Reclaims ~400px of vertical space on desktop and reads as one cohesive "Decade context" panel rather than two stacked sections. Mobile/tablet keep the stacked layout — side-by-side at narrow widths would force the picks grid into a single column anyway. */.decade-context-grid{display:grid;grid-template-columns:1fr;gap:var(--space-6)}.decade-context--two-up .featured-picks--nested,.decade-context--two-up .country-distribution{margin-bottom:0}@media(min-width:1024px){.decade-context--two-up .decade-context-grid{grid-template-columns:1fr 1fr;gap:40px;align-items:start}.decade-context--two-up .featured-picks--nested .featured-picks-grid{grid-template-columns:1fr;gap:1px}}.facet-section-title--nested{font-size:20px;margin-bottom:var(--space-3);position:relative;padding-bottom:var(--space-2);border-bottom:1px solid var(--rule)}.facet-section-title--nested::after{content:"";position:absolute;left:0;bottom:-1px;width:32px;height:2px;background:var(--ink-muted)}.featured-picks--nested{padding:0;background:transparent;border-bottom:none;margin-bottom:var(--space-6)}.featured-picks--nested .featured-picks-header{max-width:none;padding-bottom:0;margin-bottom:14px;border-bottom:none}.featured-picks-title--nested{font-family:var(--font-display);font-size:20px;font-weight:500;line-height:1.2;color:var(--ink);margin:0 0 var(--space-3);padding:0 0 var(--space-2);position:relative;display:block;border-bottom:1px solid var(--rule)}/* rec #5 (2026-05-03): unify nested H3 underline treatment. Both .facet-section-title--nested and .featured-picks-title--nested now show the same muted 32px accent below a 1px rule, signaling "subordinate section heading." */.featured-picks-title--nested::after{content:"";position:absolute;left:0;bottom:-1px;width:32px;height:2px;background:var(--ink-muted);display:block}.featured-picks--nested .featured-picks-grid{max-width:none}.featured-picks--nested .pick-card{padding:var(--space-4)}/* rec #1 (2026-05-03): single-line quick-stats fallback for thin decades. Replaces the four-card row when fewer than 10 films OR no watch links exist. Saves vertical space and avoids the all-zeros wall. Border-left uses --accent (rec #4 unification 2026-05-03) to match .facet-stat-card--headline — both are "canonical summary affordance" surfaces, regardless of density. */.decade-quickstats{max-width:1100px;margin:0 auto var(--space-6);padding:14px var(--space-5);background:var(--paper);border:1px solid var(--rule);border-left:3px solid var(--accent);font-family:var(--mono);font-size:var(--type-data);color:var(--ink-light);display:flex;align-items:baseline;flex-wrap:wrap;gap:var(--space-2)}.decade-quickstats strong{color:var(--ink);font-weight:700}.decade-quickstats-sep{color:var(--ink-muted);opacity:.6;margin:0 2px}@media(max-width:700px){.decade-quickstats{margin:0 var(--space-4) var(--space-5);padding:var(--space-3) var(--space-4);font-size:var(--type-data-sm)}}/* rec #3 (2026-05-03): films-section-header — H2 title + jump strip inline. Anchoring the jump strip to the films-section disambiguates its purpose: it prefaces the table it serves, not floating utility chrome. */.films-section-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-4);max-width:1100px;margin:0 auto var(--space-4);padding:0 var(--space-6)}.films-section-header .section-title{margin-bottom:0}.films-section-header .decade-jump{margin:0;padding:0;flex:0 0 auto}.decade-jump{display:flex;justify-content:space-between;align-items:center;gap:var(--space-4);font-family:var(--mono);font-size:var(--type-data-sm)}.decade-jump-link{display:inline-flex;align-items:center;gap:var(--space-2);min-height:44px;padding:var(--space-2) var(--space-3);color:var(--ink-light);text-decoration:none;border:1px solid transparent;transition:background .15s,border-color .15s,color .15s}.decade-jump-link:hover,.decade-jump-link:focus{background:var(--paper);border-color:var(--rule);color:var(--accent);outline:none}.decade-jump-eyebrow{color:var(--ink-muted);text-transform:uppercase;letter-spacing:.12em;font-size:var(--type-data-xs)}.decade-jump-label{font-weight:600;color:var(--ink);font-size:var(--type-data)}.decade-jump-link:hover .decade-jump-label,.decade-jump-link:focus .decade-jump-label{color:var(--accent)}.decade-jump-spacer{flex:0 0 auto;width:1px}@media(max-width:700px){.decade-context{padding:0 var(--space-4)}.films-section-header{padding:0 var(--space-4);flex-direction:column;align-items:flex-start;gap:var(--space-2)}.films-section-header .decade-jump{align-self:stretch;justify-content:space-between}.decade-jump{font-size:var(--type-data-xs)}.decade-jump-link{padding:6px 10px;gap:6px}}.country-distribution{max-width:1100px;margin:0 auto var(--space-6);padding:0 var(--space-6)}.country-bars{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px;background:var(--rule);border:1px solid var(--rule)}.country-bar-row{background:var(--paper);transition:background .15s}.country-bar-row:hover{background:var(--cream)}.country-bar-link{display:grid;grid-template-columns:28px 36px 1fr 2fr 56px;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);min-height:44px;text-decoration:none;color:var(--ink)}.country-bar-link:focus{outline:2px solid var(--accent);outline-offset:-2px}.country-bar-rank{font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);text-align:right;font-weight:600}.country-bar-cc{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--accent);font-weight:700;letter-spacing:.05em}.country-bar-name{font-family:var(--font-display);font-size:17px;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.country-bar-row:hover .country-bar-name,.country-bar-link:focus .country-bar-name{color:var(--accent)}.country-bar-track{display:block;height:10px;background:var(--data-bg);border:1px solid var(--rule);position:relative;overflow:hidden}.country-bar-fill{display:block;height:100%;background:linear-gradient(90deg,var(--accent) 0%,rgba(159,18,57,.6) 100%);transition:width .2s}.country-bar-row:hover .country-bar-fill{background:var(--ink)}.country-bar-count{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-light);text-align:right;font-weight:600}.country-distribution-foot{font-family:var(--font-prose);font-size:13px;font-style:italic;color:var(--ink-muted);margin-top:10px;text-align:right}@media(max-width:700px){.country-distribution{padding:0 var(--space-4)}.country-bar-link{grid-template-columns:24px 32px 1fr 50px;gap:var(--space-2);padding:10px var(--space-3)}.country-bar-track{display:none}.country-bar-name{font-size:15px}}/* .decade-prevnext* removed 2026-05-03 — bottom card-style nav was redundant with the compact .decade-jump strip in the films-section header AND the /decades/ index page. Removing the CSS along with the HTML keeps the file lean. */.platform-intro{max-width:780px;margin:var(--space-5) auto var(--space-6);padding:var(--space-5) var(--space-6);background:var(--paper);border:1px solid var(--rule);border-left:3px solid var(--accent)}.platform-intro-text{font-family:var(--font-prose);font-size:16px;line-height:1.7;color:var(--ink-light);margin:0}.platform-intro-meta{margin-top:14px;padding-top:14px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data-sm)}.platform-intro-link{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .15s}.platform-intro-link:hover,.platform-intro-link:focus{border-bottom-color:var(--accent);outline:none}@media(max-width:600px){.platform-intro{margin:var(--space-4) var(--space-4) var(--space-5);padding:18px 20px}}.featured-picks{background:var(--paper);border-bottom:1px solid var(--rule);padding:var(--space-6) var(--space-6) 40px}.featured-picks.is-hidden{display:none}.featured-picks-header{max-width:1400px;margin:0 auto var(--space-5);border-bottom:2px solid var(--ink);padding-bottom:var(--space-4)}.featured-picks-title{font-family:var(--font-display);font-size:var(--type-display-md);font-weight:400;line-height:1.2;letter-spacing:.01em;color:var(--ink)}.featured-picks-title em{font-style:italic;color:var(--accent)}.featured-picks-subtitle{font-family:var(--font-prose);font-size:14px;color:var(--ink-muted);margin-top:6px;font-style:italic}.featured-picks-grid{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1px;background:var(--rule)}.pick-card{background:var(--paper);padding:20px;display:flex;flex-direction:column;gap:var(--space-2);transition:background .15s}.pick-card:hover{background:var(--cream)}.pick-meta{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);display:flex;gap:var(--space-2);align-items:center}.pick-divider{opacity:.5}.pick-platform{color:var(--accent);font-weight:600}.pick-title{font-family:var(--font-display);font-size:20px;font-weight:500;line-height:1.25;margin:2px 0}.pick-title a{color:var(--ink);text-decoration:none}.pick-title a:hover,.pick-title a:focus{color:var(--accent);outline:none}.pick-credit{font-family:var(--font-prose);font-size:13px;font-style:italic;color:var(--ink-muted)}.pick-blurb{font-family:var(--font-prose);font-size:14px;line-height:1.55;color:var(--ink-light);margin:6px 0 var(--space-3);flex:1}.pick-watch-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--ink);color:var(--cream);padding:var(--space-3) 18px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data-sm);font-weight:600;letter-spacing:.05em;text-decoration:none;transition:background .2s;align-self:flex-start;text-transform:none}.pick-watch-btn:hover,.pick-watch-btn:focus{background:var(--accent);outline:none}@media(max-width:600px){.featured-picks{padding:var(--space-5) var(--space-4)}.featured-picks-grid{grid-template-columns:1fr;gap:1px}}/* rec #2 + #3 (2026-05-03): picks panel relocated above the stats bar on the homepage. The above-fold wrapper tightens vertical padding and the foot CTA gives users a pathway from "6 picks" to "browse all 661." */.featured-picks-above-fold-wrapper .featured-picks{padding:var(--space-6) var(--space-6) 28px;border-bottom:1px solid var(--rule);border-top:1px solid var(--rule);background:var(--paper)}.featured-picks-above-fold-wrapper .featured-picks-header{margin-bottom:20px}.featured-picks-foot{max-width:1400px;margin:var(--space-5) auto 0;padding-top:18px;border-top:1px solid var(--rule);text-align:center}.featured-picks-cta{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:44px;padding:10px var(--space-5);font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.05em;color:var(--ink);text-decoration:none;border-bottom:2px solid var(--accent);transition:color .15s,border-color .15s}.featured-picks-cta:hover,.featured-picks-cta:focus{color:var(--accent);border-bottom-color:var(--ink);outline:none}@media(max-width:600px){.featured-picks-above-fold-wrapper .featured-picks{padding:20px var(--space-4) var(--space-4)}.featured-picks-foot{margin:var(--space-4) auto 0;padding-top:14px}.featured-picks-cta{font-size:var(--type-data-sm);padding:var(--space-2) var(--space-4)}}.about-section{background:var(--paper);border-top:2px solid var(--ink);padding:80px var(--space-6)}.about-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1.4fr 1fr;gap:64px}.about-text h2{font-family:var(--font-display);font-size:32px;font-weight:400;line-height:1.3;margin-bottom:var(--space-5)}.about-text h2 em{font-style:italic}.about-text h3{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-top:var(--space-6);margin-bottom:10px}.about-text p{font-family:var(--font-prose);font-size:15px;line-height:1.85;color:var(--ink-light);margin-bottom:14px}.about-text .about-lede{font-size:17px;color:var(--ink);line-height:1.7;margin-bottom:var(--space-2)}.about-text strong{color:var(--ink);font-weight:600}.about-text .confidence-pips{margin:0 var(--space-1)}.about-contact{margin-top:36px;padding:var(--space-5);background:var(--data-bg);border:1px solid var(--rule);border-left:3px solid var(--accent)}.about-contact h3{margin-top:0;color:var(--accent)}.about-contact-cta{font-family:var(--mono);font-size:var(--type-meta);font-weight:600;margin:var(--space-2) 0!important}.about-contact-cta a{display:inline-block;min-height:44px;line-height:44px;color:var(--ink);text-decoration:none;border-bottom:2px solid var(--accent);transition:color .15s,border-color .15s;padding:0 2px}.about-contact-cta a:hover,.about-contact-cta a:focus{color:var(--accent);border-bottom-color:var(--ink);outline:none}.about-contact-hint{font-size:13px;color:var(--ink-muted);margin-bottom:0!important}.about-data-footnote{margin-top:var(--space-4);padding-top:var(--space-4);border-top:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);text-align:right;text-transform:uppercase;letter-spacing:.1em}.about-data{background:var(--data-bg);border:1px solid var(--rule);padding:var(--space-6);font-family:var(--mono)}.about-data-title{font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:var(--space-5)}.about-stat-row{display:flex;justify-content:space-between;padding:var(--space-4) 0;border-bottom:1px solid var(--rule);align-items:baseline}.about-stat-row:last-child{border-bottom:none}.about-stat-label{font-size:var(--type-data);color:var(--ink-light)}.about-stat-value{font-size:24px;font-weight:600;color:var(--ink)}.footer{background:var(--ink);color:var(--cream);padding:var(--space-6)}.footer-inner{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}.footer-logo{font-family:var(--font-display);font-size:18px}.footer-timestamp{font-family:var(--mono);font-size:var(--type-data-sm);color:rgba(255,255,255,.7)}/* Mobile filter toggle */
+.mobile-filter-toggle{display:none;background:var(--ink);color:var(--cream);border:none;min-height:44px;padding:10px 18px;font-family:var(--mono);font-size:var(--type-data-sm);font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .2s;white-space:nowrap;box-sizing:border-box;align-items:center}
 .mobile-filter-toggle:hover,.mobile-filter-toggle:focus{background:var(--accent)}
 .filter-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:var(--cream);border-radius:50%;width:18px;height:18px;font-size:var(--type-data-xs);margin-left:6px}
-.drawer-close-bar{display:none;padding:12px 16px;background:var(--ink);color:var(--cream);border:none;width:100%;font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;text-align:center;border-bottom:1px solid rgba(255,255,255,.15)}
+.drawer-close-bar{display:none;padding:var(--space-3) var(--space-4);background:var(--ink);color:var(--cream);border:none;width:100%;font-family:var(--mono);font-size:var(--type-data);font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;text-align:center;border-bottom:1px solid rgba(255,255,255,.15)}
 .drawer-close-bar:hover{background:var(--accent)}
 .sidebar-overlay{display:none}
 /* Active filters bar (outside sidebar) */
-.active-filters-bar{display:none;padding:10px 16px;background:var(--cream-dark);border-bottom:1px solid var(--rule);gap:8px;align-items:center;flex-wrap:wrap}
+.active-filters-bar{display:none;padding:10px var(--space-4);background:var(--cream-dark);border-bottom:1px solid var(--rule);gap:var(--space-2);align-items:center;flex-wrap:wrap}
 .active-filters-bar.has-filters{display:flex}
 .active-filters-label{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:600}
-.active-filter-tag{background:var(--paper);border:1px solid var(--rule);padding:4px 10px;font-family:var(--mono);font-size:var(--type-data-sm);display:inline-flex;align-items:center;gap:8px}
-.active-filter-tag .remove{color:var(--ink-light);cursor:pointer;font-size:var(--type-body);line-height:1;min-width:32px;min-height:32px;display:inline-flex;align-items:center;justify-content:center;padding:4px}
+.active-filter-tag{background:var(--paper);border:1px solid var(--rule);padding:var(--space-1) 10px;font-family:var(--mono);font-size:var(--type-data-sm);display:inline-flex;align-items:center;gap:var(--space-2)}
+.active-filter-tag .remove{color:var(--ink-light);cursor:pointer;font-size:var(--type-body);line-height:1;min-width:32px;min-height:32px;display:inline-flex;align-items:center;justify-content:center;padding:var(--space-1)}
 .active-filter-tag .remove:hover{color:var(--accent)}
 .clear-filters-btn{background:none;border:none;font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);cursor:pointer;text-decoration:underline;margin-left:auto}
 .clear-filters-btn:hover{color:var(--accent)}
-@media(max-width:900px){.mobile-filter-toggle{display:inline-flex;align-items:center}.drawer-close-bar{display:block}}
-@media(max-width:900px){.main-layout{grid-template-columns:1fr}.sidebar{display:block;position:fixed;bottom:0;left:0;right:0;max-height:70vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s ease;z-index:200;border-right:none;border-top:2px solid var(--ink);box-shadow:0 -4px 20px rgba(0,0,0,.15)}.sidebar.open{transform:translateY(0)}.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199}.sidebar-overlay.visible{display:block}.stats-bar{flex-wrap:wrap}.stat-block{flex:1 1 50%}.detail-header{grid-template-columns:1fr}.detail-body{grid-template-columns:1fr}.about-inner{grid-template-columns:1fr}/* Round 8 #1: kill the Round 2 sticky data panel when the layout collapses to single-column. Sticky on a stacked block traps scroll. */.detail-data-panel{position:static;max-height:none;overflow-y:visible}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}.back-to-top{position:fixed;bottom:2rem;right:2rem;width:44px;height:44px;background:var(--ink);color:var(--cream);border:none;border-radius:50%;font-size:1.25rem;cursor:pointer;opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;z-index:100}.back-to-top.visible{opacity:.8;visibility:visible}.back-to-top:hover{opacity:1}.keyboard-hints{font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);margin-top:8px;text-align:right}.keyboard-hints kbd{display:inline-block;background:var(--data-bg);border:1px solid var(--rule);border-radius:3px;padding:2px 6px;font-size:var(--type-data-xs);margin:0 2px}
+@media(max-width:900px){.mobile-filter-toggle{display:inline-flex;align-items:center;position:fixed;bottom:16px;right:16px;z-index:50;padding:14px 22px;box-shadow:0 4px 16px rgba(0,0,0,.25);border-radius:999px;font-size:13px}.sidebar.open ~ .content .mobile-filter-toggle,.sidebar-overlay.visible ~ .content .mobile-filter-toggle{display:none}.drawer-close-bar{display:block}}
+@media(max-width:600px){
+/* === Mobile polish (post-critique #5): unified phone breakpoint === */
+/* #1: release fixed table column widths so the table can fit on iPhone SE (320px) */
+.col-year,.col-watch,.col-runtime,.col-confidence,.col-country,.col-technique{width:auto}
+/* #2: compress masthead — reclaim ~80px of pre-content viewport */
+.masthead-top{padding:6px var(--space-4);font-size:var(--type-data-xs)}
+.masthead-top span:nth-child(2){display:none}
+.masthead-main{padding:var(--space-4) var(--space-4) 14px}
+.masthead-title{font-size:26px}
+.masthead-subtitle{font-size:13px;line-height:1.4}
+.stats-bar .stat-block:nth-child(n+3){display:none}
+.stats-bar .stat-block{flex:1 1 50%}
+.stat-block--headline .stat-value{font-size:22px}
+.main-nav{gap:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start}
+.main-nav a{padding:10px var(--space-3);flex-shrink:0;font-size:11px;letter-spacing:.08em;min-height:44px}
+/* #3: histogram counts always visible on touch (no hover state on phones) */
+.histogram-count{position:static;opacity:1;margin-top:var(--space-1);font-size:10px;color:var(--ink-light);font-weight:500}
+.histogram-bar{padding-bottom:18px}
+.histogram-label{top:auto;bottom:0;font-size:10px}
+/* #4 (additional): mobile-filter-toggle as pill FAB also gets compressed text */
+.mobile-filter-toggle{padding:var(--space-3) 18px}
+}
+@media(max-width:900px){.main-layout{grid-template-columns:1fr}.sidebar{display:block;position:fixed;bottom:0;left:0;right:0;max-height:70vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s ease;z-index:200;border-right:none;border-top:2px solid var(--ink);box-shadow:0 -4px 20px rgba(0,0,0,.15)}.sidebar.open{transform:translateY(0)}.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199}.sidebar-overlay.visible{display:block}.stats-bar{flex-wrap:wrap}.stat-block{flex:1 1 50%}.detail-header{grid-template-columns:1fr}.detail-body{grid-template-columns:1fr}.about-inner{grid-template-columns:1fr}/* Round 8 #1: kill the Round 2 sticky data panel when the layout collapses to single-column. Sticky on a stacked block traps scroll. */.detail-data-panel{position:static;max-height:none;overflow-y:visible}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}.back-to-top{position:fixed;bottom:2rem;right:2rem;width:44px;height:44px;background:var(--ink);color:var(--cream);border:none;border-radius:50%;font-size:1.25rem;cursor:pointer;opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;z-index:100}.back-to-top.visible{opacity:.8;visibility:visible}.back-to-top:hover{opacity:1}.keyboard-hints{font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);margin-top:var(--space-2);text-align:right}.keyboard-hints kbd{display:inline-block;background:var(--data-bg);border:1px solid var(--rule);border-radius:3px;padding:2px 6px;font-size:var(--type-data-xs);margin:0 2px}
 /* Country Pages */
-.country-page{padding:48px 32px;max-width:1400px;margin:0 auto}
-.country-header{display:grid;grid-template-columns:auto 1fr auto;gap:32px;align-items:center;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:40px}
-.country-code-block{background:var(--ink);color:var(--cream);padding:24px 32px;text-align:center}
+.country-page{padding:var(--space-7) var(--space-6);max-width:1400px;margin:0 auto}
+.country-header{display:grid;grid-template-columns:auto 1fr auto;gap:var(--space-6);align-items:center;padding-bottom:var(--space-6);border-bottom:2px solid var(--ink);margin-bottom:40px}
+.country-code-block{background:var(--ink);color:var(--cream);padding:var(--space-5) var(--space-6);text-align:center}
 .country-code-large{font-family:var(--mono);font-size:32px;font-weight:600;letter-spacing:.1em}
-.country-title-section h1.country-name{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:8px}
+.country-title-section h1.country-name{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:var(--space-2)}
 .country-subtitle{font-family:var(--font-prose);font-style:italic;color:var(--ink-muted);font-size:var(--type-body)}
 /* .country-nav / .country-back-link removed 2026-04-26 (Round 7 #5) —
    breadcrumb covers the same orientation; same cleanup as Round 6
    .entity-back-link removal. */
 /* Round 10 #2: per-entity stats-grid classes (.country-stats-grid, .technique-stats-grid, .decade-stats-grid) consolidated into the single .tag-stats-grid below. They were three rules doing the same job, none of them carrying the Round 9 #1 mobile scroll affordance. The unified .tag-stats-grid now owns all entity-page stat-card grids. */
-.stat-card-title{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:12px}
+.stat-card-title{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:var(--space-3)}
 .stat-card-value{font-family:var(--font-display);font-size:48px;font-weight:400;line-height:1}
-.stat-card-detail{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);margin-top:8px}
-.stat-card-list{display:flex;flex-wrap:wrap;gap:8px}
+.stat-card-detail{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);margin-top:var(--space-2)}
+.stat-card-list{display:flex;flex-wrap:wrap;gap:var(--space-2)}
 /* stat-tag became clickable 2026-04-26 (Round 7 #3) — country page
    technique/decade chips and decade page country/technique chips now
    navigate to those facets. Touch target lifted to AA. The static
    variant (.stat-tag-static) keeps the visual treatment for non-link
    contexts (Format chips, where /formats/X.html doesn't exist). */
-.stat-tag{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:var(--type-data-sm);background:var(--data-bg);padding:8px 10px;min-height:44px;box-sizing:border-box;border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:border-color .2s,color .2s,background .2s}
+.stat-tag{display:inline-flex;align-items:center;gap:var(--space-1);font-family:var(--mono);font-size:var(--type-data-sm);background:var(--data-bg);padding:var(--space-2) 10px;min-height:44px;box-sizing:border-box;border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:border-color .2s,color .2s,background .2s}
 .stat-tag:hover,.stat-tag:focus{border-color:var(--ink);color:var(--accent);background:var(--paper);outline:none}
 .stat-tag-static{cursor:default}
 .stat-tag-static:hover,.stat-tag-static:focus{border-color:var(--rule);color:var(--ink-light);background:var(--data-bg)}
 .stat-tag-count{color:var(--ink-muted);font-style:normal}
 /* Round 10 #2: canonical stat-card grid for ALL entity pages — country, technique, decade, genre, keyword, platform, studio, director, series. Was 4 parallel rules (country/technique/decade/tag) doing the same job with slightly different dimensions. Unified on the country/technique/decade dimensions (200px min, 20px gap, 48px mb, 24px card padding) which 3 of the 4 used. The Round 9 #1 mobile scroll-affordance rule below applies to all of them now. */
-.tag-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:48px}
-.tag-stat-card{background:var(--paper);border:1px solid var(--rule);padding:24px}
+.tag-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:var(--space-7)}
+.tag-stat-card{background:var(--paper);border:1px solid var(--rule);padding:var(--space-5)}
 /* Round 10 #1: removed — see unified .entity-films-section. */
-.section-title{font-family:var(--font-display);font-size:24px;font-weight:400;margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid var(--rule)}
+.section-title{font-family:var(--font-display);font-size:24px;font-weight:400;margin-bottom:var(--space-5);padding-bottom:var(--space-3);border-bottom:1px solid var(--rule)}
 /* Countries Index */
-.countries-index{padding:48px 32px;max-width:1400px;margin:0 auto}
+.countries-index{padding:var(--space-7) var(--space-6);max-width:1400px;margin:0 auto}
 /* Round 12 ancillary: .countries-header / .countries-subtitle removed —
    replaced by .entity-index-header above (used by directors and studios too). */
 .countries-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
@@ -1673,8 +2399,8 @@ html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(-
 .country-card:focus{outline:2px solid var(--accent);outline-offset:2px}
 .country-card-code{background:var(--ink);color:var(--cream);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:var(--type-body-sm);font-weight:600;letter-spacing:.1em}
 .country-card-info{padding:20px}
-.country-card-name{font-family:var(--font-display);font-size:20px;font-weight:400;margin-bottom:8px}
-.country-card-meta{display:flex;gap:16px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);margin-bottom:8px}
+.country-card-name{font-family:var(--font-display);font-size:20px;font-weight:400;margin-bottom:var(--space-2)}
+.country-card-meta{display:flex;gap:var(--space-4);font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);margin-bottom:var(--space-2)}
 .country-card-count{color:var(--ink)}
 .country-card-technique{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--accent);font-weight:500}
 /* Filter link styling */
@@ -1683,12 +2409,12 @@ html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(-
 .filter-item .filter-link .name{transition:color .15s}
 @media(max-width:900px){.country-header{grid-template-columns:1fr;text-align:center}.country-code-block{width:fit-content;margin:0 auto}.countries-grid{grid-template-columns:1fr}}
 /* Technique Pages */
-.technique-page{padding:48px 32px;max-width:1400px;margin:0 auto}
-.technique-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:40px}
-.technique-title-section h1.technique-name{font-family:var(--font-display);font-size:42px;font-weight:400;margin-bottom:12px}
-.technique-description{font-family:var(--font-prose);font-size:18px;color:var(--ink-light);margin-bottom:8px;max-width:600px}
+.technique-page{padding:var(--space-7) var(--space-6);max-width:1400px;margin:0 auto}
+.technique-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:var(--space-6);border-bottom:2px solid var(--ink);margin-bottom:40px}
+.technique-title-section h1.technique-name{font-family:var(--font-display);font-size:42px;font-weight:400;margin-bottom:var(--space-3)}
+.technique-description{font-family:var(--font-prose);font-size:18px;color:var(--ink-light);margin-bottom:var(--space-2);max-width:600px}
 .technique-subtitle{font-family:var(--font-prose);font-style:italic;color:var(--ink-muted);font-size:var(--type-body)}
-.technique-nav{text-align:right;padding-top:8px}
+.technique-nav{text-align:right;padding-top:var(--space-2)}
 .technique-back-link{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-muted);text-decoration:none;letter-spacing:.05em}
 .technique-back-link:hover{color:var(--accent)}
 /* Round 10 #2: removed — see unified .tag-stats-grid above. */
@@ -1697,31 +2423,31 @@ html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(-
 .table-country-code{display:block;color:var(--accent);font-weight:600;letter-spacing:.05em}
 .table-country-name{display:block;color:var(--ink-muted);font-size:var(--type-data-xs);margin-top:2px}
 /* Techniques Index */
-.techniques-index{padding:48px 32px;max-width:1400px;margin:0 auto}
-.techniques-header{text-align:center;margin-bottom:48px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
-.techniques-header h1{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:12px}
+.techniques-index{padding:var(--space-7) var(--space-6);max-width:1400px;margin:0 auto}
+.techniques-header{text-align:center;margin-bottom:var(--space-7);padding-bottom:var(--space-6);border-bottom:2px solid var(--ink)}
+.techniques-header h1{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:var(--space-3)}
 .techniques-subtitle{font-family:var(--font-prose);font-style:italic;color:var(--ink-muted);font-size:var(--type-body)}
 .techniques-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
-.technique-card{display:block;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s;padding:24px}
+.technique-card{display:block;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s;padding:var(--space-5)}
 .technique-card:hover{border-color:var(--ink);box-shadow:4px 4px 0 var(--rule)}
 .technique-card:focus{outline:2px solid var(--accent);outline-offset:2px}
-.technique-card-name{font-family:var(--font-display);font-size:24px;font-weight:400;margin-bottom:8px}
-.technique-card-desc{font-family:var(--font-prose);font-size:var(--type-body-sm);color:var(--ink-light);margin-bottom:12px;line-height:1.5}
-.technique-card-meta{display:flex;gap:16px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
+.technique-card-name{font-family:var(--font-display);font-size:24px;font-weight:400;margin-bottom:var(--space-2)}
+.technique-card-desc{font-family:var(--font-prose);font-size:var(--type-body-sm);color:var(--ink-light);margin-bottom:var(--space-3);line-height:1.5}
+.technique-card-meta{display:flex;gap:var(--space-4);font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
 .technique-card-count{color:var(--ink);font-weight:500}
-@media(max-width:900px){.technique-header{flex-direction:column;text-align:center}.technique-nav{text-align:center;margin-top:16px}.techniques-grid{grid-template-columns:1fr}}
+@media(max-width:900px){.technique-header{flex-direction:column;text-align:center}.technique-nav{text-align:center;margin-top:var(--space-4)}.techniques-grid{grid-template-columns:1fr}}
 /* Directors Index — Round 12 #1/#2/#3 + ancillary unification.
    .directors-header / .directors-subtitle removed: now use .entity-index-header
    defined above. .directors-stats → .entity-index-stats. Per-card layout
    classes (.director-card, .director-name, .director-meta, etc.) stay because
    the visual is intentionally different from .country-card and .entity-card. */
-.directors-index{padding:48px 32px;max-width:1400px;margin:0 auto}
-.entity-index-stats{display:flex;justify-content:center;gap:48px;margin-bottom:32px;padding:24px;background:var(--data-bg);border:1px solid var(--rule)}
+.directors-index{padding:var(--space-7) var(--space-6);max-width:1400px;margin:0 auto}
+.entity-index-stats{display:flex;justify-content:center;gap:var(--space-7);margin-bottom:var(--space-6);padding:var(--space-5);background:var(--data-bg);border:1px solid var(--rule)}
 .entity-index-stat{text-align:center}
 .entity-index-stat .stat-value{display:block;font-family:var(--font-display);font-size:36px;font-weight:400;color:var(--ink)}
 .entity-index-stat .stat-label{font-family:var(--mono);font-size:var(--type-data-sm);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted)}
-.directors-alphabet{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:40px;padding:16px;background:var(--paper);border:1px solid var(--rule)}
-.alphabet-link{font-family:var(--mono);font-size:var(--type-body-sm);font-weight:600;padding:8px 12px;text-decoration:none;color:var(--ink-muted);transition:color .15s,background .15s}
+.directors-alphabet{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-2);margin-bottom:40px;padding:var(--space-4);background:var(--paper);border:1px solid var(--rule)}
+.alphabet-link{font-family:var(--mono);font-size:var(--type-body-sm);font-weight:600;padding:var(--space-2) var(--space-3);text-decoration:none;color:var(--ink-muted);transition:color .15s,background .15s}
 .alphabet-link:hover,.alphabet-link:focus{color:var(--accent);background:var(--cream)}
 .directors-list{display:flex;flex-direction:column;gap:40px}
 /* Round 12 #2: content-visibility:auto skips paint/layout for off-screen
@@ -1729,10 +2455,10 @@ html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(-
    DOM. contain-intrinsic-size reserves a layout placeholder so scroll
    position doesn't jump as sections render in. ~600px is a reasonable
    estimate for an average letter; the browser corrects per actual content. */
-.directors-letter-section{scroll-margin-top:20px;content-visibility:auto;contain-intrinsic-size:auto 600px}
-.letter-heading{font-family:var(--font-display);font-size:32px;font-weight:400;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule);color:var(--accent)}
-.directors-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-.director-card{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s}
+/* rec #5 (2026-05-03): content-visibility:auto skips rendering off-screen letter sections on the 1630-director index. Tuned contain-intrinsic-size from 600px → 1200px to match the actual mean section height (~63 directors × ~3-col grid × ~80-100px per card). Saves ~50% paint time on initial load; degrades gracefully on browsers that don't support content-visibility (Firefox <125, older Safari) — full HTML still renders, no JS required, full crawler visibility. */.directors-letter-section{scroll-margin-top:20px;content-visibility:auto;contain-intrinsic-size:auto 1200px}/* rec #4 (2026-05-03): sort toggle on /decades/ index. Two pill buttons; active state uses the standard accent border. Pairs with the inline script in generateDecadeIndexPage that re-orders cards in the DOM by data-decade-year or data-decade-count. */.decades-sort-toggle{display:flex;gap:var(--space-2);justify-content:center;margin:0 auto var(--space-6);padding:0 var(--space-6);flex-wrap:wrap}.decades-sort-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:var(--space-2) 18px;font-family:var(--mono);font-size:var(--type-data-sm);font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-light);background:var(--paper);border:1px solid var(--rule);cursor:pointer;transition:color .15s,border-color .15s,background .15s}.decades-sort-btn:hover,.decades-sort-btn:focus{color:var(--accent);border-color:var(--accent);outline:none}.decades-sort-btn.is-active{color:var(--ink);background:var(--cream-dark);border-color:var(--accent);border-bottom-width:3px;padding-bottom:6px}@media(max-width:600px){.decades-sort-toggle{padding:0 var(--space-4)}.decades-sort-btn{font-size:var(--type-data-xs);padding:6px 14px}}
+.letter-heading{font-family:var(--font-display);font-size:32px;font-weight:400;margin-bottom:20px;padding-bottom:var(--space-3);border-bottom:1px solid var(--rule);color:var(--accent)}
+.directors-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--space-3)}
+.director-card{display:flex;justify-content:space-between;align-items:center;padding:var(--space-4) 20px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s}
 .director-card:hover{border-color:var(--ink);box-shadow:3px 3px 0 var(--rule)}
 .director-card:focus{outline:2px solid var(--accent);outline-offset:2px}
 .director-name{font-family:var(--font-prose);font-size:var(--type-body);color:var(--ink)}
@@ -1742,61 +2468,59 @@ html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(-
 /* Round 12 #3: "Most prolific" / "Most films" chip strip above the alphabet
    nav. Discovery surface — without it the user lands on the first alphabetical
    entry which is rarely the most interesting. */
-.entity-index-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin-bottom:24px;padding:14px 16px;background:var(--cream-dark,var(--data-bg));border:1px solid var(--rule);border-left:3px solid var(--accent)}
+.entity-index-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin-bottom:var(--space-5);padding:14px var(--space-4);background:var(--cream-dark,var(--data-bg));border:1px solid var(--rule);border-left:3px solid var(--accent)}
 .entity-index-top-label{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);font-weight:600;flex:0 0 auto}
 .entity-index-top-chips{display:flex;flex-wrap:wrap;gap:6px;flex:1}
 .entity-index-top-chip{display:inline-flex;align-items:baseline;gap:6px;padding:6px 10px;background:var(--paper);border:1px solid var(--rule);font-family:var(--font-prose);font-size:var(--type-meta);color:var(--ink);text-decoration:none;transition:border-color .2s,color .2s}
 .entity-index-top-chip:hover,.entity-index-top-chip:focus{border-color:var(--ink);color:var(--accent);outline:none}
 .entity-index-top-chip-count{font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted);font-weight:600}
-@media(max-width:900px){.entity-index-stats{flex-direction:column;gap:16px}.directors-grid{grid-template-columns:1fr}.entity-index-top{flex-direction:column;align-items:stretch;gap:8px}.entity-index-top-label{flex:0 0 auto}}
+@media(max-width:900px){.entity-index-stats{flex-direction:column;gap:var(--space-4)}.directors-grid{grid-template-columns:1fr}.entity-index-top{flex-direction:column;align-items:stretch;gap:var(--space-2)}.entity-index-top-label{flex:0 0 auto}}
 /* Decade Pages */
-.decade-page{padding:48px 32px;max-width:1400px;margin:0 auto}
-.decade-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:40px}
-.decade-title-section h1.decade-name{font-family:var(--font-display);font-size:56px;font-weight:400;margin-bottom:4px}
-.decade-range{font-family:var(--mono);font-size:var(--type-body-sm);color:var(--ink-muted);letter-spacing:.1em;margin-bottom:16px}
-.decade-description{font-family:var(--font-prose);font-size:18px;color:var(--ink-light);margin-bottom:8px;max-width:600px}
-.decade-subtitle{font-family:var(--font-prose);font-style:italic;color:var(--ink-muted);font-size:var(--type-body)}
+.decade-page{padding:var(--space-7) var(--space-6);max-width:1400px;margin:0 auto}
+/* .decade-header / .decade-name / .decade-range / .decade-description /
+   .decade-subtitle removed 2026-05-03 — unified .facet-hero pattern now
+   handles the page title block. See generateDecadePage above. */
 /* .decade-nav / .decade-back-link removed 2026-04-26 (Round 7 #5). */
 /* Round 10 #2: removed — see unified .tag-stats-grid above. */
 /* Round 10 #1: removed — see unified .entity-films-section. */
 /* Decades Index */
-.decades-index{padding:48px 32px;max-width:1200px;margin:0 auto}
-.decades-header{text-align:center;margin-bottom:48px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
-.decades-header h1{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:12px}
+.decades-index{padding:var(--space-7) var(--space-6);max-width:1200px;margin:0 auto}
+.decades-header{text-align:center;margin-bottom:var(--space-7);padding-bottom:var(--space-6);border-bottom:2px solid var(--ink)}
+.decades-header h1{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:var(--space-3)}
 .decades-subtitle{font-family:var(--font-prose);font-style:italic;color:var(--ink-muted);font-size:var(--type-body)}
-.decades-timeline{display:flex;flex-direction:column;gap:16px}
+.decades-timeline{display:flex;flex-direction:column;gap:var(--space-4)}
 .decade-card{display:grid;grid-template-columns:120px 1fr;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s}
 .decade-card:hover{border-color:var(--ink);box-shadow:4px 4px 0 var(--rule)}
 .decade-card:focus{outline:2px solid var(--accent);outline-offset:2px}
 .decade-card-year{background:var(--ink);color:var(--cream);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:28px;font-weight:400}
-.decade-card-info{padding:24px}
-.decade-card-title{font-family:var(--mono);font-size:var(--type-data);letter-spacing:.1em;color:var(--ink-muted);margin-bottom:8px}
-.decade-card-desc{font-family:var(--font-prose);font-size:var(--type-body);color:var(--ink);margin-bottom:12px;line-height:1.5}
-.decade-card-meta{display:flex;gap:24px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
+.decade-card-info{padding:var(--space-5)}
+.decade-card-title{font-family:var(--mono);font-size:var(--type-data);letter-spacing:.1em;color:var(--ink-muted);margin-bottom:var(--space-2)}
+.decade-card-desc{font-family:var(--font-prose);font-size:var(--type-body);color:var(--ink);margin-bottom:var(--space-3);line-height:1.5}
+.decade-card-meta{display:flex;gap:var(--space-5);font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
 .decade-card-count{color:var(--accent);font-weight:600}
 .decade-card-country{color:var(--ink-light)}
-@media(max-width:900px){.decade-header{flex-direction:column;text-align:center}.decade-card{grid-template-columns:80px 1fr}.decade-card-year{font-size:20px}}
+@media(max-width:900px){.decade-card{grid-template-columns:80px 1fr}.decade-card-year{font-size:20px}}
 /* Random Button & Film of the Day */
-.search-actions{display:flex;gap:12px;align-items:center}
-.random-btn{background:var(--ink);color:var(--cream);border:none;padding:10px 16px;font-family:var(--mono);font-size:var(--type-data);font-weight:500;cursor:pointer;transition:background .2s;white-space:nowrap}
+.search-actions{display:flex;gap:var(--space-3);align-items:center}
+.random-btn{background:var(--ink);color:var(--cream);border:none;padding:10px var(--space-4);font-family:var(--mono);font-size:var(--type-data);font-weight:500;cursor:pointer;transition:background .2s;white-space:nowrap}
 .random-btn:hover,.random-btn:focus{background:var(--accent);outline:none}
-.film-of-day{background:var(--paper);border:2px solid var(--accent);border-left-width:4px;padding:20px 24px;margin:20px 32px;display:flex;justify-content:space-between;align-items:center;gap:24px}
+.film-of-day{background:var(--paper);border:2px solid var(--accent);border-left-width:4px;padding:20px var(--space-5);margin:20px var(--space-6);display:flex;justify-content:space-between;align-items:center;gap:var(--space-5)}
 /* Round 9 #5: hide the FotD mount when filters/search are active. Toggled by updateDisplay() in app.js. */
 #film-of-day-mount.is-hidden{display:none}
-.film-of-day-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.film-of-day-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3)}
 .film-of-day-label{font-family:var(--mono);font-size:var(--type-data-xs);letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:600}
 .film-of-day-date{font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted)}
-.film-of-day-content{display:flex;justify-content:space-between;align-items:center;gap:24px;flex:1}
+.film-of-day-content{display:flex;justify-content:space-between;align-items:center;gap:var(--space-5);flex:1}
 .film-of-day-info{flex:1}
-.film-of-day-title{font-family:var(--font-display);font-size:22px;font-weight:500;text-decoration:none;color:var(--ink);display:block;margin-bottom:8px}
+.film-of-day-title{font-family:var(--font-display);font-size:22px;font-weight:500;text-decoration:none;color:var(--ink);display:block;margin-bottom:var(--space-2)}
 .film-of-day-title:hover{color:var(--accent)}
-.film-of-day-meta{display:flex;gap:16px;font-family:var(--mono);font-size:var(--type-data);margin-bottom:8px}
+.film-of-day-meta{display:flex;gap:var(--space-4);font-family:var(--mono);font-size:var(--type-data);margin-bottom:var(--space-2)}
 .film-of-day-year{color:var(--ink);font-weight:500}
 .film-of-day-country{color:var(--accent);font-weight:600}
 .film-of-day-technique{color:var(--ink-muted)}
 .film-of-day-synopsis{font-family:var(--font-prose);font-size:var(--type-body-sm);color:var(--ink-light);margin:0;line-height:1.5}
-.film-of-day-actions{display:flex;gap:12px;flex-shrink:0}
-.film-of-day-watch-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data-sm);padding:10px 16px;background:var(--ink);color:var(--cream);text-decoration:none;transition:background .2s}
+.film-of-day-actions{display:flex;gap:var(--space-3);flex-shrink:0}
+.film-of-day-watch-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data-sm);padding:10px var(--space-4);background:var(--ink);color:var(--cream);text-decoration:none;transition:background .2s}
 .film-of-day-watch-btn:hover{background:var(--accent)}
 /* Gated FotD CTA — Restricted/Unverified status. Honest about the gating
    without making the card look broken: muted ink instead of bright crimson
@@ -1805,54 +2529,54 @@ html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(-
 .film-of-day-watch-btn-gated:hover{background:var(--ink);color:var(--cream)}
 .footer-random{font-family:var(--mono);font-size:var(--type-data-sm);color:rgba(255,255,255,.6);text-decoration:none;transition:color .2s}
 .footer-random:hover{color:var(--cream)}
-@media(max-width:900px){.search-actions{flex-direction:column;align-items:stretch;gap:8px}.search-box input{width:100%}.film-of-day{flex-direction:column;margin:20px 16px}.film-of-day-content{flex-direction:column;align-items:flex-start}.film-of-day-actions{width:100%;justify-content:flex-start}}
+@media(max-width:900px){.search-actions{flex-direction:column;align-items:stretch;gap:var(--space-2)}.search-box input{width:100%}.film-of-day{flex-direction:column;margin:20px var(--space-4)}.film-of-day-content{flex-direction:column;align-items:flex-start}.film-of-day-actions{width:100%;justify-content:flex-start}}
 /* Related Films */
-.related-films{padding:48px 32px;max-width:1200px;margin:0 auto;border-top:2px solid var(--rule)}
+.related-films{padding:var(--space-7) var(--space-6);max-width:1200px;margin:0 auto;border-top:2px solid var(--rule)}
 .related-section{margin-bottom:40px}
 .related-section:last-child{margin-bottom:0}
-.related-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule)}
+.related-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px;padding-bottom:var(--space-3);border-bottom:1px solid var(--rule)}
 .related-header a{font-family:var(--font-display);font-size:var(--type-section-hero);font-weight:400;text-decoration:none;color:var(--ink)}
 .related-header a:hover{color:var(--accent)}
 .related-count{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);letter-spacing:.05em}
 .related-count:hover{color:var(--accent)}
-.related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
-.related-card{display:block;background:var(--paper);border:1px solid var(--rule);padding:16px;min-height:44px;box-sizing:border-box;text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s;position:relative}
+.related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--space-4)}
+.related-card{display:block;background:var(--paper);border:1px solid var(--rule);padding:var(--space-4);min-height:44px;box-sizing:border-box;text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s;position:relative}
 .related-card:hover{border-color:var(--ink);box-shadow:3px 3px 0 var(--rule)}
 .related-card:focus{outline:2px solid var(--accent);outline-offset:2px}
-.related-title{display:block;font-family:var(--font-display);font-size:15px;font-weight:500;line-height:1.3;margin-bottom:8px;color:var(--ink)}
+.related-title{display:block;font-family:var(--font-display);font-size:15px;font-weight:500;line-height:1.3;margin-bottom:var(--space-2);color:var(--ink)}
 .related-meta{display:block;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
 .related-watch{position:absolute;top:12px;right:12px;font-size:var(--type-data);color:var(--accent)}
 .related-watch-gated{color:var(--ink-muted)}
 /* Folded "More like this" expander — keeps Decade/Technique sections
    accessible without dumping 25 cards on every detail page. */
-.related-extra{margin-top:24px;border-top:1px solid var(--rule);padding-top:24px}
-.related-extra-summary{font-family:var(--mono);font-size:var(--type-data-sm);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer;padding:12px 0;min-height:44px;display:flex;align-items:center;list-style:none;transition:color .15s}
+.related-extra{margin-top:var(--space-5);border-top:1px solid var(--rule);padding-top:var(--space-5)}
+.related-extra-summary{font-family:var(--mono);font-size:var(--type-data-sm);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer;padding:var(--space-3) 0;min-height:44px;display:flex;align-items:center;list-style:none;transition:color .15s}
 .related-extra-summary::-webkit-details-marker{display:none}
-.related-extra-summary::before{content:'▸';margin-right:8px;color:var(--ink-muted);transition:transform .15s}
+.related-extra-summary::before{content:'▸';margin-right:var(--space-2);color:var(--ink-muted);transition:transform .15s}
 .related-extra[open] .related-extra-summary::before{transform:rotate(90deg);display:inline-block}
 .related-extra-summary:hover,.related-extra-summary:focus{color:var(--accent)}
-.related-extra[open] .related-extra-summary{margin-bottom:24px}
-@media(max-width:900px){.related-films{padding:32px 16px}.related-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.related-header{flex-direction:column;gap:8px}.related-header a{font-size:18px}}
+.related-extra[open] .related-extra-summary{margin-bottom:var(--space-5)}
+@media(max-width:900px){.related-films{padding:var(--space-6) var(--space-4)}.related-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.related-header{flex-direction:column;gap:var(--space-2)}.related-header a{font-size:18px}}
 /* 404 Error Page */
-.error-page{display:flex;align-items:center;justify-content:center;min-height:60vh;padding:48px 32px}
+.error-page{display:flex;align-items:center;justify-content:center;min-height:60vh;padding:var(--space-7) var(--space-6)}
 .error-content{text-align:center;max-width:500px}
-.error-code{font-family:var(--mono);font-size:120px;font-weight:600;color:var(--rule);line-height:1;margin-bottom:16px}
-.error-title{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:16px}
-.error-message{font-family:var(--font-prose);font-size:18px;color:var(--ink-muted);margin-bottom:24px}
+.error-code{font-family:var(--mono);font-size:120px;font-weight:600;color:var(--rule);line-height:1;margin-bottom:var(--space-4)}
+.error-title{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:var(--space-4)}
+.error-message{font-family:var(--font-prose);font-size:18px;color:var(--ink-muted);margin-bottom:var(--space-5)}
 /* Echoes the URL the user actually tried — populated by inline JS on
    the 404 page, hidden when JS is off (window.location unavailable to
    the template). Sits above the search form as recovery context. */
-.error-path{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-muted);margin-bottom:24px;word-break:break-all}
+.error-path{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-muted);margin-bottom:var(--space-5);word-break:break-all}
 .error-path code{background:var(--data-bg);padding:2px 6px;color:var(--ink);border-radius:2px}
 /* Round 8 #8: max-width:min(380px,100%) keeps the form bounded on
    desktop but allows full-width on <380px viewports (iPhone SE etc). */
-.error-search{display:flex;gap:0;justify-content:center;margin-bottom:24px;max-width:min(380px,100%);margin-left:auto;margin-right:auto}
-.error-search-input{flex:1;padding:12px 16px;border:1px solid var(--rule);border-right:none;background:var(--paper);font-family:var(--mono);font-size:var(--type-meta);min-height:44px;box-sizing:border-box}
+.error-search{display:flex;gap:0;justify-content:center;margin-bottom:var(--space-5);max-width:min(380px,100%);margin-left:auto;margin-right:auto}
+.error-search-input{flex:1;padding:var(--space-3) var(--space-4);border:1px solid var(--rule);border-right:none;background:var(--paper);font-family:var(--mono);font-size:var(--type-meta);min-height:44px;box-sizing:border-box}
 .error-search-input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}
-.error-search-btn{padding:12px 20px;border:1px solid var(--ink);background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:var(--type-data-sm);font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;min-height:44px;box-sizing:border-box;transition:background .2s}
+.error-search-btn{padding:var(--space-3) 20px;border:1px solid var(--ink);background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:var(--type-data-sm);font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;min-height:44px;box-sizing:border-box;transition:background .2s}
 .error-search-btn:hover,.error-search-btn:focus{background:var(--accent);border-color:var(--accent);outline:none}
-.error-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
-.error-btn{font-family:var(--mono);font-size:var(--type-data);font-weight:500;padding:14px 24px;min-height:44px;box-sizing:border-box;display:inline-flex;align-items:center;text-decoration:none;transition:all .2s}
+.error-actions{display:flex;gap:var(--space-4);justify-content:center;flex-wrap:wrap}
+.error-btn{font-family:var(--mono);font-size:var(--type-data);font-weight:500;padding:14px var(--space-5);min-height:44px;box-sizing:border-box;display:inline-flex;align-items:center;text-decoration:none;transition:all .2s}
 .error-btn-primary{background:var(--ink);color:var(--cream)}
 .error-btn-primary:hover,.error-btn-primary:focus{background:var(--accent);outline:none}
 .error-btn-secondary{background:var(--paper);color:var(--ink);border:1px solid var(--rule)}
@@ -1864,34 +2588,34 @@ html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(-
    .error-content. Pattern: centered text, muted color, optional CTA.
    See generateFilmPage / generate404Page / generateIndexPage for usage. */
 .empty-state{text-align:center;color:var(--ink-muted);font-family:var(--font-prose);font-style:italic;font-size:15px;line-height:1.6}
-.empty-state-title{font-family:var(--font-display);font-style:normal;font-size:var(--type-section-hero);color:var(--ink);margin-bottom:12px}
-.empty-state-message{margin-bottom:16px}
-.empty-state-cta{display:inline-flex;align-items:center;font-family:var(--mono);font-style:normal;font-size:var(--type-data);color:var(--ink-muted);text-decoration:underline;text-underline-offset:3px;padding:12px 0;min-height:44px;transition:color .15s}
+.empty-state-title{font-family:var(--font-display);font-style:normal;font-size:var(--type-section-hero);color:var(--ink);margin-bottom:var(--space-3)}
+.empty-state-message{margin-bottom:var(--space-4)}
+.empty-state-cta{display:inline-flex;align-items:center;font-family:var(--mono);font-style:normal;font-size:var(--type-data);color:var(--ink-muted);text-decoration:underline;text-underline-offset:3px;padding:var(--space-3) 0;min-height:44px;transition:color .15s}
 .empty-state-cta:hover,.empty-state-cta:focus{color:var(--accent)}
-.no-results{padding:48px 32px;background:var(--paper);text-align:center;color:var(--ink-muted);font-family:var(--font-prose);font-style:italic;font-size:15px;line-height:1.6}
-.no-results-title{font-family:var(--font-display);font-style:normal;font-size:var(--type-section-hero);color:var(--ink);margin-bottom:12px}
-.no-results-message{font-family:var(--font-prose);color:var(--ink-muted);font-size:var(--type-body);margin-bottom:16px}
-.clear-all-btn{background:var(--ink);color:var(--cream);border:none;padding:12px 24px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);font-weight:500;cursor:pointer;transition:background .2s;margin-top:8px}
+.no-results{padding:var(--space-7) var(--space-6);background:var(--paper);text-align:center;color:var(--ink-muted);font-family:var(--font-prose);font-style:italic;font-size:15px;line-height:1.6}
+.no-results-title{font-family:var(--font-display);font-style:normal;font-size:var(--type-section-hero);color:var(--ink);margin-bottom:var(--space-3)}
+.no-results-message{font-family:var(--font-prose);color:var(--ink-muted);font-size:var(--type-body);margin-bottom:var(--space-4)}
+.clear-all-btn{background:var(--ink);color:var(--cream);border:none;padding:var(--space-3) var(--space-5);min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);font-weight:500;cursor:pointer;transition:background .2s;margin-top:var(--space-2)}
 .clear-all-btn:hover,.clear-all-btn:focus{background:var(--accent);outline:none}
 /* Sortable table headers */
 .sortable{cursor:pointer;user-select:none;transition:color .15s}
 .sortable:hover{color:var(--accent)}
-.sort-indicator{margin-left:4px;opacity:0.4;font-size:var(--type-data-xs)}
+.sort-indicator{margin-left:var(--space-1);opacity:0.4;font-size:var(--type-data-xs)}
 .sortable.active .sort-indicator{opacity:1;color:var(--accent)}
 /* Watch Links Section */
-.watch-links-section{margin-top:32px;padding:24px;background:var(--data-bg);border:1px solid var(--rule)}
-.watch-links-section h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:16px}
-.watch-links-grid{display:flex;flex-direction:column;gap:8px}
-.watch-link-group{display:flex;flex-direction:column;gap:8px}
-.group-label{font-family:var(--mono);font-size:var(--type-data-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-muted);margin:8px 0 4px}
-.watch-link-card{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:var(--ink);transition:border-color .2s,box-shadow .2s}
+.watch-links-section{margin-top:var(--space-6);padding:var(--space-5);background:var(--data-bg);border:1px solid var(--rule)}
+.watch-links-section h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:var(--space-4)}
+.watch-links-grid{display:flex;flex-direction:column;gap:var(--space-2)}
+.watch-link-group{display:flex;flex-direction:column;gap:var(--space-2)}
+.group-label{font-family:var(--mono);font-size:var(--type-data-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-muted);margin:var(--space-2) 0 var(--space-1)}
+.watch-link-card{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:var(--ink);transition:border-color .2s,box-shadow .2s}
 .watch-link-card:hover{border-color:var(--ink);box-shadow:2px 2px 0 var(--rule);transform:translateY(-1px)}
 /* Gated card — Restricted/Unverified status. URL works but needs login,
    region access, or paid subscription. Slightly desaturated so primary
    "▶ WATCH" CTA still wins on rows with multiple links. */
 .watch-link-card-gated{background:color-mix(in srgb,var(--paper) 85%,var(--data-bg));border-color:var(--rule);opacity:.92}
 .watch-link-card-gated:hover{opacity:1}
-.link-gate-icon{display:inline-block;margin-left:4px;vertical-align:-1px;color:var(--ink-muted)}
+.link-gate-icon{display:inline-block;margin-left:var(--space-1);vertical-align:-1px;color:var(--ink-muted)}
 /* Row-level gated watch button. Applied via .watch-btn-gated next to .watch-btn
    in the renderRow template — hex of the lock instead of the play triangle. */
 /* Round 13 #3: was transparent + --ink-muted text + --rule border (read as "disabled"). Reconciled to mirror .detail-watch-btn-gated's secondary-action treatment — full --ink text + --ink border — so the SAME gated state sends the SAME signal in the table as it does in the film hero. Border kept at 1px (vs 1.5px on hero) because table-row buttons are smaller; visual weight scales with size. */
@@ -1903,7 +2627,7 @@ html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(-
 .link-info{display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex:1;min-width:0}
 .link-platform{font-family:var(--font-prose);font-size:15px;font-weight:600}
 /* Round 15 #3: switched .link-badge text from color:white to color:var(--ink). White-on-mid-tone-saturated-bg failed WCAG AA on EVERY badge color (Free 2.0:1 / Ads 1.8:1 / Sub 2.5:1 / Rent 2.4:1 / Buy 3.8:1 / Disc 3.7:1 / Region 3.6:1 — none passed 4.5:1). Ink-on-saturated-bg passes for 6 of 7 (Region marginal at 4.1:1; acceptable for low-frequency Region-Locked use). */
-.link-badge{display:inline-block;padding:3px 8px;border-radius:9999px;font-family:var(--mono);font-size:var(--type-data-xs);font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.03em}
+.link-badge{display:inline-block;padding:3px var(--space-2);border-radius:9999px;font-family:var(--mono);font-size:var(--type-data-xs);font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.03em}
 /* Round 15 #2: badge background classes — replace inline style=background:#hex emitted by watch-links-renderer.js. ACCESS_BADGES.class field already provides the right name (badge-free, badge-ads, etc). */
 .badge-free{background:var(--badge-free)}
 .badge-ads{background:var(--badge-ads)}
@@ -1912,7 +2636,7 @@ html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(-
 .badge-buy{background:var(--badge-buy)}
 .badge-disc{background:var(--badge-disc)}
 .badge-region{background:var(--badge-region)}
-.link-chips{display:flex;gap:4px;flex-wrap:wrap}
+.link-chips{display:flex;gap:var(--space-1);flex-wrap:wrap}
 .chip{display:inline-block;padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:var(--type-data-xs);background:var(--data-bg);color:var(--ink-muted)}
 .link-notes{font-family:var(--font-prose);font-size:var(--type-data);color:var(--ink-muted);font-style:italic;width:100%}
 /* Round 11 #1: was a binary ✅/⚠️ glyph at 14px with the date hidden in
@@ -1925,51 +2649,51 @@ html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(-
 .verified-date-unverified{color:var(--ink-muted)}
 .status-icon{flex-shrink:0;font-size:var(--type-body-sm)}
 .no-links{font-family:var(--font-prose);color:var(--ink-muted);font-style:italic}
-.dead-links-notice{margin-top:8px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-light)}
+.dead-links-notice{margin-top:var(--space-2);font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-light)}
 /* Round 11 #3: don't hide .link-chips on mobile — same Round 8 #2 shape
    (subs-badge fix). Quality (480p/HD) and language (Dubbed EN, Subs JA)
    are top-3 decision factors for international animation. Shrink to 9px
    inline next to the platform name instead of vanishing. */
-@media(max-width:600px){.watch-link-card{padding:8px 12px}.chip{font-size:9px;padding:1px 4px}.link-chips{gap:3px}}
+@media(max-width:600px){.watch-link-card{padding:var(--space-2) var(--space-3)}.chip{font-size:9px;padding:1px var(--space-1)}.link-chips{gap:3px}}
 /* Research Sources */
-.research-sources{margin-top:32px;padding:20px;background:var(--cream);border:1px solid var(--rule);border-left:3px solid var(--accent)}
-.research-sources h2{font-family:var(--font-display);font-size:var(--type-body);font-weight:400;margin-bottom:12px;color:var(--ink-muted)}
+.research-sources{margin-top:var(--space-6);padding:20px;background:var(--cream);border:1px solid var(--rule);border-left:3px solid var(--accent)}
+.research-sources h2{font-family:var(--font-display);font-size:var(--type-body);font-weight:400;margin-bottom:var(--space-3);color:var(--ink-muted)}
 .sources-list{font-family:var(--mono);font-size:var(--type-data);color:var(--ink-light);line-height:1.8}
 /* Film Tags */
-.film-tags{margin-top:32px}
-.tag-section{margin-bottom:16px}
-.tag-label{font-family:var(--mono);font-size:var(--type-data-xs);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);display:block;margin-bottom:8px}
-.tag-list{display:flex;flex-wrap:wrap;gap:8px}
-.tag{display:inline-flex;align-items:center;padding:8px 12px;min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);text-decoration:none;border:1px solid var(--rule);transition:all .2s}.tag:hover{border-color:var(--ink);color:var(--accent)}.tag:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}
+.film-tags{margin-top:var(--space-6)}
+.tag-section{margin-bottom:var(--space-4)}
+.tag-label{font-family:var(--mono);font-size:var(--type-data-xs);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);display:block;margin-bottom:var(--space-2)}
+.tag-list{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.tag{display:inline-flex;align-items:center;padding:var(--space-2) var(--space-3);min-height:44px;box-sizing:border-box;font-family:var(--mono);font-size:var(--type-data);text-decoration:none;border:1px solid var(--rule);transition:all .2s}.tag:hover{border-color:var(--ink);color:var(--accent)}.tag:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}
 .tag:hover{border-color:var(--ink);background:var(--cream)}
 .genre-tag{background:var(--paper);color:var(--ink)}
 .keyword-tag{background:var(--data-bg);color:var(--ink-light)}
 /* Entity Pages (Studios, Directors, Series) */
-.entity-page{padding:48px 32px;max-width:1200px;margin:0 auto}
-.entity-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:32px;border-bottom:2px solid var(--ink);margin-bottom:32px}
+.entity-page{padding:var(--space-7) var(--space-6);max-width:1200px;margin:0 auto}
+.entity-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:var(--space-6);border-bottom:2px solid var(--ink);margin-bottom:var(--space-6)}
 .entity-title-section{flex:1}
-.entity-name{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:8px}
-.entity-native-name{font-family:var(--font-prose);font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:8px}
-.entity-subtitle{font-family:var(--font-prose);color:var(--ink-light);font-size:var(--type-body);margin-bottom:4px}
+.entity-name{font-family:var(--font-display);font-size:var(--type-page-hero);font-weight:400;margin-bottom:var(--space-2)}
+.entity-native-name{font-family:var(--font-prose);font-size:20px;font-style:italic;color:var(--ink-muted);margin-bottom:var(--space-2)}
+.entity-subtitle{font-family:var(--font-prose);color:var(--ink-light);font-size:var(--type-body);margin-bottom:var(--space-1)}
 .entity-dates{font-family:var(--mono);font-size:var(--type-meta);color:var(--ink-muted)}
-.entity-type-badge{display:inline-block;font-family:var(--mono);font-size:var(--type-data-sm);padding:4px 10px;background:var(--accent);color:var(--cream);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
-.entity-type-badge.small{font-size:var(--type-data-xs);padding:3px 8px;margin-bottom:8px}
+.entity-type-badge{display:inline-block;font-family:var(--mono);font-size:var(--type-data-sm);padding:var(--space-1) 10px;background:var(--accent);color:var(--cream);text-transform:uppercase;letter-spacing:.1em;margin-bottom:var(--space-3)}
+.entity-type-badge.small{font-size:var(--type-data-xs);padding:3px var(--space-2);margin-bottom:var(--space-2)}
 .entity-nav{text-align:right}
 /* .entity-back-link removed 2026-04-26 (Round 6 #4) — breadcrumb covers
    the same orientation; three back-affordances per page was two too many. */
-.entity-description{margin-bottom:32px}
-.entity-description h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:12px}
+.entity-description{margin-bottom:var(--space-6)}
+.entity-description h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:var(--space-3)}
 .entity-description p{font-family:var(--font-prose);font-size:var(--type-body);line-height:1.8;color:var(--ink-light)}
-.entity-meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:32px}
+.entity-meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--space-4);margin-bottom:var(--space-6)}
 .entity-meta-card{background:var(--paper);border:1px solid var(--rule);padding:20px}
-.meta-card-title{font-family:var(--mono);font-size:var(--type-data-xs);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin-bottom:8px}
+.meta-card-title{font-family:var(--mono);font-size:var(--type-data-xs);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin-bottom:var(--space-2)}
 .meta-card-value{font-family:var(--font-display);font-size:28px;font-weight:400}
-.meta-card-detail{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);margin-top:4px}
+.meta-card-detail{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);margin-top:var(--space-1)}
 .meta-card-tags{display:flex;flex-wrap:wrap;gap:6px}
 /* meta-tag became clickable 2026-04-26 (Round 6 #3) — Notable Techniques
    now link to /techniques/X.html. Bumped to AA touch target for the
    tap-to-explore behavior. */
-.meta-tag{display:inline-flex;align-items:center;font-family:var(--mono);font-size:var(--type-data-sm);padding:8px 10px;min-height:44px;box-sizing:border-box;background:var(--data-bg);border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:border-color .2s,color .2s}
+.meta-tag{display:inline-flex;align-items:center;font-family:var(--mono);font-size:var(--type-data-sm);padding:var(--space-2) 10px;min-height:44px;box-sizing:border-box;background:var(--data-bg);border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:border-color .2s,color .2s}
 .meta-tag:hover{border-color:var(--ink);color:var(--accent)}
 .meta-tag:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}
 /* Inline links inside entity headers (country, nationality) — kept low-key
@@ -1978,32 +2702,32 @@ html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background:var(-
 .entity-meta-link:hover,.entity-meta-link:focus{color:var(--accent);text-decoration-color:var(--accent);outline:none}
 /* Director bio section — replaces the three stacked entity-description
    blocks with one section + sub-headers. Round 6 #5 hierarchy fix. */
-.entity-bio{margin-bottom:32px}
-.entity-bio-block{margin-bottom:24px}
+.entity-bio{margin-bottom:var(--space-6)}
+.entity-bio-block{margin-bottom:var(--space-5)}
 .entity-bio-block:last-child{margin-bottom:0}
-.entity-bio-label{font-family:var(--mono);font-size:var(--type-data-sm);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin-bottom:8px;font-weight:600}
+.entity-bio-label{font-family:var(--mono);font-size:var(--type-data-sm);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin-bottom:var(--space-2);font-weight:600}
 .entity-bio-block p{font-family:var(--font-prose);font-size:var(--type-body);line-height:1.8;color:var(--ink-light)}
-.entity-links{margin-bottom:32px}
-.entity-links h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:12px}
-.entity-link{display:flex;align-items:center;font-family:var(--mono);font-size:var(--type-meta);color:var(--ink-light);text-decoration:none;padding:12px 0;min-height:44px;box-sizing:border-box;border-bottom:1px solid var(--rule)}
+.entity-links{margin-bottom:var(--space-6)}
+.entity-links h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:var(--space-3)}
+.entity-link{display:flex;align-items:center;font-family:var(--mono);font-size:var(--type-meta);color:var(--ink-light);text-decoration:none;padding:var(--space-3) 0;min-height:44px;box-sizing:border-box;border-bottom:1px solid var(--rule)}
 .entity-link:hover{color:var(--accent)}
 .entity-link:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}
-.entity-awards{margin-bottom:32px;padding:20px;background:var(--data-bg);border:1px solid var(--rule)}
-.entity-awards h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:12px}
+.entity-awards{margin-bottom:var(--space-6);padding:20px;background:var(--data-bg);border:1px solid var(--rule)}
+.entity-awards h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:var(--space-3)}
 .entity-awards p{font-family:var(--font-prose);font-size:15px;color:var(--ink-light);line-height:1.7}
-.entity-collaborators{margin-bottom:32px}
-.entity-collaborators h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:12px}
-.collaborator-tags{display:flex;flex-wrap:wrap;gap:8px}
-.collaborator-tag{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:var(--type-data);padding:10px 12px;min-height:44px;box-sizing:border-box;background:var(--paper);border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:border-color .2s,color .2s}
+.entity-collaborators{margin-bottom:var(--space-6)}
+.entity-collaborators h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:var(--space-3)}
+.collaborator-tags{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.collaborator-tag{display:inline-flex;align-items:center;gap:var(--space-1);font-family:var(--mono);font-size:var(--type-data);padding:10px var(--space-3);min-height:44px;box-sizing:border-box;background:var(--paper);border:1px solid var(--rule);color:var(--ink-light);text-decoration:none;transition:border-color .2s,color .2s}
 .collaborator-tag:hover{border-color:var(--ink);color:var(--accent)}
 .collaborator-tag:focus{outline:2px solid var(--accent);outline-offset:2px;color:var(--accent)}
 .collab-count{color:var(--ink-muted);font-size:var(--type-data-sm)}
-.entity-watch-order{margin-bottom:32px;padding:20px;background:var(--paper);border:1px solid var(--rule)}
-.entity-watch-order h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:12px}
+.entity-watch-order{margin-bottom:var(--space-6);padding:20px;background:var(--paper);border:1px solid var(--rule)}
+.entity-watch-order h3{font-family:var(--font-display);font-size:18px;font-weight:400;margin-bottom:var(--space-3)}
 .watch-order-content{font-family:var(--font-prose);font-size:15px;color:var(--ink-light);line-height:1.8}
-.watch-order-list{margin:12px 0;padding-left:24px}
-.watch-order-list li{margin-bottom:8px;padding-left:8px}
-.watch-order-header{font-family:var(--mono);font-size:var(--type-data);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin:16px 0 8px}
+.watch-order-list{margin:var(--space-3) 0;padding-left:var(--space-5)}
+.watch-order-list li{margin-bottom:var(--space-2);padding-left:var(--space-2)}
+.watch-order-header{font-family:var(--mono);font-size:var(--type-data);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);margin:var(--space-4) 0 var(--space-2)}
 ol.watch-order-list{list-style:decimal}
 ul.watch-order-list{list-style:disc}
 .entity-films-section{margin-top:40px}
@@ -2013,90 +2737,90 @@ ul.watch-order-list{list-style:disc}
    ink-on-cream styling when the inner checkbox is checked — modern
    browsers support :has() (Safari 15.4+, Chrome 105+, Firefox 121+);
    older browsers degrade to a static checkbox visual which still works. */
-.entity-controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:24px;padding:14px 16px;background:var(--paper);border:1px solid var(--rule)}
+.entity-controls{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3);margin-bottom:var(--space-5);padding:14px var(--space-4);background:var(--paper);border:1px solid var(--rule)}
 .entity-search-input{flex:1 1 280px;padding:10px 14px;border:1px solid var(--rule);background:var(--cream);font-family:var(--mono);font-size:var(--type-data);min-width:0;min-height:44px;box-sizing:border-box}
 .entity-search-input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}
-.entity-filter-pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-light);cursor:pointer;padding:8px 12px;border:1px solid var(--rule);background:var(--cream);min-height:44px;box-sizing:border-box;transition:background .15s,border-color .15s,color .15s;letter-spacing:.05em;text-transform:uppercase;font-weight:500;-webkit-user-select:none;user-select:none}
+.entity-filter-pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-light);cursor:pointer;padding:var(--space-2) var(--space-3);border:1px solid var(--rule);background:var(--cream);min-height:44px;box-sizing:border-box;transition:background .15s,border-color .15s,color .15s;letter-spacing:.05em;text-transform:uppercase;font-weight:500;-webkit-user-select:none;user-select:none}
 .entity-filter-pill:hover{background:var(--data-bg)}
 .entity-filter-pill input{margin:0;cursor:pointer}
 .entity-filter-pill:has(input:checked){background:var(--ink);color:var(--cream);border-color:var(--ink)}
 .entity-result-count{margin-left:auto;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
-@media(max-width:600px){.entity-controls{padding:12px;gap:8px}.entity-result-count{margin-left:0;width:100%;text-align:center}}
+@media(max-width:600px){.entity-controls{padding:var(--space-3);gap:var(--space-2)}.entity-result-count{margin-left:0;width:100%;text-align:center}}
 /* Entity Index Pages */
-.entity-index{padding:48px 32px;max-width:1400px;margin:0 auto}
-.entity-index-header{text-align:center;margin-bottom:48px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
-.entity-index-header h1{font-family:var(--font-display);font-size:48px;font-weight:400;margin-bottom:12px}
+.entity-index{padding:var(--space-7) var(--space-6);max-width:1400px;margin:0 auto}
+.entity-index-header{text-align:center;margin-bottom:var(--space-7);padding-bottom:var(--space-6);border-bottom:2px solid var(--ink)}
+.entity-index-header h1{font-family:var(--font-display);font-size:48px;font-weight:400;margin-bottom:var(--space-3)}
 .entity-index-subtitle{font-family:var(--font-prose);font-style:italic;color:var(--ink-muted);font-size:var(--type-body)}
-.entity-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.entity-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--space-4)}
 .entity-card{display:block;background:var(--paper);border:1px solid var(--rule);padding:20px;text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s}
 .entity-card:hover{border-color:var(--ink);box-shadow:4px 4px 0 var(--rule)}
-.entity-card-name{font-family:var(--font-display);font-size:20px;font-weight:400;margin-bottom:8px;color:var(--ink)}
-.entity-card-meta{display:flex;gap:12px;font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);margin-bottom:4px}
+.entity-card-name{font-family:var(--font-display);font-size:20px;font-weight:400;margin-bottom:var(--space-2);color:var(--ink)}
+.entity-card-meta{display:flex;gap:var(--space-3);font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);margin-bottom:var(--space-1)}
 .entity-card-country{color:var(--accent)}
 .entity-card-count{color:var(--ink)}
 .entity-card-dates{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
 /* Tag Pages (Genres, Keywords) */
-.tag-page{padding:48px 32px;max-width:1200px;margin:0 auto}
-.tag-header{text-align:center;margin-bottom:40px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
-.tag-type{display:inline-block;font-family:var(--mono);font-size:var(--type-data-sm);padding:4px 12px;background:var(--ink);color:var(--cream);text-transform:uppercase;letter-spacing:.15em;margin-bottom:12px}
-.tag-name{font-family:var(--font-display);font-size:48px;font-weight:400;margin-bottom:8px}
+.tag-page{padding:var(--space-7) var(--space-6);max-width:1200px;margin:0 auto}
+.tag-header{text-align:center;margin-bottom:40px;padding-bottom:var(--space-6);border-bottom:2px solid var(--ink)}
+.tag-type{display:inline-block;font-family:var(--mono);font-size:var(--type-data-sm);padding:var(--space-1) var(--space-3);background:var(--ink);color:var(--cream);text-transform:uppercase;letter-spacing:.15em;margin-bottom:var(--space-3)}
+.tag-name{font-family:var(--font-display);font-size:48px;font-weight:400;margin-bottom:var(--space-2)}
 .tag-count{font-family:var(--mono);font-size:var(--type-body-sm);color:var(--ink-muted)}
-.tag-films-section{margin-top:24px}
+.tag-films-section{margin-top:var(--space-5)}
 /* Tag Cloud */
-.tag-cloud{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;padding:24px}
-.tag-cloud-item{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:var(--ink);transition:all .2s;border-radius:4px}
+.tag-cloud{display:flex;flex-wrap:wrap;gap:var(--space-3);justify-content:center;padding:var(--space-5)}
+.tag-cloud-item{display:inline-flex;align-items:center;gap:var(--space-2);padding:10px var(--space-4);background:var(--paper);border:1px solid var(--rule);text-decoration:none;color:var(--ink);transition:all .2s;border-radius:4px}
 .tag-cloud-item:hover{border-color:var(--ink);box-shadow:3px 3px 0 var(--rule);transform:translateY(-1px)}
 .tag-cloud-item .tag-name{font-family:var(--font-prose)}
 .tag-cloud-item .tag-count{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);background:var(--data-bg);padding:2px 6px;border-radius:3px}
 .tag-size-xs{font-size:var(--type-meta);padding:6px 10px}
 .tag-size-xs .tag-count{font-size:var(--type-data-xs)}
-.tag-size-sm{font-size:var(--type-body-sm);padding:8px 12px}
-.tag-size-md{font-size:var(--type-body);padding:10px 16px}
-.tag-size-lg{font-size:18px;padding:12px 18px;font-weight:500}
+.tag-size-sm{font-size:var(--type-body-sm);padding:var(--space-2) var(--space-3)}
+.tag-size-md{font-size:var(--type-body);padding:10px var(--space-4)}
+.tag-size-lg{font-size:18px;padding:var(--space-3) 18px;font-weight:500}
 .tag-size-xl{font-size:22px;padding:14px 22px;font-weight:500;background:var(--data-bg)}
-@media(max-width:900px){.tag-cloud{gap:8px;padding:16px}.tag-cloud-item{padding:8px 12px}}
+@media(max-width:900px){.tag-cloud{gap:var(--space-2);padding:var(--space-4)}.tag-cloud-item{padding:var(--space-2) var(--space-3)}}
 /* Collapsible Sidebar Sections */
 .collapsible-header{cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center}
 .collapse-icon{font-size:var(--type-data-xs);color:var(--ink-muted);transition:transform .2s}
 .collapsible-content.collapsed{display:none}
 /* Footer Report Link */
-.footer-links{display:flex;gap:24px;align-items:center}
+.footer-links{display:flex;gap:var(--space-5);align-items:center}
 .footer-report{font-family:var(--mono);font-size:var(--type-data-sm);color:rgba(255,255,255,.5);text-decoration:none}
 .footer-report:hover{color:var(--cream)}
 /* Series type in film meta */
 .series-type{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted)}
 /* Breadcrumb Navigation */
-.breadcrumb{padding:12px 32px;background:var(--paper);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data)}
+.breadcrumb{padding:var(--space-3) var(--space-6);background:var(--paper);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:var(--type-data)}
 .breadcrumb-list{display:flex;flex-wrap:wrap;align-items:center;list-style:none;gap:0}
 .breadcrumb-item{display:inline-flex;align-items:center}
 .breadcrumb-item a{color:var(--ink-muted);text-decoration:none;transition:color .15s}
 .breadcrumb-item a:hover{color:var(--accent)}
 .breadcrumb-item span[aria-current]{color:var(--ink);font-weight:500}
-.breadcrumb-sep{color:var(--ink-muted);margin:0 8px}
-@media(max-width:900px){.entity-header{flex-direction:column}.entity-nav{margin-top:16px}.entity-grid{grid-template-columns:1fr}.breadcrumb{padding:12px 16px;font-size:var(--type-data-sm)}.breadcrumb-sep{margin:0 6px}.main-nav{gap:20px;padding:14px 16px;flex-wrap:wrap}}
+.breadcrumb-sep{color:var(--ink-muted);margin:0 var(--space-2)}
+@media(max-width:900px){.entity-header{flex-direction:column}.entity-nav{margin-top:var(--space-4)}.entity-grid{grid-template-columns:1fr}.breadcrumb{padding:var(--space-3) var(--space-4);font-size:var(--type-data-sm)}.breadcrumb-sep{margin:0 6px}.main-nav{gap:20px;padding:14px var(--space-4);flex-wrap:wrap}}
 @media(max-width:480px){
-.main-nav{overflow-x:auto;flex-wrap:nowrap;gap:24px;padding:14px 16px;justify-content:flex-start;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none}
+.main-nav{overflow-x:auto;flex-wrap:nowrap;gap:var(--space-5);padding:14px var(--space-4);justify-content:flex-start;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none}
 .main-nav::-webkit-scrollbar{display:none}
 .main-nav a{white-space:nowrap;flex-shrink:0}
-.masthead-main{padding:20px 16px 16px}
+.masthead-main{padding:20px var(--space-4) var(--space-4)}
 .masthead-title{font-size:24px}
-.masthead-top{padding:8px 16px;flex-wrap:wrap;justify-content:center;gap:4px}
+.masthead-top{padding:var(--space-2) var(--space-4);flex-wrap:wrap;justify-content:center;gap:var(--space-1)}
 .masthead-top span:nth-child(2){display:none}
 /* Round 8 #3: removed flex:1 1 100% override — the 900px rule's flex:1 1 50% cascades correctly, giving a 2x2 grid instead of 4 stacked rows. */
-.stat-block{padding:12px 16px}
-.content-header{padding:12px 16px;flex-direction:column;gap:8px;align-items:flex-start}
+.stat-block{padding:var(--space-3) var(--space-4)}
+.content-header{padding:var(--space-3) var(--space-4);flex-direction:column;gap:var(--space-2);align-items:flex-start}
 .search-box input{width:100%}
 .keyboard-hints{display:none}
 .hide-mobile{display:none}
 .film-table thead{display:none}
 .film-table,.film-table tbody{display:block}
-.film-table tr{display:flex;flex-wrap:wrap;align-items:baseline;padding:14px 16px;border-bottom:1px solid var(--rule);background:var(--paper);gap:2px 12px}
+.film-table tr{display:flex;flex-wrap:wrap;align-items:baseline;padding:14px var(--space-4);border-bottom:1px solid var(--rule);background:var(--paper);gap:2px var(--space-3)}
 .film-table tr:hover{background:var(--cream)}
 .film-table tr.hidden{display:none}
 .film-table td{padding:0;border:none;background:none!important}
 .film-table td:first-child{order:1}
 .table-year{font-size:var(--type-body-sm);display:inline}
-.table-country{display:inline;margin-top:0;margin-left:4px}
+.table-country{display:inline;margin-top:0;margin-left:var(--space-1)}
 .film-table td:nth-child(2){order:0;width:100%;flex-basis:100%}
 .table-title{font-size:var(--type-body);font-weight:600}
 .table-original{font-size:var(--type-data)}
@@ -2108,13 +2832,20 @@ ul.watch-order-list{list-style:disc}
 /* Round 8 #2: subs badge shrinks instead of disappearing — for an
    international archive, "EN subs" is the top decision factor on mobile.
    Inlined next to the watch button at 9px to fit. */
-.subs-badge{display:inline-block;margin-top:0;margin-left:6px;font-size:9px;padding:1px 4px;background:var(--data-bg);border-radius:2px;color:var(--ink-muted)}
+.subs-badge{display:inline-block;margin-top:0;margin-left:6px;font-size:9px;padding:1px var(--space-1);background:var(--data-bg);border-radius:2px;color:var(--ink-muted)}
 /* Round 8 #6: keep the em-dash on mobile so empty watch cells read
    consistently (was display:none — caused alternating button/blank). */
+/* rec #4 (2026-05-03): zebra striping on the films table at desktop. Even rows get a very light --data-bg fill so the eye has anchor points when scanning a 200+-row decade or platform. Hover (--cream) still reads as the active state. Mobile keeps single-column flow without striping (the responsive layout collapses td borders). */
+.film-table tbody tr:nth-child(even) td{background:var(--data-bg)}
+.film-table tbody tr:hover td{background:var(--cream)}
 .no-link{display:inline;font-size:var(--type-body-sm);color:var(--ink-muted)}
-.detail-page{padding:24px 16px}
-.detail-header{gap:20px;padding-bottom:24px;margin-bottom:24px}
-.detail-year-block{padding:20px;display:flex;align-items:center;gap:16px}
+/* rec #2 (2026-05-03): "+ Suggest" mailto pill replaces the lonely em-dash in empty watch cells. Same column width, real affordance — invites users to contribute corrections rather than reading as a broken/empty state. */
+.suggest-link-pill{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:var(--space-1) 10px;font-family:var(--mono);font-size:var(--type-data-xs);font-weight:600;letter-spacing:.05em;color:var(--ink-muted);background:transparent;border:1px dashed var(--rule-dark);text-decoration:none;transition:color .15s,border-color .15s,background .15s}
+.suggest-link-pill:hover,.suggest-link-pill:focus{color:var(--accent);border-color:var(--accent);border-style:solid;background:var(--paper);outline:none}
+@media(max-width:600px){.suggest-link-pill{font-size:10px;padding:3px var(--space-2);min-height:28px}}
+.detail-page{padding:var(--space-5) var(--space-4)}
+.detail-header{gap:20px;padding-bottom:var(--space-5);margin-bottom:var(--space-5)}
+.detail-year-block{padding:20px;display:flex;align-items:center;gap:var(--space-4)}
 .detail-year{font-size:36px}
 .detail-country{margin-top:0}
 .detail-title{font-size:24px}
@@ -2125,7 +2856,7 @@ ul.watch-order-list{list-style:disc}
    just constrains width and aligns; the inner span does the truncation,
    so "OPEN ON ARCHIVE.ORG" becomes "OPEN ON ARCHIVE…" not
    "OPEN ON ARCH…". The verb stays legible. */
-.detail-watch-btn{padding:14px 16px;width:100%;justify-content:center;gap:6px}
+.detail-watch-btn{padding:14px var(--space-4);width:100%;justify-content:center;gap:6px}
 /* Gated variant compensation — base padding override at mobile loses
    the 1.5px-border inset balance from desktop. Match heights. */
 .detail-watch-btn-gated{padding:calc(var(--space-3) + 2px - var(--border-emphasis)) calc(var(--space-4) + var(--space-1) - var(--border-emphasis))}
@@ -2135,56 +2866,70 @@ ul.watch-order-list{list-style:disc}
    — users couldn't tell more cards existed off-screen. Added a right-edge
    mask fade (signals "more →") and scroll-snap so cards land on a clean
    left edge. Both webkit + standard mask-image for Safari. */
-.tag-stats-grid{display:flex;overflow-x:auto;gap:12px;padding:0 16px 8px;margin:0 -16px;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 32px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 32px),transparent)}
+.tag-stats-grid{display:flex;overflow-x:auto;gap:var(--space-3);padding:0 var(--space-4) var(--space-2);margin:0 -16px;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 32px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 32px),transparent)}
 .tag-stats-grid::-webkit-scrollbar{display:none}
 .tag-stat-card{flex:0 0 240px;min-width:0;scroll-snap-align:start}
 /* Trailing spacer card so the last real card scrolls fully into view past
    the right-edge fade, instead of disappearing under it. */
 .tag-stats-grid::after{content:'';flex:0 0 16px}
 .detail-actions{align-items:stretch}
-.detail-body{gap:24px}
-.detail-content h2{font-size:18px;margin-top:24px}
+.detail-body{gap:var(--space-5)}
+.detail-content h2{font-size:18px;margin-top:var(--space-5)}
 .detail-content p{font-size:15px}
-.detail-data-panel{padding:16px}
-.about-section{padding:40px 16px}
+.detail-data-panel{padding:var(--space-4)}
+.about-section{padding:40px var(--space-4)}
 .about-text h2{font-size:24px}
-.about-inner{gap:32px}
+.about-inner{gap:var(--space-6)}
 .about-data{padding:20px}
 .about-stat-value{font-size:20px}
-.country-page,.technique-page,.directors-index,.decades-index,.entity-page,.entity-index,.tag-page{padding:24px 16px}
+.country-page,.technique-page,.directors-index,.decades-index,.entity-page,.entity-index,.tag-page{padding:var(--space-5) var(--space-4)}
 .country-name,.technique-name,.entity-name{font-size:28px}
 .entity-index-header h1,.tag-name{font-size:32px}
 .stat-card-value{font-size:36px}
-.decade-name{font-size:36px}
-.decade-description,.technique-description{font-size:var(--type-body)}
+.technique-description{font-size:var(--type-body)}
 .section-title{font-size:20px}
 .meta-card-value{font-size:24px}
 /* Round 8 #7: 11px is the design system minimum text size; 10px violated our own floor. */
-.breadcrumb{padding:8px 12px;font-size:var(--type-data-sm)}
-.film-of-day{margin:12px 16px;padding:16px}
+.breadcrumb{padding:var(--space-2) var(--space-3);font-size:var(--type-data-sm)}
+.film-of-day{margin:var(--space-3) var(--space-4);padding:var(--space-4)}
 .film-of-day-title{font-size:18px}
-.related-films{padding:24px 16px}
-.related-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.related-films{padding:var(--space-5) var(--space-4)}
+.related-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:var(--space-3)}
 .error-code{font-size:72px}
 .error-title{font-size:24px}
 .error-message{font-size:var(--type-body)}
-.footer{padding:20px 16px}
-.footer-inner{flex-direction:column;gap:12px;text-align:center}
+.footer{padding:20px var(--space-4)}
+.footer-inner{flex-direction:column;gap:var(--space-3);text-align:center}
 .alphabet-link{min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}
 .tag-cloud-item{min-height:44px}
 .load-more-btn{min-height:44px}
 .decade-card{grid-template-columns:60px 1fr}
 .decade-card-year{font-size:var(--type-body)}
-.decade-card-info{padding:16px}
-.watch-links-section{padding:16px}
-.watch-link-card{padding:8px 12px}
+.decade-card-info{padding:var(--space-4)}
+.watch-links-section{padding:var(--space-4)}
+.watch-link-card{padding:var(--space-2) var(--space-3)}
 /* Round 11 #3: was .link-chips{display:none} at 480px — second hide rule
    (the 600px one was already fixed). Same shape: shrink, don't hide. */
-.chip{font-size:9px;padding:1px 4px}
+.chip{font-size:9px;padding:1px var(--space-1)}
 .link-chips{gap:3px;width:100%}
-.no-results{padding:24px 16px}
+.no-results{padding:var(--space-5) var(--space-4)}
 .no-results-title{font-size:20px}
-}`;
+}
+/* ---- Poster / artwork treatment ---- */
+.detail-hero-flex{display:flex;gap:40px;align-items:flex-start}
+.detail-hero-flex .detail-header{flex:1;min-width:0}
+.detail-poster{flex:0 0 200px;max-width:200px;border-radius:8px;overflow:hidden;background:rgba(0,0,0,.06);box-shadow:0 2px 12px rgba(0,0,0,.18)}
+.detail-poster img{width:100%;height:auto;display:block}
+.detail-artwork{margin:0 0 40px;border-radius:8px;overflow:hidden;background:rgba(0,0,0,.05)}
+.detail-artwork img{width:100%;max-height:280px;object-fit:contain;object-position:left;display:block}
+.poster-showcase{margin:0 0 var(--space-6)}
+.ps-grid{display:flex;flex-wrap:wrap;gap:12px;margin-top:var(--space-3)}
+.ps-item{display:block;border-radius:6px;overflow:hidden;background:rgba(0,0,0,.06);box-shadow:0 1px 5px rgba(0,0,0,.12);transition:transform .12s ease,box-shadow .12s ease}
+.ps-item:hover,.ps-item:focus-visible{transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,.2)}
+.ps-imgwrap{display:block;height:150px}
+.ps-item img{width:100%;height:100%;object-fit:contain;display:block;background:rgba(0,0,0,.04)}
+.ps-spacer{flex-grow:9999}
+@media(max-width:768px){.detail-hero-flex{flex-direction:column;gap:20px}.detail-poster{flex-basis:auto;max-width:160px}.ps-imgwrap{height:118px}}`;
 }
 
 function generateJS() {
@@ -2208,6 +2953,82 @@ let directorMap=new Map((window.DIRECTORS_DATA||[]).map(d=>[d.id,d]));
 let studiosByName=new Map((window.STUDIOS_DATA||[]).map(s=>[s.name.toLowerCase().trim(),s]));
 let directorsByName=new Map((window.DIRECTORS_DATA||[]).map(d=>[d.name.toLowerCase().trim(),d]));
 let activeFilters={};
+
+// ===== Watchlist (localStorage) =====
+// Per-browser library with two states: Saved (★) and Watched (✓). Stored
+// as a single JSON blob under 'gaa-watchlist'. Hydration is non-blocking;
+// rows render server-side as inert (aria-pressed=false), then refreshAll()
+// flips state on visible buttons after parse + listener attach.
+//
+// Storage shape: {saved:[filmId...], watched:[filmId...], v:1}
+const Watchlist=(function(){
+  const KEY='gaa-watchlist';
+  let cache={saved:new Set(),watched:new Set(),v:1};
+  function load(){
+    try{
+      const raw=localStorage.getItem(KEY);
+      if(!raw)return;
+      const j=JSON.parse(raw);
+      cache.saved=new Set(j.saved||[]);
+      cache.watched=new Set(j.watched||[]);
+    }catch(e){console.warn('watchlist load failed:',e.message);}
+  }
+  function save(){
+    try{
+      localStorage.setItem(KEY,JSON.stringify({
+        saved:[...cache.saved],watched:[...cache.watched],v:1
+      }));
+    }catch(e){console.warn('watchlist save failed:',e.message);}
+  }
+  function isSaved(id){return cache.saved.has(id);}
+  function isWatched(id){return cache.watched.has(id);}
+  function toggleSaved(id){if(cache.saved.has(id))cache.saved.delete(id);else cache.saved.add(id);save();updateCounts();}
+  function toggleWatched(id){if(cache.watched.has(id))cache.watched.delete(id);else cache.watched.add(id);save();updateCounts();}
+  function counts(){return{saved:cache.saved.size,watched:cache.watched.size};}
+  function updateCounts(){
+    const c=counts();
+    const s=document.querySelector('[data-filter-type="library"][data-filter-value="saved"] .count');
+    const w=document.querySelector('[data-filter-type="library"][data-filter-value="watched"] .count');
+    if(s)s.textContent=c.saved;
+    if(w)w.textContent=c.watched;
+  }
+  function refreshButtons(scope){
+    (scope||document).querySelectorAll('.row-library').forEach(grp=>{
+      const id=grp.dataset.filmId;
+      if(!id)return;
+      const saveBtn=grp.querySelector('.row-lib-save');
+      const watchedBtn=grp.querySelector('.row-lib-watched');
+      if(saveBtn){
+        const on=isSaved(id);
+        saveBtn.setAttribute('aria-pressed',on?'true':'false');
+        saveBtn.classList.toggle('is-active',on);
+      }
+      if(watchedBtn){
+        const on=isWatched(id);
+        watchedBtn.setAttribute('aria-pressed',on?'true':'false');
+        watchedBtn.classList.toggle('is-active',on);
+      }
+      // Once-only listener attach: stash a sentinel so we don't double-bind
+      // on subsequent renderRow passes.
+      if(!grp.dataset.libBound){
+        grp.dataset.libBound='1';
+        grp.addEventListener('click',function(e){
+          const btn=e.target.closest('button');
+          if(!btn)return;
+          e.stopPropagation();
+          if(btn.classList.contains('row-lib-save'))toggleSaved(id);
+          else if(btn.classList.contains('row-lib-watched'))toggleWatched(id);
+          refreshButtons(grp);
+          // If a Library filter is active, re-run the table filter so the
+          // row appears/disappears immediately on toggle.
+          if(activeFilters.library&&typeof updateDisplay==='function')updateDisplay();
+        });
+      }
+    });
+  }
+  load();
+  return{isSaved,isWatched,toggleSaved,toggleWatched,counts,refreshButtons,updateCounts};
+})();
 
 // ===== Catalog lazy-load =====
 // 470KB gzipped pulled off the homepage critical path. Catalog ships only
@@ -2269,22 +3090,68 @@ let loadedCount=parseInt(loadMoreBtn?.dataset.loaded||allFilms.length);
 const BATCH_SIZE=50;
 let currentSort={column:'year',direction:'desc'};
 
+// Hydrate SSR'd library buttons on initial paint. Subsequent re-renders
+// pick up state automatically via the calls in updateDisplay.
+Watchlist.refreshButtons(document);
+Watchlist.updateCounts();
+
+// First-visit library hint banner. Reveals once per browser; dismiss
+// button sets a localStorage flag so it never returns. The hint's
+// existence in SSR (hidden) means no layout shift on hydration.
+(function libraryHint(){
+  const HINT_KEY='gaa-library-hint-dismissed';
+  const hint=document.getElementById('library-hint');
+  const dismiss=document.getElementById('library-hint-dismiss');
+  if(!hint)return;
+  let dismissed=false;
+  try{dismissed=localStorage.getItem(HINT_KEY)==='1';}catch(e){}
+  // Show only on first visit AND only when there's table content
+  // (otherwise the hint floats over an empty page during catalog load).
+  if(!dismissed){hint.hidden=false;}
+  if(dismiss){
+    dismiss.addEventListener('click',function(){
+      hint.hidden=true;
+      try{localStorage.setItem(HINT_KEY,'1');}catch(e){}
+    });
+  }
+})();
+
 const countryCodes={USSR:'USSR',Russia:'RUS',Czechoslovakia:'CSSR','Czech Republic':'CZE',Poland:'POL',Hungary:'HUN',Yugoslavia:'YUG',Croatia:'HRV',Serbia:'SRB',Romania:'ROU','East Germany':'DDR',Germany:'DEU',China:'CHN',Japan:'JPN',USA:'USA',France:'FRA',UK:'GBR',Canada:'CAN',Italy:'ITA',Australia:'AUS',India:'IND',Thailand:'THA',Vietnam:'VNM',UAE:'UAE',Cuba:'CUB',Brazil:'BRA',Belgium:'BEL',Philippines:'PHL',Malaysia:'MYS',Indonesia:'IDN','South Africa':'ZAF',Egypt:'EGY',Iran:'IRN',Argentina:'ARG',Mexico:'MEX','South Korea':'KOR',Taiwan:'TWN',Turkey:'TUR',Nigeria:'NGA',Kenya:'KEN',Zambia:'ZMB','Saudi Arabia':'SAU','North Korea':'PRK',Spain:'ESP',Netherlands:'NLD',Sweden:'SWE',Denmark:'DNK',Norway:'NOR',Switzerland:'CHE',Ireland:'IRL','New Zealand':'NZL',Singapore:'SGP',Israel:'ISR',Slovakia:'SVK',Bulgaria:'BGR',Ukraine:'UKR',Estonia:'EST',Latvia:'LVA',Lithuania:'LTU',Georgia:'GEO',Armenia:'ARM',Chile:'CHL',Other:'OTH'};
 function getCC(c){return countryCodes[c]||c?.substring(0,3).toUpperCase()||'???';}
 function escHtml(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function slugify(s){return(s||'untitled').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');}
-function confPips(c){const l={'★':1,'★★':2,'★★★':3,'★★★★':4,'★★★★★':5};const n=l[c]||0;return '<span class="filled">'+'■'.repeat(n)+'</span><span class="empty">'+'□'.repeat(5-n)+'</span>';}
+function confLevel(c){const l={'★':1,'★★':2,'★★★':3,'★★★★':4,'★★★★★':5};return l[c]||0;}
+const CONF_SCALE_INLINE={0:'Confidence: not rated yet',1:'Confidence: 1 of 5 — Single source, unverified, or speculative entry',2:'Confidence: 2 of 5 — Limited sourcing; details may be approximate',3:'Confidence: 3 of 5 — Reasonably documented; one solid source',4:'Confidence: 4 of 5 — Multiple credible sources cross-reference this entry',5:'Confidence: 5 of 5 — Authoritative; verified across primary sources'};
+function confPips(c){const n=confLevel(c);const lbl=CONF_SCALE_INLINE[n];return '<span class="confidence-pips-inner" title="'+lbl+'" aria-label="'+lbl+'"><span class="filled" aria-hidden="true">'+'■'.repeat(n)+'</span><span class="empty" aria-hidden="true">'+'□'.repeat(5-n)+'</span></span>';}
 // Watch-link status partitioning, kept in sync with build-site.js
 // WATCHABLE_STATUSES / GATED_STATUSES / HIDDEN_STATUSES. A link is
 // "visible" if it's Watchable or Gated; gated links open with a lock icon.
 // See scripts/lib/platform-trust.js for the canonical Notion vocabulary.
 const WATCHABLE=new Set(['Verified']);
 const GATED=new Set(['Restricted','Unverified']);
+const FREE_ACCESS=new Set(['FREE','ADS']);
+const PAID_ACCESS=new Set(['SUB','RENT','BUY','DISC']);
 function isWatchable(l){return l&&l.url&&WATCHABLE.has(l.status);}
 function isGated(l){return l&&l.url&&GATED.has(l.status);}
 function getBestLink(wl){if(!wl||!Array.isArray(wl))return null;return wl.find(isWatchable)||wl.find(isGated)||null;}
 function getWatchUrl(wl){const l=getBestLink(wl);return l?l.url:null;}
 function hasWatchLinksClient(wl){return Array.isArray(wl)&&wl.some(l=>isWatchable(l)||isGated(l));}
+function paymentTierClient(wl){
+  if(!Array.isArray(wl))return '';
+  const visible=wl.filter(l=>isWatchable(l)||isGated(l));
+  if(visible.length===0)return '';
+  let hasFree=false,hasPaid=false,hasRegion=false;
+  for(const l of visible){
+    if(!l.accessType)continue;
+    if(FREE_ACCESS.has(l.accessType))hasFree=true;
+    else if(PAID_ACCESS.has(l.accessType))hasPaid=true;
+    else if(l.accessType==='REGION')hasRegion=true;
+  }
+  if(hasFree)return 'free';
+  if(hasPaid)return 'paid';
+  if(hasRegion)return 'region';
+  return '';
+}
 
 // Build lookup maps for studios and directors
 // (studioMap / directorMap / studiosByName / directorsByName declared
@@ -2347,32 +3214,52 @@ function renderRow(f){
   const dec=f.year?Math.floor(f.year/10)*10:'';
   const dirLinks=getDirectorLinks(f);
   const stuLinks=getStudioLinks(f);
-  return '<tr data-country="'+escHtml(f.country||'')+'" data-decade="'+dec+'" data-technique="'+escHtml((f.technique||[]).join(','))+'" data-watchable="'+(hasWatchLinksClient(f.watchLinks)?'true':'false')+'" data-subs="'+(f.hasSubtitles?'true':'false')+'" data-director="'+escHtml(f.director||'')+'">'+
+  return '<tr data-film-id="'+escHtml(f.id)+'" data-country="'+escHtml(f.country||'')+'" data-decade="'+dec+'" data-technique="'+escHtml((f.technique||[]).join(','))+'" data-watchable="'+(hasWatchLinksClient(f.watchLinks)?'true':'false')+'" data-verified="'+((f.watchLinks||[]).some(isWatchable)?'true':'false')+'" data-payment-tier="'+paymentTierClient(f.watchLinks)+'" data-subs="'+(f.hasSubtitles?'true':'false')+'" data-director="'+escHtml(f.director||'')+'">'+
     '<td><div class="table-year">'+(f.year||'—')+'</div><div class="table-country">'+getCC(f.country)+'</div></td>'+
     '<td><a href="films/'+slugify(f.title)+'-'+f.id.slice(0,8)+'.html" class="table-title">'+(escHtml(f.title)||'Untitled')+'</a>'+(f.original?'<div class="table-original">'+escHtml(f.original)+'</div>':'')+'</td>'+
     '<td class="table-meta">'+(dirLinks?'<strong>'+dirLinks+'</strong><br>':'')+stuLinks+'</td>'+
-    '<td class="table-technique hide-mobile">'+((f.technique&&f.technique[0])?f.technique[0].toUpperCase():'—')+'</td>'+
+    '<td class="table-technique hide-mobile">'+((f.technique&&f.technique[0])?f.technique[0]:'—')+'</td>'+
     '<td class="table-runtime hide-mobile">'+(escHtml(f.runtime)||'—')+'</td>'+
-    '<td class="hide-mobile"><span class="confidence-pips">'+confPips(f.confidence)+'</span></td>'+
+    '<td class="hide-mobile" data-confidence="'+(confLevel(f.confidence))+'"><span class="confidence-pips">'+confPips(f.confidence)+'</span></td>'+
     '<td class="watch-cell">'+(function(){
       const link=getBestLink(f.watchLinks);
-      if(!link)return '<span class="no-link">—</span>';
+      const lib=renderLibBtnsClient(f);
+      if(!link){
+        // Rec #2 (2026-05-03): "Suggest a link" mailto pill replaces the
+        // lonely em-dash. Same column width, real affordance.
+        const subj=encodeURIComponent('Animation Archive — Suggest a watch link for "'+(f.title||'film')+'"');
+        const body=encodeURIComponent('Film: '+(f.title||'')+(f.year?' ('+f.year+')':'')+'\\nSuggested URL: \\n\\nNotes:\\n');
+        return '<a href="mailto:${CORRECTIONS_EMAIL}?subject='+subj+'&body='+body+'" class="suggest-link-pill" aria-label="No watch link yet for '+escHtml(f.title||'this film')+' — suggest one by email">+ Suggest</a>'+lib;
+      }
       const gated=isGated(link);
       const cls=gated?'watch-btn watch-btn-gated':'watch-btn';
       // Gated rows surface the platform name as the verb so the user
       // knows what login/sub they would need ("Plex" / "Disney+" /
       // "Netflix") instead of the opaque "OPEN". Inline SVG lock to
-      // dodge cross-OS emoji rendering.
-      const lockSvg=gated?'<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>':'';
+      // dodge cross-OS emoji rendering. Rec #3 (2026-05-03): drop forced
+      // uppercase on platform name; preserve source casing.
+      const lockSvg=gated?'<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="lock-icon"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>':'';
       const label=gated
-        ?lockSvg+'<span class="watch-btn-platform">'+escHtml((link.platform||'OPEN').toUpperCase())+'</span>'
-        :'▶ WATCH';
+        ?lockSvg+'<span class="watch-btn-platform">'+escHtml(link.platform||'Open')+'</span>'
+        :'▶ Watch';
       const aria=gated
         ?'Open '+escHtml(f.title||'this film')+' on '+escHtml(link.platform||'platform')+' — sign-in or subscription may be required (opens in new tab)'
         :'Watch '+escHtml(f.title||'this film')+' (opens in new tab)';
       const subs=(!gated&&f.hasSubtitles)?'<span class="subs-badge">EN subs</span>':'';
-      return '<a href="'+escHtml(link.url)+'" class="'+cls+'" target="_blank" rel="noopener" aria-label="'+aria+'">'+label+'</a>'+subs;
+      return '<a href="'+escHtml(link.url)+'" class="'+cls+'" target="_blank" rel="noopener" aria-label="'+aria+'">'+label+'</a>'+lib+subs;
     })()+'</td></tr>';
+}
+
+// Library buttons (★ Save, ✓ Watched) for client-rendered rows.
+// Server rendering uses renderLibraryButtons in build-site.js — this is
+// the symmetric client-side version. State is hydrated from localStorage
+// by Watchlist.refreshAll() after each render pass.
+function renderLibBtnsClient(f){
+  const t=escHtml(f.title||'this film');
+  return '<div class="row-library" data-film-id="'+escHtml(f.id)+'">'+
+    '<button type="button" class="row-lib-btn row-lib-save" aria-label="Save '+t+' to library" aria-pressed="false" title="Save"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 1.5h8v11l-4-2.5-4 2.5z"/></svg></button>'+
+    '<button type="button" class="row-lib-btn row-lib-watched" aria-label="Mark '+t+' as watched" aria-pressed="false" title="Mark watched"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7"/></svg></button>'+
+  '</div>';
 }
 
 function getFilteredFilms(){
@@ -2397,6 +3284,10 @@ function getFilteredFilms(){
     if(activeFilters.decade){const dec=f.year?Math.floor(f.year/10)*10:0;if(dec!=activeFilters.decade)return false;}
     if(activeFilters.technique&&!(f.technique||[]).includes(activeFilters.technique))return false;
     if(activeFilters.watchable&&!hasWatchLinksClient(f.watchLinks))return false;
+    if(activeFilters.verified&&!(f.watchLinks||[]).some(isWatchable))return false;
+    if(activeFilters['payment-tier']&&paymentTierClient(f.watchLinks)!==activeFilters['payment-tier'])return false;
+    if(activeFilters.library==='saved'&&!Watchlist.isSaved(f.id))return false;
+    if(activeFilters.library==='watched'&&!Watchlist.isWatched(f.id))return false;
     if(activeFilters.subtitles&&!f.hasSubtitles)return false;
     if(activeFilters.director){const dirs=(f.director||'').split(',').map(d=>d.trim());if(!dirs.includes(activeFilters.director))return false;}
     if(activeFilters.genre&&!(f.genres||[]).includes(activeFilters.genre))return false;
@@ -2429,13 +3320,13 @@ function updateDisplay(resetPagination){
         if(clearAllBtn)clearAllBtn.style.display='inline-block';
       }
     }else{
-      tbody.innerHTML=sorted.map(renderRow).join('');
+      tbody.innerHTML=sorted.map(renderRow).join('');Watchlist.refreshButtons(tbody);
       if(noResultsEl)noResultsEl.style.display='none';
     }
     if(loadMoreBtn)loadMoreBtn.style.display='none';
   }else{
     if(noResultsEl)noResultsEl.style.display='none';
-    tbody.innerHTML=sorted.slice(0,loadedCount).map(renderRow).join('');
+    tbody.innerHTML=sorted.slice(0,loadedCount).map(renderRow).join('');Watchlist.refreshButtons(tbody);
     if(loadMoreBtn){
       loadMoreBtn.style.display=loadedCount>=sorted.length?'none':'inline-block';
       const rem=sorted.length-loadedCount;
@@ -2450,6 +3341,11 @@ function updateDisplay(resetPagination){
   // styles can override if needed.
   const fotdMount=document.getElementById('film-of-day-mount');
   if(fotdMount)fotdMount.classList.toggle('is-hidden',!!isFiltered);
+  // Same hide-on-filter rule for the curated picks panel: when the user
+  // is actively narrowing, the table reflects their query — picks would
+  // contradict it.
+  const picksPanel=document.querySelector('.featured-picks');
+  if(picksPanel)picksPanel.classList.toggle('is-hidden',!!isFiltered);
   if(typeof updateActiveFiltersBar==='function')updateActiveFiltersBar();
 }
 
@@ -2723,7 +3619,7 @@ function rotateFilmOfDay(){
     // Surface the platform name in the gated CTA so the user knows what
     // they'd be signing into. Lock SVG is inline to avoid the cross-OS
     // emoji-rendering inconsistency (gold on Apple, grey on Windows, etc).
-    const lockSvg='<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0;margin-right:4px"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>';
+    const lockSvg='<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="lock-icon"><rect x="2.5" y="6" width="7" height="5" rx="0.5"/><path d="M4 6V4a2 2 0 014 0v2"/></svg>';
     const label=gated
       ?lockSvg+'Open on '+escHtml(link.platform||'platform')
       :'▶ Watch';
@@ -2790,8 +3686,10 @@ function generateCountryPage(country, countryFilms) {
   const techniques = {};
   const decades = {};
   const formats = {};
-  let watchable = 0;
+  let watchable = 0;        // legacy: any visible link (Verified or Gated)
+  let verified = 0;         // strict: at least one Verified link
   let withSubs = 0;
+  let yearMin = Infinity, yearMax = -Infinity;
 
   for (const film of countryFilms) {
     for (const t of film.technique || []) {
@@ -2800,13 +3698,19 @@ function generateCountryPage(country, countryFilms) {
     if (film.year) {
       const dec = Math.floor(film.year / 10) * 10;
       decades[dec] = (decades[dec] || 0) + 1;
+      if (film.year < yearMin) yearMin = film.year;
+      if (film.year > yearMax) yearMax = film.year;
     }
     if (film.format) {
       formats[film.format] = (formats[film.format] || 0) + 1;
     }
     if (hasWatchLinks(film)) watchable++;
+    if (isPlayable(film)) verified++;
     if (film.hasSubtitles) withSubs++;
   }
+  const yearRange = (yearMin !== Infinity && yearMax !== -Infinity)
+    ? (yearMin === yearMax ? `${yearMin}` : `${yearMin}–${yearMax}`)
+    : '';
 
   const techniquesSorted = Object.entries(techniques).sort((a, b) => b[1] - a[1]);
   const decadesSorted = Object.entries(decades).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
@@ -2848,7 +3752,7 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -2857,37 +3761,86 @@ ${generateBreadcrumb([
   { label: escapeHtml(country) }
 ], '../')}
 <main class="country-page" id="main-content">
-  <div class="country-header">
-    <div class="country-code-block"><abbr title="${escapeHtml(country)}" class="country-code-large">${countryCode}</abbr></div>
-    <div class="country-title-section">
-      <h1 class="country-name">${escapeHtml(country)}</h1>
-      <p class="country-subtitle">${countryFilms.length} films in the archive</p>
+  ${(() => {
+    // Unified hero — mirrors the platform-page treatment for visual
+    // consistency across taxonomy hub pages. Country pages with editorial
+    // metadata in country-meta.json get the full hero (tradition tagline +
+    // intro + era note); the rest fall back to a minimal hero with just
+    // the title and count.
+    const meta = countryMeta.countries[country];
+    const tradition = meta?.tradition ? `<p class="facet-hero-tagline">${escapeHtml(meta.tradition)}</p>` : '';
+    const intro = meta?.intro ? `<p class="facet-hero-lede">${escapeHtml(meta.intro)}</p>` : '';
+    const eraNote = meta?.eraNote ? `<p class="facet-hero-era">${escapeHtml(meta.eraNote)}</p>` : '';
+    return `<section class="facet-hero country-hero">
+  <div class="facet-hero-top">
+    <div class="facet-hero-identity">
+      <span class="facet-hero-type">Country &middot; <abbr title="${escapeHtml(country)}" class="country-code-inline">${countryCode}</abbr></span>
+      <h1 class="facet-hero-name">${escapeHtml(country)}</h1>
+      ${tradition}
+    </div>
+    <div class="facet-hero-stat">
+      <span class="${facetStatClass(countryFilms.length)}">${countryFilms.length}</span>
+      <span class="facet-hero-stat-label">${countryFilms.length === 1 ? 'film catalogued' : 'films catalogued'}${yearRange ? ` &middot; ${yearRange}` : ''}</span>
+    </div>
+  </div>
+  ${intro}
+  ${eraNote}
+</section>`;
+  })()}
+
+  ${/* Watchability gradient — mirrors the homepage's verified/with-leads/
+       catalogued framing for consistency. Verified is the headline, Watchable
+       (Verified + Gated) is the supporting context, total is the floor. */ ''}
+  <div class="facet-stats-row">
+    <div class="facet-stat-card facet-stat-card--headline">
+      <div class="facet-stat-label">Verified Watchable</div>
+      <div class="facet-stat-value">${verified}</div>
+      <div class="facet-stat-detail">of ${countryFilms.length} catalogued</div>
+    </div>
+    <div class="facet-stat-card">
+      <div class="facet-stat-label">With Watch Leads</div>
+      <div class="facet-stat-value">${watchable}</div>
+      <div class="facet-stat-detail">${withSubs} with EN subs</div>
+    </div>
+    <div class="facet-stat-card facet-stat-card--cloud">
+      <div class="facet-stat-label">Techniques</div>
+      <div class="facet-stat-cloud">${techniquesSorted.slice(0, 5).map(([t, c]) => `<a href="../techniques/${slugify(t)}.html" class="stat-tag">${escapeHtml(t)} <span class="stat-tag-count">(${c})</span></a>`).join('')}</div>
+    </div>
+    <div class="facet-stat-card facet-stat-card--cloud">
+      <div class="facet-stat-label">Formats</div>
+      <div class="facet-stat-cloud">${formatsSorted.map(([f, c]) => `<span class="stat-tag stat-tag-static">${escapeHtml(f)} <span class="stat-tag-count">(${c})</span></span>`).join('')}</div>
     </div>
   </div>
 
-  <div class="tag-stats-grid">
-    <div class="tag-stat-card">
-      <div class="stat-card-title">Total Films</div>
-      <div class="stat-card-value">${countryFilms.length}</div>
-    </div>
-    <div class="tag-stat-card">
-      <div class="stat-card-title">Watchable</div>
-      <div class="stat-card-value">${watchable}</div>
-      <div class="stat-card-detail">${withSubs} with EN subs</div>
-    </div>
-    <div class="tag-stat-card">
-      <div class="stat-card-title">Techniques</div>
-      <div class="stat-card-list">${techniquesSorted.slice(0, 5).map(([t, c]) => `<a href="../techniques/${slugify(t)}.html" class="stat-tag">${escapeHtml(t)} <span class="stat-tag-count">(${c})</span></a>`).join('')}</div>
-    </div>
-    <div class="tag-stat-card">
-      <div class="stat-card-title">Decades</div>
-      <div class="stat-card-list">${decadesSorted.map(([d, c]) => `<a href="../decades/${d}s.html" class="stat-tag">${d}s <span class="stat-tag-count">(${c})</span></a>`).join('')}</div>
-    </div>
-    <div class="tag-stat-card">
-      <div class="stat-card-title">Formats</div>
-      <div class="stat-card-list">${formatsSorted.map(([f, c]) => `<span class="stat-tag stat-tag-static">${escapeHtml(f)} <span class="stat-tag-count">(${c})</span></span>`).join('')}</div>
-    </div>
+  ${/* Decade histogram — sparkline-style bar chart. Tells the historical
+       density story at a glance vs. counting chips. Each decade is a
+       proportional-height bar; click drills into /decades/<year>s.html. */ ''}
+  ${(() => {
+    if (decadesSorted.length < 2) return '';
+    const maxCount = Math.max(...decadesSorted.map(([, c]) => c));
+    const earliest = parseInt(decadesSorted[0][0]);
+    const latest = parseInt(decadesSorted[decadesSorted.length - 1][0]);
+    // Fill missing decades in the range so the timeline reads as continuous —
+    // a country that produced films in 1930s and 1990s but nothing between
+    // should show empty columns, not a compressed two-bar chart.
+    const decadeMap = new Map(decadesSorted.map(([d, c]) => [parseInt(d), c]));
+    const decadeBars = [];
+    for (let d = earliest; d <= latest; d += 10) {
+      const count = decadeMap.get(d) || 0;
+      const heightPct = count === 0 ? 2 : Math.max(8, (count / maxCount) * 100);
+      decadeBars.push({ decade: d, count, heightPct });
+    }
+    return `<section class="decade-histogram" aria-labelledby="decade-histogram-title">
+  <h2 id="decade-histogram-title" class="facet-section-title">By the decade</h2>
+  <div class="histogram-grid" role="list">
+    ${decadeBars.map(({ decade, count, heightPct }) => `<a href="../decades/${decade}s.html" class="histogram-bar${count === 0 ? ' is-empty' : ''}" role="listitem" aria-label="${decade}s: ${count} ${count === 1 ? 'film' : 'films'}">
+      <span class="histogram-fill" style="height:${heightPct.toFixed(1)}%"></span>
+      <span class="histogram-count">${count || ''}</span>
+      <span class="histogram-label">${String(decade).slice(2)}s</span>
+    </a>`).join('')}
   </div>
+</section>`;
+  })()}
 
   <section class="entity-films-section">
     <h2 class="section-title">All Films from ${escapeHtml(country)}</h2>
@@ -2957,7 +3910,7 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -3128,7 +4081,7 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -3179,13 +4132,13 @@ ${generateBreadcrumb([
       <table class="film-table">
         <thead>
           <tr>
-            <th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+            <th scope="col" class="col-year sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
             <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
             <th scope="col">Director / Studio</th>
-            <th scope="col" style="width:100px" class="hide-mobile">Country</th>
-            <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
-            <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
-            <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+            <th scope="col" class="col-country hide-mobile">Country</th>
+            <th scope="col" class="col-runtime hide-mobile">Runtime</th>
+            <th scope="col" class="col-confidence hide-mobile">Confidence</th>
+            <th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th>
           </tr>
         </thead>
         <tbody>${generateTechniqueTableRows(techniqueFilms)}</tbody>
@@ -3204,9 +4157,9 @@ function generateTechniqueTableRows(filmList) {
     const directorHtml = getDirectorLink(film, '../');
     const studioHtml = getStudioLink(film, '../');
     return `
-    <tr data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
+    <tr data-film-id="${escapeHtml(film.id)}" data-country="${escapeHtml(film.country || '')}" data-decade="${film.year ? Math.floor(film.year / 10) * 10 : ''}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-verified="${isPlayable(film) ? 'true' : 'false'}" data-payment-tier="${paymentTierForFilm(film) || ''}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
       <td><div class="table-year">${film.year || '—'}</div></td>
-      <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
+      <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${renderOriginalTitle(film.originalTitle, film.country)}</div>` : ''}</td>
       <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
       <td class="table-country-cell hide-mobile"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
       <td class="table-runtime hide-mobile">${escapeHtml(film.runtime) || '—'}</td>
@@ -3268,7 +4221,7 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -3399,7 +4352,7 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -3502,11 +4455,19 @@ function generateDirectorPages() {
 // JSON-LD for decade collection pages
 function generateDecadeJsonLd(decade, decadeFilms) {
   const decadeLabel = `${decade}s`;
+  // Prefer the richer intro from decade-meta when available — it makes
+  // the structured-data description more substantive than the legacy
+  // single-line tagline.
+  const meta = decadeMeta.decades?.[String(decade)] || null;
+  const blurb = meta?.intro
+    || (meta?.tagline ? `${meta.tagline}.` : null)
+    || decadeDescriptions[decade]
+    || '';
   return JSON.stringify({
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     "name": `${decadeLabel} Animation — Global Animation Archive`,
-    "description": `Explore ${decadeFilms.length} animated films from the ${decadeLabel}. ${decadeDescriptions[decade] || ''} Part of the Global Animation Archive.`,
+    "description": `Explore ${decadeFilms.length} animated films from the ${decadeLabel}. ${blurb} Part of the Global Animation Archive.`,
     "url": `${SITE_URL}/decades/${decade}s.html`,
     "numberOfItems": decadeFilms.length,
     "isPartOf": {
@@ -3522,25 +4483,29 @@ function generateDecadeJsonLd(decade, decadeFilms) {
   });
 }
 
-// Table rows for decade pages (shows country instead of year in first column)
+// Table rows for decade pages (shows country instead of year in first column).
+// Rec #5 (2026-05-03): adds data-director and data-confidence to enable the
+// new sortable Director/Country/Confidence column headers.
 function generateDecadeTableRows(filmList) {
+  const confLevelMap = { '★': 1, '★★': 2, '★★★': 3, '★★★★': 4, '★★★★★': 5 };
   return filmList.map(film => {
     const directorHtml = getDirectorLink(film, '../');
     const studioHtml = getStudioLink(film, '../');
+    const confNum = confLevelMap[film.confidence] || 0;
     return `
-    <tr data-country="${escapeHtml(film.country || '')}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-subs="${film.hasSubtitles ? 'true' : 'false'}">
+    <tr data-film-id="${escapeHtml(film.id)}" data-country="${escapeHtml(film.country || '')}" data-technique="${escapeHtml(film.technique?.join(',') || '')}" data-watchable="${isAccessible(film) ? 'true' : 'false'}" data-verified="${isPlayable(film) ? 'true' : 'false'}" data-payment-tier="${paymentTierForFilm(film) || ''}" data-subs="${film.hasSubtitles ? 'true' : 'false'}" data-director="${escapeHtml(film.director || '')}" data-confidence="${confNum}">
       <td><div class="table-year">${film.year || '—'}</div></td>
-      <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${escapeHtml(film.originalTitle)}</div>` : ''}</td>
+      <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a>${film.originalTitle ? `<div class="table-original">${renderOriginalTitle(film.originalTitle, film.country)}</div>` : ''}</td>
       <td class="table-meta">${directorHtml ? `<strong>${directorHtml}</strong><br>` : ''}${studioHtml}</td>
       <td class="table-country-cell hide-mobile"><span class="table-country-code">${getCountryCode(film.country)}</span><span class="table-country-name">${escapeHtml(film.country) || '—'}</span></td>
-      <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
+      <td class="table-technique hide-mobile">${escapeHtml(film.technique?.[0]) || '—'}</td>
       <td class="hide-mobile"><span class="confidence-pips">${confidenceToPips(film.confidence)}</span></td>
       <td class="watch-cell">${renderWatchCell(film)}</td>
     </tr>`;
   }).join('\n');
 }
 
-function generateDecadePage(decade, decadeFilms) {
+function generateDecadePage(decade, decadeFilms, presentDecades = []) {
   // Sort by year ascending, then by title
   decadeFilms.sort((a, b) => {
     const yearDiff = (a.year || 0) - (b.year || 0);
@@ -3548,11 +4513,13 @@ function generateDecadePage(decade, decadeFilms) {
     return (a.titleEnglish || '').localeCompare(b.titleEnglish || '');
   });
 
-  // Calculate stats
+  // Calculate stats — both verified (strict) and watchable (loose) for the
+  // verified gradient. Mirrors the country-page convention.
   const countries = {};
   const techniques = {};
   const formats = {};
-  let watchable = 0;
+  let watchable = 0;        // legacy: any visible link (Verified or Gated)
+  let verified = 0;         // strict: at least one Verified link
   let withSubs = 0;
 
   for (const film of decadeFilms) {
@@ -3566,6 +4533,7 @@ function generateDecadePage(decade, decadeFilms) {
       formats[film.format] = (formats[film.format] || 0) + 1;
     }
     if (hasWatchLinks(film)) watchable++;
+    if (isPlayable(film)) verified++;
     if (film.hasSubtitles) withSubs++;
   }
 
@@ -3575,8 +4543,27 @@ function generateDecadePage(decade, decadeFilms) {
 
   const decadeLabel = `${decade}s`;
   const decadeRange = `${decade}–${decade + 9}`;
-  const decadeDesc = decadeDescriptions[decade] || 'A decade in animation history';
-  const description = `Explore ${decadeFilms.length} animated films from the ${decadeLabel}. ${decadeDesc}`;
+
+  // Editorial metadata from data/decade-meta.json — falls back to the legacy
+  // single-line `decadeDescriptions` if no meta file entry exists.
+  const meta = decadeMeta.decades?.[String(decade)] || null;
+  const tagline = meta?.tagline || decadeDescriptions[decade] || 'A decade in animation history';
+  const intro = meta?.intro || '';
+  const keyMovements = Array.isArray(meta?.keyMovements) ? meta.keyMovements : [];
+  const description = `Explore ${decadeFilms.length} animated films from the ${decadeLabel}. ${tagline}`;
+
+  // Prev/next navigation — only point at decades that actually have films.
+  // If the present-decades list wasn't passed (defensive), prev/next are
+  // omitted rather than 404-linking.
+  const idx = presentDecades.indexOf(decade);
+  const prevDecade = idx > 0 ? presentDecades[idx - 1] : null;
+  const nextDecade = (idx >= 0 && idx < presentDecades.length - 1) ? presentDecades[idx + 1] : null;
+  const prevTagline = prevDecade != null
+    ? (decadeMeta.decades?.[String(prevDecade)]?.tagline || decadeDescriptions[prevDecade] || '')
+    : '';
+  const nextTagline = nextDecade != null
+    ? (decadeMeta.decades?.[String(nextDecade)]?.tagline || decadeDescriptions[nextDecade] || '')
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -3611,7 +4598,7 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -3620,53 +4607,213 @@ ${generateBreadcrumb([
   { label: decadeLabel }
 ], '../')}
 <main class="decade-page" id="main-content">
-  <div class="decade-header">
-    <div class="decade-title-section">
-      <h1 class="decade-name">${decadeLabel}</h1>
-      <p class="decade-range">${decadeRange}</p>
-      ${decadeDesc ? `<p class="decade-description">${escapeHtml(decadeDesc)}</p>` : ''}
-      <p class="decade-subtitle">${decadeFilms.length} films in the archive</p>
-    </div>
-  </div>
+  ${/* Unified .facet-hero pattern — fourth surface to adopt this convention
+       (after country, platform, director/studio). Decade-specific bits:
+       eyebrow shows year range; lede paragraph from decade-meta intro.
+       Movement chips removed 2026-05-03 — they duplicated the lede prose
+       (e.g. lede mentions "Norshteyn, Khitruk" and a chip says "Soviet
+       experimental peak (Norshteyn, Khitruk)"). The lede paragraph carries
+       the editorial weight on its own. keyMovements still lives in
+       decade-meta.json so a future "navigational chips that link to
+       techniques/studios/directors" iteration has the source data.
 
-  <div class="tag-stats-grid">
-    <div class="tag-stat-card">
-      <div class="stat-card-title">Total Films</div>
-      <div class="stat-card-value">${decadeFilms.length}</div>
+       Fluid stat sizing (rec #2, 2026-05-03): the 48px display is correct
+       for 200+ film decades but reads as overstated when the count is in
+       the single or double digits. .facet-hero-stat-value--small steps it
+       down to 36px when the value is 99 or fewer. */ ''}
+  <section class="facet-hero decade-hero">
+    <div class="facet-hero-top">
+      <div class="facet-hero-identity">
+        <span class="facet-hero-type">${decadeRange}</span>
+        <h1 class="facet-hero-name">${decadeLabel}</h1>
+        ${tagline ? `<p class="facet-hero-tagline">${escapeHtml(tagline)}</p>` : ''}
+      </div>
+      <div class="facet-hero-stat">
+        <span class="${facetStatClass(decadeFilms.length)}">${decadeFilms.length}</span>
+        <span class="facet-hero-stat-label">${decadeFilms.length === 1 ? 'film catalogued' : 'films catalogued'}</span>
+      </div>
     </div>
-    <div class="tag-stat-card">
-      <div class="stat-card-title">Watchable</div>
-      <div class="stat-card-value">${watchable}</div>
-      <div class="stat-card-detail">${withSubs} with EN subs</div>
+    ${intro ? `<p class="facet-hero-lede">${escapeHtml(intro)}</p>` : ''}
+  </section>
+
+  ${/* Watchability gradient — same verified/with-leads/floor framing as the
+       homepage and country pages. Verified is the headline, watchable is the
+       supporting context, totals come from techniques/formats clouds.
+
+       Tiers come from the DENSITY_TIERS const at the top of this file —
+       same boundaries used by .facet-hero-stat-value--small so the hero
+       and the stats row can never disagree about the page's density
+       (rec #2 alignment, 2026-05-03). The "zero watchable" override
+       still applies even when count ≥ thin floor: a 25-film decade with
+       no verified or with-leads links is not data-rich enough for the
+       gradient cards to mean anything, so it also collapses to quickstats. */ ''}
+  ${(() => {
+    const tier = densityTier(decadeFilms.length);
+    // Override: ≥10 films but zero watch links — gradient cards would be
+    // four empty zeros + two cloud chips. Honest data, but useless UI.
+    const isThin = tier === 'thin' || (verified + watchable === 0);
+    const isMid = !isThin && tier === 'mid';
+    if (!isThin) {
+      const rowClass = isMid ? 'facet-stats-row facet-stats-row--mid' : 'facet-stats-row';
+      return `<div class="${rowClass}">
+    <div class="facet-stat-card facet-stat-card--headline">
+      <div class="facet-stat-label">Verified Watchable</div>
+      <div class="facet-stat-value">${verified}</div>
+      <div class="facet-stat-detail">of ${decadeFilms.length} catalogued</div>
     </div>
-    <div class="tag-stat-card">
-      <div class="stat-card-title">Top Countries</div>
-      <div class="stat-card-list">${countriesSorted.slice(0, 10).map(([c, n]) => `<a href="../countries/${slugify(c)}.html" class="stat-tag">${escapeHtml(c)} <span class="stat-tag-count">(${n})</span></a>`).join('')}</div>
+    <div class="facet-stat-card">
+      <div class="facet-stat-label">With Watch Leads</div>
+      <div class="facet-stat-value">${watchable}</div>
+      <div class="facet-stat-detail">${withSubs} with EN subs</div>
     </div>
-    <div class="tag-stat-card">
-      <div class="stat-card-title">Techniques</div>
-      <div class="stat-card-list">${techniquesSorted.slice(0, 8).map(([t, c]) => `<a href="../techniques/${slugify(t)}.html" class="stat-tag">${escapeHtml(t)} <span class="stat-tag-count">(${c})</span></a>`).join('')}</div>
+    <div class="facet-stat-card facet-stat-card--cloud">
+      <div class="facet-stat-label">Techniques</div>
+      <div class="facet-stat-cloud">${techniquesSorted.slice(0, 5).map(([t, c]) => `<a href="../techniques/${slugify(t)}.html" class="stat-tag">${escapeHtml(t)} <span class="stat-tag-count">(${c})</span></a>`).join('')}</div>
     </div>
-    <div class="tag-stat-card">
-      <div class="stat-card-title">Formats</div>
-      <div class="stat-card-list">${formatsSorted.map(([f, c]) => `<span class="stat-tag stat-tag-static">${escapeHtml(f)} <span class="stat-tag-count">(${c})</span></span>`).join('')}</div>
+    <div class="facet-stat-card facet-stat-card--cloud">
+      <div class="facet-stat-label">Formats</div>
+      <div class="facet-stat-cloud">${formatsSorted.map(([f, c]) => `<span class="stat-tag stat-tag-static">${escapeHtml(f)} <span class="stat-tag-count">(${c})</span></span>`).join('')}</div>
     </div>
-  </div>
+  </div>`;
+    }
+    // Thin decade — single-line quick-stats summary.
+    const countriesCount = countriesSorted.length;
+    const techniquesCount = techniquesSorted.length;
+    const parts = [
+      `<strong>${decadeFilms.length}</strong> ${decadeFilms.length === 1 ? 'film' : 'films'}`,
+      `${countriesCount} ${countriesCount === 1 ? 'country' : 'countries'}`,
+      `${techniquesCount} ${techniquesCount === 1 ? 'technique' : 'techniques'}`,
+    ];
+    if (verified > 0) parts.push(`<strong>${verified}</strong> verified watchable`);
+    else if (watchable > 0) parts.push(`<strong>${watchable}</strong> with watch leads`);
+    return `<div class="decade-quickstats" role="group" aria-label="Decade summary statistics">
+    <span class="decade-quickstats-line">${parts.join(' <span class="decade-quickstats-sep" aria-hidden="true">·</span> ')}</span>
+  </div>`;
+  })()}
+
+  ${/* "Decade context" wrapper — single H2 over Highlights (H3) and
+       Most-catalogued countries (H3). Demoting these from sibling H2s
+       restores proper heading hierarchy: H1 (decade) → H2 (context)
+       → H3 sub-sections → H4 inside pick cards. The films table below
+       is the OTHER H2 — context vs. data, two top-level sections.
+
+       Wrapper-skip (rec #4, 2026-05-03): when only ONE child renders
+       (typically when Highlights is suppressed for thin decades), the
+       wrapper H2 + child H3 is two headings for one chart. Hoist the
+       surviving child to H2 directly so the heading hierarchy stays
+       meaningful. */ ''}
+  ${(() => {
+    // Build country-distribution as both H3 (nested under wrapper) and H2
+    // (standalone) variants — pick the right one once we know whether
+    // Highlights renders. Also build a countriesPanel renderer so we can
+    // emit it at either heading level without duplicating template code.
+    const renderCountriesPanel = (level) => {
+      if (countriesSorted.length < 2) return '';
+      const top = countriesSorted.slice(0, 8);
+      const maxCount = top[0][1];
+      const tag = level === 'h2' ? 'h2' : 'h3';
+      const titleClass = level === 'h2'
+        ? 'facet-section-title'
+        : 'facet-section-title facet-section-title--nested';
+      const wrapperClass = level === 'h2'
+        ? 'country-distribution country-distribution--standalone'
+        : 'country-distribution';
+      // Heading text drops "this decade" when nested — parent "Decade
+      // context" H2 already establishes the scope. Standalone keeps the
+      // full label because there's no parent to inherit from. (Rec #3.)
+      const headingText = level === 'h2'
+        ? 'Most-catalogued countries this decade'
+        : 'Most-catalogued countries';
+      return `<section class="${wrapperClass}" aria-labelledby="country-distribution-title">
+      <${tag} id="country-distribution-title" class="${titleClass}">${headingText}</${tag}>
+      <p class="facet-section-subtitle">Cataloging volume reflects archive coverage, not historical influence — see the chapter intro for which traditions defined the era.</p>
+      <ol class="country-bars" role="list">
+        ${top.map(([c, n], i) => {
+          const widthPct = (n / maxCount) * 100;
+          return `<li class="country-bar-row">
+          <a href="../countries/${slugify(c)}.html" class="country-bar-link" aria-label="${escapeHtml(c)}: ${n} ${n === 1 ? 'film' : 'films'}">
+            <span class="country-bar-rank" aria-hidden="true">${i + 1}</span>
+            <span class="country-bar-cc" aria-hidden="true">${getCountryCode(c)}</span>
+            <span class="country-bar-name">${escapeHtml(c)}</span>
+            <span class="country-bar-track" aria-hidden="true"><span class="country-bar-fill" style="width:${widthPct.toFixed(1)}%"></span></span>
+            <span class="country-bar-count">${n}</span>
+          </a>
+        </li>`;
+        }).join('')}
+      </ol>
+      ${countriesSorted.length > 8 ? `<p class="country-distribution-foot">+${countriesSorted.length - 8} more ${(countriesSorted.length - 8) === 1 ? 'country' : 'countries'} represented.</p>` : ''}
+    </section>`;
+    };
+
+    const highlights = renderEntityHighlights({
+      type: 'decade',
+      entityFilms: decadeFilms,
+      decade: decade,
+      headingLevel: 'h3',
+    });
+    const hasHighlights = highlights !== '';
+    const hasCountries = countriesSorted.length >= 2;
+
+    if (!hasHighlights && !hasCountries) return '';
+
+    // Both children present → wrap under "Decade context" H2 with H3 subs.
+    // Side-by-side grid on ≥1024px (rec #5, 2026-05-03): the two H3 panels
+    // are conceptually peer facets of the same context, and stacking them
+    // pushes the films table further from the fold. The .decade-context--
+    // two-up modifier triggers a 2-column grid on wide viewports; mobile
+    // and tablet keep the original stacked layout.
+    if (hasHighlights && hasCountries) {
+      // Wrapper H2 was "Decade context" — renamed 2026-05-03 to drop the
+      // meta-language. "About this decade" describes content, not the
+      // section's structural role. Slug/aria-id stays (.decade-context*)
+      // for CSS continuity; only the human-readable text changed.
+      return `<section class="decade-context decade-context--two-up" aria-labelledby="decade-context-title">
+    <h2 id="decade-context-title" class="facet-section-title decade-context-title">About this decade</h2>
+    <div class="decade-context-grid">
+      ${highlights}
+      ${renderCountriesPanel('h3')}
+    </div>
+  </section>`;
+    }
+    // Only one child → hoist to H2 directly, no wrapper.
+    if (hasHighlights) {
+      // Re-render highlights at H2 since there's no wrapper above it.
+      return renderEntityHighlights({
+        type: 'decade',
+        entityFilms: decadeFilms,
+        decade: decade,
+        headingLevel: 'h2',
+      });
+    }
+    return renderCountriesPanel('h2');
+  })()}
 
   <section class="entity-films-section">
-    <h2 class="section-title">All Films from the ${decadeLabel}</h2>
+    ${/* Films-section header bar — H2 title + compact jump strip on the
+         same row (rec #3, 2026-05-03). Anchoring the jump strip to the
+         table it serves disambiguates its purpose: it's a "before you
+         dive into the table, here are adjacent decades" affordance, not
+         a floating utility. Bottom card-style nav stays for the user
+         who scrolls all the way through and wants editorial context. */ ''}
+    <div class="films-section-header">
+      <h2 class="section-title">All Films from the ${decadeLabel}</h2>
+      ${(prevDecade != null || nextDecade != null) ? `<nav class="decade-jump" aria-label="Jump to adjacent decade">
+        ${prevDecade != null ? `<a href="${prevDecade}s.html" class="decade-jump-link decade-jump-prev"><span aria-hidden="true">←</span> <span class="decade-jump-eyebrow">Prev</span> <span class="decade-jump-label">${prevDecade}s</span></a>` : '<span class="decade-jump-spacer" aria-hidden="true"></span>'}
+        ${nextDecade != null ? `<a href="${nextDecade}s.html" class="decade-jump-link decade-jump-next"><span class="decade-jump-eyebrow">Next</span> <span class="decade-jump-label">${nextDecade}s</span> <span aria-hidden="true">→</span></a>` : '<span class="decade-jump-spacer" aria-hidden="true"></span>'}
+      </nav>` : ''}
+    </div>
     ${entityTableControls(decadeFilms.length)}
     <div class="table-wrapper" aria-live="polite" aria-atomic="false">
       <table class="film-table">
         <thead>
           <tr>
-            <th scope="col" style="width:70px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+            <th scope="col" class="col-runtime sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
             <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
-            <th scope="col">Director / Studio</th>
-            <th scope="col" style="width:100px" class="hide-mobile">Country</th>
-            <th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
-            <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
-            <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+            <th scope="col" class="sortable" data-sort="director" tabindex="0" aria-sort="none">Director / Studio <span class="sort-indicator" aria-hidden="true"></span></th>
+            <th scope="col" class="col-country sortable hide-mobile" data-sort="country" tabindex="0" aria-sort="none">Country <span class="sort-indicator" aria-hidden="true"></span></th>
+            <th scope="col" class="col-technique sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
+            <th scope="col" class="col-confidence sortable hide-mobile" data-sort="confidence" tabindex="0" aria-sort="none">Confidence <span class="sort-indicator" aria-hidden="true"></span></th>
+            <th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th>
           </tr>
         </thead>
         <tbody>${generateDecadeTableRows(decadeFilms)}</tbody>
@@ -3674,6 +4821,16 @@ ${generateBreadcrumb([
     </div>
   </section>
   ${entityTableEnhanceScript(decadeFilms.length)}
+
+  ${/* Bottom card-style prev/next nav removed 2026-05-03 (rec #4). Was
+       redundant with: (a) the compact .decade-jump strip in the films-
+       section header above, and (b) the /decades/ index page which
+       already shows every decade with the same taglines. Removing it
+       saves ~100px and makes the films table the page's terminal
+       content — appropriate for a research surface. The prevTagline /
+       nextTagline locals further up are now unused but kept since they
+       cost nothing and are useful if a future iteration wants to surface
+       the next decade's tagline elsewhere (e.g. a footer breadcrumb). */ ''}
 </main>
 ${generateFooter('../')}
 </body></html>`;
@@ -3732,20 +4889,35 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
   { label: 'Home', url: 'index.html' },
   { label: 'Decades' }
 ], '../')}
-<main class="decades-index" id="main-content">
-  <div class="decades-header">
+<main class="decades-index entity-index" id="main-content">
+  ${/* Rec #1 (2026-05-03): unified .entity-index-header pattern across the
+       four "Sections" sidebar destinations (countries / decades / platforms
+       / directors). Was .decades-header — promoted to the shared class so
+       all four entity-index pages render the same H1 + subtitle treatment. */ ''}
+  <div class="entity-index-header">
     <h1>Decades</h1>
-    <p class="decades-subtitle">A timeline of animation history — ${totalDecades} decades, ${totalFilms} films</p>
+    <p class="entity-index-subtitle">A timeline of animation history — ${totalDecades} decades, ${totalFilms} films</p>
   </div>
 
-  <div class="decades-timeline">
+  ${/* Rec #4 (2026-05-03): sort toggle. Chronological is the default — the
+       narrative reads naturally early-to-late — but a "Most films" toggle
+       lets first-time visitors land on the densest decades (1980s 385,
+       2000s 367, 2010s 350) rather than scrolling past the thin 1910s/1920s
+       to reach them. Each card stamps both data-decade-year and
+       data-decade-count so the toggle can re-sort the DOM client-side. */ ''}
+  <div class="decades-sort-toggle" role="group" aria-label="Sort decades">
+    <button type="button" class="decades-sort-btn is-active" data-sort="chronological" aria-pressed="true">Chronological</button>
+    <button type="button" class="decades-sort-btn" data-sort="count" aria-pressed="false">Most films</button>
+  </div>
+
+  <div class="decades-timeline" id="decades-timeline">
     ${sortedDecades.map(([decade, decadeFilms]) => {
       const countries = {};
       for (const film of decadeFilms) {
@@ -3754,9 +4926,14 @@ ${generateBreadcrumb([
         }
       }
       const topCountry = Object.entries(countries).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Various';
-      const desc = decadeDescriptions[parseInt(decade)] || '';
+      // Prefer per-decade-meta tagline; fall back to the legacy
+      // `decadeDescriptions` const so smaller decades without rich meta
+      // still render a one-liner.
+      const desc = decadeMeta.decades?.[String(decade)]?.tagline
+        || decadeDescriptions[parseInt(decade)]
+        || '';
 
-      return `<a href="${decade}s.html" class="decade-card">
+      return `<a href="${decade}s.html" class="decade-card" data-decade-year="${decade}" data-decade-count="${decadeFilms.length}">
       <div class="decade-card-year">${decade}s</div>
       <div class="decade-card-info">
         <h2 class="decade-card-title">${decade}–${parseInt(decade) + 9}</h2>
@@ -3769,6 +4946,34 @@ ${generateBreadcrumb([
     </a>`;
     }).join('\n    ')}
   </div>
+  <script>
+    (function(){
+      const buttons = document.querySelectorAll('.decades-sort-btn');
+      const timeline = document.getElementById('decades-timeline');
+      if (!timeline || buttons.length === 0) return;
+      const cards = Array.from(timeline.querySelectorAll('.decade-card'));
+      function applySort(mode){
+        cards.sort((a, b) => {
+          if (mode === 'count'){
+            return parseInt(b.dataset.decadeCount, 10) - parseInt(a.dataset.decadeCount, 10);
+          }
+          return parseInt(a.dataset.decadeYear, 10) - parseInt(b.dataset.decadeYear, 10);
+        });
+        const frag = document.createDocumentFragment();
+        cards.forEach(c => frag.appendChild(c));
+        timeline.appendChild(frag);
+      }
+      buttons.forEach(btn => btn.addEventListener('click', () => {
+        const mode = btn.dataset.sort;
+        buttons.forEach(b => {
+          const active = b === btn;
+          b.classList.toggle('is-active', active);
+          b.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        applySort(mode);
+      }));
+    })();
+  </script>
 </main>
 ${generateFooter('../')}
 </body></html>`;
@@ -3790,9 +4995,17 @@ function generateDecadePages() {
   // Generate a page for each decade
   mkdirSync('./dist/decades', { recursive: true });
 
+  // Sorted list of decades that actually have films — used by each page to
+  // compute prev/next neighbors. Skip-decade gaps in this list (e.g. no 1900s
+  // films in catalog) collapse correctly because we only navigate between
+  // decades that actually exist.
+  const presentDecades = Object.keys(decadesWithFilms)
+    .map(d => parseInt(d))
+    .sort((a, b) => a - b);
+
   let count = 0;
   for (const [decade, decadeFilms] of Object.entries(decadesWithFilms)) {
-    writeFileSync(`./dist/decades/${decade}s.html`, generateDecadePage(parseInt(decade), [...decadeFilms]));
+    writeFileSync(`./dist/decades/${decade}s.html`, generateDecadePage(parseInt(decade), [...decadeFilms], presentDecades));
     count++;
   }
 
@@ -3803,6 +5016,181 @@ function generateDecadePages() {
 }
 
 // ===================== STUDIO PAGES =====================
+/**
+ * Shared `.facet-hero` renderer for director and studio detail pages.
+ * Mirrors the platform/country page chrome — H1 + tagline + corner stat —
+ * so all four taxonomy hub surfaces share the same visual idiom.
+ *
+ * @param {object} args
+ * @param {object} args.entity        — director or studio object
+ * @param {'director'|'studio'} args.type
+ * @param {Array} args.entityFilms     — films associated with this entity
+ * @param {string} [args.tagline]      — optional pre-computed tagline (lifespan · nationality · etc.)
+ */
+function renderEntityHero({ entity, type, entityFilms, tagline = '' }) {
+  const isDirector = type === 'director';
+  const name = entity.name;
+  // Native-script name (Japanese / Russian / Korean / etc.) — wrap in lang
+  // attribute so screen readers pronounce correctly.
+  const nativeCountry = isDirector
+    ? (Array.isArray(entity.nationality) ? entity.nationality[0] : entity.nationality)
+    : entity.country;
+  const native = entity.nativeName
+    ? renderOriginalTitle(entity.nativeName, nativeCountry)
+    : '';
+
+  // Year range from filmography
+  const years = entityFilms.map(f => f.year).filter(Boolean);
+  const yearRange = years.length === 0 ? ''
+    : (Math.min(...years) === Math.max(...years)
+        ? `${years[0]}`
+        : `${Math.min(...years)}–${Math.max(...years)}`);
+
+  return `<section class="facet-hero entity-hero">
+  <div class="facet-hero-top">
+    <div class="facet-hero-identity">
+      <span class="facet-hero-type">${isDirector ? 'Director' : 'Studio'}</span>
+      <h1 class="facet-hero-name">${escapeHtml(name)}</h1>
+      ${native ? `<p class="facet-hero-native">${native}</p>` : ''}
+      ${tagline ? `<p class="facet-hero-tagline">${tagline}</p>` : ''}
+    </div>
+    <div class="facet-hero-stat">
+      <span class="${facetStatClass(entityFilms.length)}">${entityFilms.length}</span>
+      <span class="facet-hero-stat-label">${entityFilms.length === 1 ? 'film catalogued' : 'films catalogued'}${yearRange ? ` &middot; ${yearRange}` : ''}</span>
+    </div>
+  </div>
+</section>`;
+}
+
+/**
+ * "Highlights" / "Notable productions" picks panel for director, studio, and
+ * decade pages. Auto-selects 3-4 highest-confidence Verified films. Reuses the
+ * .pick-card visual idiom from homepage and platform curator picks. Returns ''
+ * when fewer than 3 candidates exist (panel doesn't earn its space at smaller
+ * scales).
+ *
+ * Selection algorithms:
+ *   - director / studio: pure confidence DESC + year DESC, slice 4. Career
+ *     filmographies are usually small enough that this returns a meaningful
+ *     career-spanning sample.
+ *   - decade: bucket-sample by year-thirds (early/mid/late) so a rich decade
+ *     doesn't collapse to a single year. The 1970s pre-fix behavior surfaced
+ *     four 1979 films because pure confidence-DESC then year-DESC can cluster.
+ *
+ * Heading level:
+ *   - default: <h2 class="featured-picks-title"> (panel is a top-level section)
+ *   - headingLevel: 'h3': <h3 class="featured-picks-title featured-picks-title--nested">
+ *     (panel is nested under an outer "Context" H2 — used by decade pages)
+ */
+function renderEntityHighlights({ type, entityFilms, basePath = '../', decade = null, headingLevel = 'h2' }) {
+  const candidates = entityFilms
+    .filter(f => Array.isArray(f.watchLinks) && f.watchLinks.some(l =>
+      l && l.url && l.status === 'Verified'))
+    .map(f => ({
+      film: f,
+      link: f.watchLinks.find(l => l && l.url && l.status === 'Verified'),
+      confidence: (f.confidence || '').length,
+    }))
+    .filter(p => p.confidence >= 4);
+
+  if (candidates.length < 3) return '';
+
+  const isDirector = type === 'director';
+  const isDecade = type === 'decade';
+
+  // Pick 4 films. For decades, bucket by year-thirds to guarantee temporal
+  // spread across the decade; otherwise fall back to confidence + year.
+  let picks;
+  if (isDecade && decade != null) {
+    const buckets = [
+      { from: decade,     to: decade + 2 },  // early third
+      { from: decade + 3, to: decade + 6 },  // mid third
+      { from: decade + 7, to: decade + 9 },  // late third
+    ];
+    const remaining = [...candidates];
+    const chosen = [];
+    const sortByConfThenYear = (a, b) =>
+      (b.confidence - a.confidence) || ((b.film.year || 0) - (a.film.year || 0));
+
+    for (const b of buckets) {
+      const inBucket = remaining
+        .filter(p => p.film.year >= b.from && p.film.year <= b.to)
+        .sort(sortByConfThenYear);
+      if (inBucket.length > 0) {
+        chosen.push(inBucket[0]);
+        const idx = remaining.indexOf(inBucket[0]);
+        if (idx >= 0) remaining.splice(idx, 1);
+      }
+    }
+    // Fill remaining slots (up to 4) with top-confidence wildcards from
+    // anywhere in the decade. Handles thin early/mid/late buckets gracefully.
+    remaining.sort(sortByConfThenYear);
+    while (chosen.length < 4 && remaining.length > 0) {
+      chosen.push(remaining.shift());
+    }
+    // Display order: chronological — reads as "early → late" so the
+    // temporal spread is visually obvious.
+    picks = chosen
+      .sort((a, b) => (a.film.year || 0) - (b.film.year || 0))
+      .slice(0, 4);
+  } else {
+    picks = [...candidates]
+      .sort((a, b) => (b.confidence - a.confidence) || ((b.film.year || 0) - (a.film.year || 0)))
+      .slice(0, 4);
+  }
+
+  if (picks.length < 3) return '';
+
+  // When this panel is nested under "Decade context" (headingLevel='h3'),
+  // the parent H2 already says "Decade …", so the H3 drops the prefix. When
+  // standalone (headingLevel='h2'), the heading carries the full label
+  // because there's no parent context to inherit from. (Rec #3, 2026-05-03)
+  const isNested = headingLevel === 'h3';
+  const heading = isDirector ? 'Highlights'
+    : isDecade ? (isNested ? 'Highlights' : 'Decade highlights')
+    : 'Notable productions';
+  const subtitle = isDirector
+    ? `${picks.length} highest-confidence films from this director's filmography.`
+    : isDecade
+      ? `${picks.length} verified-watchable picks spread across the early, mid, and late decade.`
+      : `${picks.length} highest-confidence films from this studio's catalog.`;
+
+  // Pick-title heading level steps down from the panel heading. When the
+  // panel is H2 (director/studio default) the pick-title is H3. When the
+  // panel is H3 (decade nested under "Context" H2) the pick-title is H4.
+  // Keeping the hierarchy contiguous matters for screen-reader skim order
+  // and for our WCAG 2.4.10 heading-order audit.
+  const pickTitleTag = headingLevel === 'h3' ? 'h4' : 'h3';
+
+  const cards = picks.map(({ film, link }) => {
+    const title = escapeHtml(film.titleEnglish || film.title || 'Untitled');
+    const year = film.year || '';
+    const cc = getCountryCode(film.country);
+    const platform = escapeHtml(link.platform || '');
+    return `<article class="pick-card">
+      <div class="pick-meta"><span class="pick-year">${year}</span><span class="pick-divider">·</span><span class="pick-country">${cc}</span><span class="pick-divider">·</span><span class="pick-platform">${platform}</span></div>
+      <${pickTitleTag} class="pick-title"><a href="${basePath}${getFilmUrl(film)}">${title}</a></${pickTitleTag}>
+      <a href="${escapeHtml(link.url)}" class="pick-watch-btn" target="_blank" rel="noopener" aria-label="Watch ${title} on ${platform} (opens in new tab)">▶ Watch</a>
+    </article>`;
+  }).join('');
+
+  // Heading-level variant. When nested (h3) we add the modifier class so the
+  // visual weight matches H3 conventions elsewhere on the site (smaller type,
+  // muted underline). Default h2 keeps the original featured-picks-title look.
+  const tag = headingLevel === 'h3' ? 'h3' : 'h2';
+  const titleId = headingLevel === 'h3' ? 'decade-picks-title' : 'entity-picks-title';
+  const nestedClass = headingLevel === 'h3' ? ' featured-picks-title--nested' : '';
+  const sectionNestedClass = headingLevel === 'h3' ? ' featured-picks--nested' : '';
+
+  return `<section class="featured-picks entity-picks${sectionNestedClass}" aria-labelledby="${titleId}">
+  <div class="featured-picks-header">
+    <${tag} id="${titleId}" class="featured-picks-title${nestedClass}">${heading}</${tag}>
+    <p class="featured-picks-subtitle">${subtitle}</p>
+  </div>
+  <div class="featured-picks-grid">${cards}</div>
+</section>`;
+}
+
 function generateStudioPage(studio) {
   // Token-exact match (was substring 2026-04-26): the previous
   // `.toLowerCase().includes(studio.name.toLowerCase())` over-collected
@@ -3846,7 +5234,7 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -3855,28 +5243,34 @@ ${generateBreadcrumb([
   { label: escapeHtml(studio.name) }
 ], '../')}
 <main class="entity-page studio-page" id="main-content">
-  <div class="entity-header">
-    <div class="entity-title-section">
-      <h1 class="entity-name">${escapeHtml(studio.name)}</h1>
-      ${studio.country ? `<p class="entity-subtitle"><a href="../countries/${slugify(studio.country)}.html" class="entity-meta-link">${escapeHtml(studio.country)}</a></p>` : ''}
-      ${statusText ? `<p class="entity-dates">${statusText}</p>` : ''}
-    </div>
-  </div>
+  ${(() => {
+    // Tagline assembly — country · status · primary technique
+    const parts = [];
+    if (studio.country) parts.push(`<a href="../countries/${slugify(studio.country)}.html" class="entity-meta-link">${escapeHtml(studio.country)}</a>`);
+    if (statusText) parts.push(escapeHtml(statusText));
+    if (studio.notableTechniques?.length) parts.push(escapeHtml(studio.notableTechniques[0]));
+    return renderEntityHero({ entity: studio, type: 'studio', entityFilms: studioFilms, tagline: parts.join(' &middot; ') });
+  })()}
 
-  ${studio.significance ? `<div class="entity-description"><p>${escapeHtml(studio.significance)}</p></div>` : ''}
+  ${/* Bio prose — editorialized H3 sub-labels (was H4 before; promoted for
+        WCAG heading-order compliance and editorial voice). For studios we
+        only have `significance` populated; render as "Studio identity". */ ''}
+  ${studio.significance ? `<section class="entity-bio" aria-labelledby="entity-bio-heading">
+    <h2 id="entity-bio-heading" class="entity-bio-title">About</h2>
+    <div class="entity-bio-block"><h3 class="entity-bio-label">Studio identity</h3><p>${escapeHtml(studio.significance)}</p></div>
+  </section>` : ''}
 
-  <div class="entity-meta-grid">
-    ${studio.notableTechniques && studio.notableTechniques.length > 0 ? `
-    <div class="entity-meta-card">
-      <div class="meta-card-title">Notable Techniques</div>
-      <div class="meta-card-tags">${studio.notableTechniques.map(t => `<a href="../techniques/${slugify(t)}.html" class="meta-tag">${escapeHtml(t)}</a>`).join('')}</div>
-    </div>` : ''}
-    <div class="entity-meta-card">
-      <div class="meta-card-title">Films in Archive</div>
-      <div class="meta-card-value">${filmCount}</div>
-      ${yearRange ? `<div class="meta-card-detail">${yearRange}</div>` : ''}
-    </div>
-  </div>
+  ${/* Highlights panel — auto-derive 3-4 highest-confidence Verified films
+        from this studio's filmography. Same .pick-card idiom as homepage
+        and platform pages. */ ''}
+  ${renderEntityHighlights({ type: 'studio', entityFilms: studioFilms })}
+
+  ${/* Notable techniques moved here — was buried in old meta-grid. */ ''}
+  ${studio.notableTechniques && studio.notableTechniques.length > 0 ? `
+  <div class="entity-techniques">
+    <h3 class="entity-section-label">Notable techniques</h3>
+    <div class="meta-card-tags">${studio.notableTechniques.map(t => `<a href="../techniques/${slugify(t)}.html" class="meta-tag">${escapeHtml(t)}</a>`).join('')}</div>
+  </div>` : ''}
 
   ${(() => {
     // Get directors who've worked with this studio
@@ -3907,20 +5301,13 @@ ${generateBreadcrumb([
     const directorsList = [...workedWithDirectors.values()].sort((a, b) => b.count - a.count);
     if (directorsList.length === 0) return '';
     return `
-  <div class="entity-collaborators">
-    <h3>Directors</h3>
+  <section class="entity-collaborators" aria-labelledby="entity-directors-heading">
+    <h3 id="entity-directors-heading" class="entity-section-label">Directors at ${escapeHtml(studio.name)}</h3>
     <div class="collaborator-tags">
       ${directorsList.map(({ director, count }) => `<a href="../${getDirectorUrl(director)}" class="collaborator-tag">${escapeHtml(director.name)} <span class="collab-count">(${count})</span></a>`).join('')}
     </div>
-  </div>`;
+  </section>`;
   })()}
-
-  ${(studio.wikipedia || studio.website) ? `
-  <div class="entity-links">
-    <h3>External Links</h3>
-    ${studio.wikipedia ? `<a href="${escapeHtml(studio.wikipedia)}" class="entity-link" target="_blank" rel="noopener">→ Wikipedia</a>` : ''}
-    ${studio.website ? `<a href="${escapeHtml(studio.website)}" class="entity-link" target="_blank" rel="noopener">→ Official Website</a>` : ''}
-  </div>` : ''}
 
   ${studioFilms.length > 0 ? `
   <section class="entity-films-section">
@@ -3929,13 +5316,13 @@ ${generateBreadcrumb([
     <div class="table-wrapper" aria-live="polite" aria-atomic="false">
       <table class="film-table">
         <thead><tr>
-          <th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+          <th scope="col" class="col-year sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
           <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
           <th scope="col">Director</th>
-          <th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
-          <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
-          <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
-          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+          <th scope="col" class="col-technique sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
+          <th scope="col" class="col-runtime hide-mobile">Runtime</th>
+          <th scope="col" class="col-confidence hide-mobile">Confidence</th>
+          <th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
         <tbody>${generateTableRows(studioFilms, { basePath: '../', omitMeta: 'studio' })}</tbody>
       </table>
@@ -3945,9 +5332,20 @@ ${generateBreadcrumb([
   <section class="entity-films-section">
     <div class="empty-state">
       <p class="empty-state-message">We have ${escapeHtml(studio.name)} cataloged but no films linked yet.</p>
-      <a href="mailto:kylebarrett1@mac.com?subject=${encodeURIComponent('Filmography for ' + studio.name)}&body=${encodeURIComponent('Hi — I have films to contribute for studio ' + studio.name + ':\n\nFilm 1: \nFilm 2: \n\nThanks!')}" class="empty-state-cta">Help us add their filmography →</a>
+      <a href="mailto:${CORRECTIONS_EMAIL}?subject=${encodeURIComponent('Filmography for ' + studio.name)}&body=${encodeURIComponent('Hi — I have films to contribute for studio ' + studio.name + ':\n\nFilm 1: \nFilm 2: \n\nThanks!')}" class="empty-state-cta">Help us add their filmography →</a>
     </div>
   </section>`}
+
+  ${/* External links pushed to bottom (post-critique reorder) — escape hatches
+        belong AFTER the user has seen the catalog content, not before. */ ''}
+  ${(studio.wikipedia || studio.website) ? `
+  <section class="entity-links" aria-labelledby="entity-links-heading">
+    <h3 id="entity-links-heading" class="entity-section-label">External links</h3>
+    <div class="entity-links-row">
+      ${studio.wikipedia ? `<a href="${escapeHtml(studio.wikipedia)}" class="entity-link-chip" target="_blank" rel="noopener">Wikipedia &nearr;</a>` : ''}
+      ${studio.website ? `<a href="${escapeHtml(studio.website)}" class="entity-link-chip" target="_blank" rel="noopener">Official site &nearr;</a>` : ''}
+    </div>
+  </section>` : ''}
 </main>
 ${generateFooter('../')}
 ${/* Round 10 #1: removed generateEntityTableSort() — replaced by entityTableEnhanceScript() emitted inside the section. */ ''}
@@ -3955,13 +5353,21 @@ ${/* Round 10 #1: removed generateEntityTableSort() — replaced by entityTableE
 }
 
 function generateStudioIndexPage() {
-  const sortedStudios = [...studios].sort((a, b) => {
-    const aFilms = films.filter(f => f.studioEntities?.some(s => s.id === a.id)).length;
-    const bFilms = films.filter(f => f.studioEntities?.some(s => s.id === b.id)).length;
-    return bFilms - aFilms;
-  });
+  // Compute filmography size using both entity relation AND text-token
+  // match (same logic as generateStudioPage), then exclude entries with
+  // zero films from the index. Keeps the data file untouched but stops
+  // the index from advertising entries with no destination content.
+  const studioFilmCount = (studio) => {
+    const lower = studio.name.toLowerCase();
+    return films.filter(f =>
+      (f.studioEntities && f.studioEntities.some(s => s.id === studio.id)) ||
+      (f.studio && f.studio.split(',').map(x => x.trim().toLowerCase()).includes(lower))
+    ).length;
+  };
+  const livingStudios = studios.filter(s => studioFilmCount(s) > 0);
+  const sortedStudios = [...livingStudios].sort((a, b) => studioFilmCount(b) - studioFilmCount(a));
 
-  const description = `Browse ${studios.length} animation studios from around the world in the Global Animation Archive.`;
+  const description = `Browse ${livingStudios.length} animation studios from around the world in the Global Animation Archive.`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -3980,7 +5386,7 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -4031,14 +5437,50 @@ function generateStudioPages() {
     return { count: 0 };
   }
 
+  // BUILD_SKIP_FILMS=1 also short-circuits the studio detail-page loop
+  // (~700 studios × per-page generation). See build() comment.
+  if (process.env.BUILD_SKIP_FILMS === '1') {
+    console.log('  ⊘ BUILD_SKIP_FILMS=1 — skipping studio detail-page loop');
+    return { count: 0 };
+  }
+
   mkdirSync('./dist/studios', { recursive: true });
 
+  // Filter out orphan studios (zero films via entity relation OR
+  // text-token name match). 91 studios in the current data are speculative
+  // curator additions — outsourcing houses, VFX studios, etc. — that
+  // aren't credited in any film.studio yet. Same fix pattern as
+  // generateDirectorDetailPages.
+  // Single-pass precompute (see generateDirectorDetailPages): O(1) orphan
+  // check per studio instead of O(studios × films).
+  const linkedStudioIds = new Set();
+  const linkedStudioNames = new Set();
+  for (const f of films) {
+    if (f.studioEntities) {
+      for (const se of f.studioEntities) {
+        if (se && se.id) linkedStudioIds.add(se.id);
+      }
+    }
+    if (f.studio) {
+      for (const name of f.studio.split(',')) {
+        const t = name.trim().toLowerCase();
+        if (t) linkedStudioNames.add(t);
+      }
+    }
+  }
+  const isOrphanStudio = (studio) =>
+    !linkedStudioIds.has(studio.id) &&
+    !linkedStudioNames.has(studio.name.toLowerCase());
+
   let count = 0;
+  let skipped = 0;
   for (const studio of studios) {
+    if (isOrphanStudio(studio)) { skipped++; continue; }
     const filename = `${slugify(studio.name)}-${studio.id.slice(0,8)}.html`;
     writeFileSync(`./dist/studios/${filename}`, generateStudioPage(studio));
     count++;
   }
+  if (skipped > 0) console.log(`     ↳ ${skipped} orphan studio entries skipped (zero-film stubs)`);
 
   writeFileSync('./dist/studios/index.html', generateStudioIndexPage());
   return { count };
@@ -4084,7 +5526,7 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -4093,39 +5535,38 @@ ${generateBreadcrumb([
   { label: escapeHtml(director.name) }
 ], '../')}
 <main class="entity-page director-page" id="main-content">
-  <div class="entity-header">
-    <div class="entity-title-section">
-      <h1 class="entity-name">${escapeHtml(director.name)}</h1>
-      ${director.nativeName ? `<p class="entity-native-name">${escapeHtml(director.nativeName)}</p>` : ''}
-      ${lifespan ? `<p class="entity-dates">${lifespan}</p>` : ''}
-      ${nationalities ? `<p class="entity-subtitle">Nationality: ${(Array.isArray(director.nationality) ? director.nationality : [director.nationality]).filter(Boolean).map(n => `<a href="../countries/${slugify(n)}.html" class="entity-meta-link">${escapeHtml(n)}</a>`).join(', ')}</p>` : ''}
-    </div>
-  </div>
+  ${(() => {
+    // Tagline assembly: lifespan · nationality · primary technique
+    const parts = [];
+    if (lifespan) parts.push(escapeHtml(lifespan));
+    const natList = (Array.isArray(director.nationality) ? director.nationality : [director.nationality]).filter(Boolean);
+    if (natList.length) {
+      parts.push(natList.map(n => `<a href="../countries/${slugify(n)}.html" class="entity-meta-link">${escapeHtml(n)}</a>`).join(', '));
+    }
+    if (director.primaryTechnique) parts.push(escapeHtml(director.primaryTechnique));
+    return renderEntityHero({ entity: director, type: 'director', entityFilms: directorFilms, tagline: parts.join(' &middot; ') });
+  })()}
 
+  ${/* Bio prose — editorialized H3 sub-labels. Was H4 before (broken hierarchy
+        H1→H4) and used Notion field labels verbatim. Now H3 with editorial
+        sub-headings that read as commentary, not data labels. */ ''}
   ${(director.bio || director.significance || director.signatureStyle) ? `
   <section class="entity-bio" aria-labelledby="entity-bio-heading">
-    <h2 id="entity-bio-heading" class="section-title">About</h2>
-    ${director.bio ? `<div class="entity-bio-block"><h4 class="entity-bio-label">Biography</h4><p>${escapeHtml(director.bio)}</p></div>` : ''}
-    ${director.significance ? `<div class="entity-bio-block"><h4 class="entity-bio-label">Significance</h4><p>${escapeHtml(director.significance)}</p></div>` : ''}
-    ${director.signatureStyle ? `<div class="entity-bio-block"><h4 class="entity-bio-label">Signature Style</h4><p>${escapeHtml(director.signatureStyle)}</p></div>` : ''}
+    <h2 id="entity-bio-heading" class="entity-bio-title">About</h2>
+    ${director.bio ? `<div class="entity-bio-block"><h3 class="entity-bio-label">Biography</h3><p>${escapeHtml(director.bio)}</p></div>` : ''}
+    ${director.significance ? `<div class="entity-bio-block"><h3 class="entity-bio-label">Why they matter</h3><p>${escapeHtml(director.significance)}</p></div>` : ''}
+    ${director.signatureStyle ? `<div class="entity-bio-block"><h3 class="entity-bio-label">How you'd recognize the work</h3><p>${escapeHtml(director.signatureStyle)}</p></div>` : ''}
   </section>` : ''}
 
-  <div class="entity-meta-grid">
-    ${director.primaryTechnique ? `
-    <div class="entity-meta-card">
-      <div class="meta-card-title">Primary Technique</div>
-      <div class="meta-card-value">${escapeHtml(director.primaryTechnique)}</div>
-    </div>` : ''}
-    <div class="entity-meta-card">
-      <div class="meta-card-title">Films in Archive</div>
-      <div class="meta-card-value">${filmCount}</div>
-    </div>
-  </div>
-
-  ${director.awards ? `<div class="entity-awards"><h3>Awards</h3><p>${escapeHtml(director.awards)}</p></div>` : ''}
+  ${/* Highlights — auto-derive 3-4 highest-confidence Verified films from
+        this director's filmography. Tells the user "of N films, watch these
+        first." Skipped for directors with <3 such films. */ ''}
+  ${renderEntityHighlights({ type: 'director', entityFilms: directorFilms })}
 
   ${(() => {
-    // Get studios this director has worked with
+    // Studios this director has worked with — moved up (was below Awards).
+    // The studio network is editorially more revealing than the awards list
+    // for most directors.
     const workedWithStudios = new Map();
     directorFilms.forEach(film => {
       if (film.studioEntities) {
@@ -4151,20 +5592,13 @@ ${generateBreadcrumb([
     const studiosList = [...workedWithStudios.values()].sort((a, b) => b.count - a.count);
     if (studiosList.length === 0) return '';
     return `
-  <div class="entity-collaborators">
-    <h3>Studios Collaborated With</h3>
+  <section class="entity-collaborators" aria-labelledby="entity-studios-heading">
+    <h3 id="entity-studios-heading" class="entity-section-label">Studios collaborated with</h3>
     <div class="collaborator-tags">
       ${studiosList.map(({ studio, count }) => `<a href="../${getStudioUrl(studio)}" class="collaborator-tag">${escapeHtml(studio.name)} <span class="collab-count">(${count})</span></a>`).join('')}
     </div>
-  </div>`;
+  </section>`;
   })()}
-
-  ${(director.wikipedia || director.imdb) ? `
-  <div class="entity-links">
-    <h3>External Links</h3>
-    ${director.wikipedia ? `<a href="${escapeHtml(director.wikipedia)}" class="entity-link" target="_blank" rel="noopener">→ Wikipedia</a>` : ''}
-    ${director.imdb ? `<a href="${escapeHtml(director.imdb)}" class="entity-link" target="_blank" rel="noopener">→ IMDb</a>` : ''}
-  </div>` : ''}
 
   ${directorFilms.length > 0 ? `
   <section class="entity-films-section">
@@ -4173,13 +5607,13 @@ ${generateBreadcrumb([
     <div class="table-wrapper" aria-live="polite" aria-atomic="false">
       <table class="film-table">
         <thead><tr>
-          <th scope="col" style="width:90px" class="sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
+          <th scope="col" class="col-year sortable active" data-sort="year" tabindex="0" aria-sort="descending">Year <span class="sort-indicator" aria-hidden="true">▼</span></th>
           <th scope="col" class="sortable" data-sort="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true"></span></th>
           <th scope="col">Studio</th>
-          <th scope="col" style="width:100px" class="sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
-          <th scope="col" style="width:70px" class="hide-mobile">Runtime</th>
-          <th scope="col" style="width:90px" class="hide-mobile">Confidence</th>
-          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+          <th scope="col" class="col-technique sortable hide-mobile" data-sort="technique" tabindex="0" aria-sort="none">Technique <span class="sort-indicator" aria-hidden="true"></span></th>
+          <th scope="col" class="col-runtime hide-mobile">Runtime</th>
+          <th scope="col" class="col-confidence hide-mobile">Confidence</th>
+          <th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
         <tbody>${generateTableRows(directorFilms, { basePath: '../', omitMeta: 'director' })}</tbody>
       </table>
@@ -4189,9 +5623,25 @@ ${generateBreadcrumb([
   <section class="entity-films-section">
     <div class="empty-state">
       <p class="empty-state-message">We have ${escapeHtml(director.name)} cataloged but no films linked yet.</p>
-      <a href="mailto:kylebarrett1@mac.com?subject=${encodeURIComponent('Filmography for ' + director.name)}&body=${encodeURIComponent('Hi — I have films to contribute for director ' + director.name + ':\n\nFilm 1: \nFilm 2: \n\nThanks!')}" class="empty-state-cta">Help us add their filmography →</a>
+      <a href="mailto:${CORRECTIONS_EMAIL}?subject=${encodeURIComponent('Filmography for ' + director.name)}&body=${encodeURIComponent('Hi — I have films to contribute for director ' + director.name + ':\n\nFilm 1: \nFilm 2: \n\nThanks!')}" class="empty-state-cta">Help us add their filmography →</a>
     </div>
   </section>`}
+
+  ${/* Awards + External links pushed below the filmography (post-critique
+        reorder). Encyclopedic completeness lives at the bottom; the user
+        gets bio prose → highlights → studios → filmography first. */ ''}
+  ${director.awards ? `<section class="entity-awards" aria-labelledby="entity-awards-heading">
+    <h3 id="entity-awards-heading" class="entity-section-label">Awards</h3>
+    <p>${escapeHtml(director.awards)}</p>
+  </section>` : ''}
+  ${(director.wikipedia || director.imdb) ? `
+  <section class="entity-links" aria-labelledby="entity-links-heading">
+    <h3 id="entity-links-heading" class="entity-section-label">External links</h3>
+    <div class="entity-links-row">
+      ${director.wikipedia ? `<a href="${escapeHtml(director.wikipedia)}" class="entity-link-chip" target="_blank" rel="noopener">Wikipedia &nearr;</a>` : ''}
+      ${director.imdb ? `<a href="${escapeHtml(director.imdb)}" class="entity-link-chip" target="_blank" rel="noopener">IMDb &nearr;</a>` : ''}
+    </div>
+  </section>` : ''}
 </main>
 ${generateFooter('../')}
 ${/* Round 10 #1: removed generateEntityTableSort() — replaced by entityTableEnhanceScript() emitted inside the section. */ ''}
@@ -4204,13 +5654,52 @@ function generateDirectorDetailPages() {
     return { count: 0, legacyOnly: true };
   }
 
-  // Note: We keep the existing director index (alphabetical list) but also generate detail pages
+  // Same short-circuit as the film-page loop — skip the 1,600-director
+  // detail-page loop when BUILD_SKIP_FILMS=1. Existing dist/directors/
+  // pages from a prior full build remain in place. See build() comment.
+  if (process.env.BUILD_SKIP_FILMS === '1') {
+    console.log('  ⊘ BUILD_SKIP_FILMS=1 — skipping director detail-page loop');
+    return { count: 0, legacyOnly: false };
+  }
+
+  // Skip director entries with 0 films linked. These are speculative
+  // curator additions that haven't been connected to a film yet (via
+  // either entity relation or text-token name match in film.director).
+  // Generating detail pages for them produces empty stubs that dilute
+  // the index and harm credibility. Data stays in directors.json so the
+  // curator can reconnect later when films get added.
+  // Precompute the set of directors linked to at least one film in a
+  // single pass over films, so the orphan check below is O(1) per director
+  // instead of O(films). Was O(directors × films) ≈ 2.7M iterations (plus
+  // per-film string splitting) on a full build — a major slow-build cause.
+  const linkedDirectorIds = new Set();
+  const linkedDirectorNames = new Set();
+  for (const f of films) {
+    if (f.directorEntities) {
+      for (const de of f.directorEntities) {
+        if (de && de.id) linkedDirectorIds.add(de.id);
+      }
+    }
+    if (f.director) {
+      for (const name of f.director.split(',')) {
+        const t = name.trim().toLowerCase();
+        if (t) linkedDirectorNames.add(t);
+      }
+    }
+  }
+  const isOrphanDirector = (director) =>
+    !linkedDirectorIds.has(director.id) &&
+    !linkedDirectorNames.has(director.name.toLowerCase());
+
   let count = 0;
+  let skipped = 0;
   for (const director of directorsData) {
+    if (isOrphanDirector(director)) { skipped++; continue; }
     const filename = `${slugify(director.name)}-${director.id.slice(0,8)}.html`;
     writeFileSync(`./dist/directors/${filename}`, generateDirectorDetailPage(director));
     count++;
   }
+  if (skipped > 0) console.log(`     ↳ ${skipped} orphan director entries skipped (zero-film stubs)`);
 
   return { count };
 }
@@ -4253,7 +5742,7 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -4301,18 +5790,18 @@ ${generateBreadcrumb([
     <div class="table-wrapper">
       <table class="film-table">
         <thead><tr>
-          <th scope="col" style="width:90px" class="sortable active" data-col="year" tabindex="0" aria-sort="ascending">Year <span class="sort-indicator" aria-hidden="true">▲</span></th>
+          <th scope="col" class="col-year sortable active" data-col="year" tabindex="0" aria-sort="ascending">Year <span class="sort-indicator" aria-hidden="true">▲</span></th>
           <th scope="col" class="sortable" data-col="title" tabindex="0" aria-sort="none">Title <span class="sort-indicator" aria-hidden="true">⇅</span></th>
           <th scope="col">Director</th>
-          <th scope="col" style="width:100px" class="hide-mobile">Technique</th>
-          <th scope="col" style="width:110px"><span class="visually-hidden">Watch</span></th>
+          <th scope="col" class="col-technique hide-mobile">Technique</th>
+          <th scope="col" class="col-watch"><span class="visually-hidden">Watch</span></th>
         </tr></thead>
         <tbody>${seriesFilms.map(film => `
           <tr>
             <td><div class="table-year">${film.year || '—'}</div><div class="table-country">${getCountryCode(film.country)}</div></td>
             <td><a href="../${getFilmUrl(film)}" class="table-title">${escapeHtml(film.titleEnglish) || 'Untitled'}</a></td>
             <td class="table-meta">${getDirectorLink(film, '../') || '—'}</td>
-            <td class="table-technique hide-mobile">${film.technique?.[0]?.toUpperCase() || '—'}</td>
+            <td class="table-technique hide-mobile">${escapeHtml(film.technique?.[0]) || '—'}</td>
             <td class="watch-cell">${renderWatchCell(film, { compact: true })}</td>
           </tr>`).join('')}</tbody>
       </table>
@@ -4345,7 +5834,7 @@ ${fontHead('../')}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="../index.html" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="../index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -4414,6 +5903,7 @@ function generateGenrePages() {
       slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
       SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'),
       writeFileSync, mkdirSync,
+      entityIndexControls, entityIndexEnhanceScript, entityIndexTopChips,
     },
   });
   return { count, genresWithFilms: valuesWithFilms };
@@ -4446,6 +5936,7 @@ function generateKeywordPages() {
       slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
       SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'),
       writeFileSync, mkdirSync,
+      entityIndexControls, entityIndexEnhanceScript, entityIndexTopChips,
     },
   });
   return { count, keywordsWithFilms: valuesWithFilms };
@@ -4484,20 +5975,212 @@ function generatePlatformPages() {
       { min: 15,  size: 'sm' },
       { min: 0,   size: 'xs' },
     ],
-    detailTitle: (value) => `Animated films on ${value} — Global Animation Archive`,
-    describe: (value, sorted) =>
-      `${sorted.length} animated films available to watch on ${value}, curated by the Global Animation Archive.`,
+    detailTitle: (value, sorted) => {
+      const meta = platformMeta.platforms[value];
+      // SEO-target: "free animated films on Internet Archive — Global Animation Archive"
+      // Tier prefix in the title so search results lead with the cost answer.
+      const prefix = meta?.tier === 'free' ? 'Free animated films'
+                  : meta?.tier === 'paid' ? 'Animated films'
+                  : 'Animated films';
+      return `${prefix} on ${value} (${sorted.length}) — Global Animation Archive`;
+    },
+    describe: (value, sorted) => {
+      const meta = platformMeta.platforms[value];
+      const tag = meta?.tagline ? ` ${meta.tagline}.` : '';
+      return `${sorted.length} animated films you can watch on ${value} — verified entries from the Global Animation Archive.${tag}`;
+    },
+    detailOgDescription: (value, sorted) => {
+      const meta = platformMeta.platforms[value];
+      if (meta?.intro) return meta.intro.length > 280 ? meta.intro.slice(0, 277) + '...' : meta.intro;
+      return `${sorted.length} animated films you can watch on ${value} — verified entries from the Global Animation Archive.`;
+    },
+    detailHero: (value, sorted) => {
+      // Unified hero: combines what was three separate components (tag-header,
+      // tag-badges, platform-intro). Single newspaper-masthead block — H1 with
+      // badges inline, film count as corner stat, intro flowing as a lede,
+      // outbound link at the bottom rule. Replaces the default tag-header.
+      const meta = platformMeta.platforms[value];
+      const tierLabel = meta?.tier
+        ? ({ free: 'Free', paid: 'Paid', mixed: 'Mixed', library: 'Library' }[meta.tier] || meta.tier)
+        : null;
+      const regionLabel = meta?.region
+        ? (meta.region === 'global'
+            ? 'Global'
+            : ({ US: 'US-only', EU: 'EU-only', JP: 'Japan-only', CN: 'China-only',
+                 KR: 'Korea-only', RU: 'Russia-only', MENA: 'MENA-only', library: 'Library card' }[meta.region] || meta.region))
+        : null;
+      const tierBadge = tierLabel
+        ? `<span class="tag-badge tag-badge--tier-${meta.tier}">${escapeHtml(tierLabel)}</span>`
+        : '';
+      const regionBadge = regionLabel
+        ? `<span class="tag-badge tag-badge--region">${escapeHtml(regionLabel)}</span>`
+        : '';
+      const linkOut = meta?.url
+        ? `<a href="${escapeHtml(meta.url)}" target="_blank" rel="noopener" class="facet-hero-link">${escapeHtml(meta.url.replace(/^https?:\/\//, '').replace(/\/$/, ''))} &nearr;</a>`
+        : '';
+      const intro = meta?.intro
+        ? `<p class="facet-hero-lede">${escapeHtml(meta.intro)}</p>`
+        : '';
+      const tagline = meta?.tagline ? `<p class="facet-hero-tagline">${escapeHtml(meta.tagline)}</p>` : '';
+      return `<section class="facet-hero facet-hero--platform">
+  <div class="facet-hero-top">
+    <div class="facet-hero-identity">
+      <span class="facet-hero-type">Streaming Platform</span>
+      <h1 class="facet-hero-name">${escapeHtml(value)}</h1>
+      ${(tierBadge || regionBadge) ? `<div class="facet-hero-badges">${tierBadge}${regionBadge}</div>` : ''}
+      ${tagline}
+    </div>
+    <div class="facet-hero-stat">
+      <span class="${facetStatClass(sorted.length, 'facet-hero-stat-value')}">${sorted.length}</span>
+      <span class="facet-hero-stat-label">${sorted.length === 1 ? 'film catalogued' : 'films catalogued'}</span>
+    </div>
+  </div>
+  ${intro}
+  ${linkOut ? `<div class="facet-hero-meta">${linkOut}</div>` : ''}
+</section>`;
+    },
+    detailCuratorPicks: (value, sorted) => {
+      // For platforms with ≥30 films catalogued, surface 3-4 highest-confidence
+      // Verified picks as a discovery anchor. Mirrors the homepage Featured
+      // Picks pattern. Skipped for smaller platforms — picking 3 from 5 doesn't
+      // earn its space.
+      if (sorted.length < 30) return '';
+      const verifiedHere = sorted
+        .filter(f => Array.isArray(f.watchLinks) && f.watchLinks.some(l =>
+          l && l.url && l.platform === value && l.status === 'Verified'))
+        .map(f => ({
+          film: f,
+          link: f.watchLinks.find(l => l && l.url && l.platform === value && l.status === 'Verified'),
+          confidence: (f.confidence || '').length,
+        }))
+        .filter(p => p.confidence >= 4)
+        .sort((a, b) => {
+          if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+          return (b.film.year || 0) - (a.film.year || 0);
+        })
+        .slice(0, 4);
+      if (verifiedHere.length < 3) return '';
+      const cards = verifiedHere.map(({ film, link }) => {
+        const title = escapeHtml(film.titleEnglish || film.title || 'Untitled');
+        const year = film.year || '';
+        const cc = getCountryCode(film.country);
+        const director = film.director ? escapeHtml(film.director.split(',')[0].trim()) : '';
+        return `<article class="pick-card">
+          <div class="pick-meta"><span class="pick-year">${year}</span><span class="pick-divider">·</span><span class="pick-country">${cc}</span><span class="pick-divider">·</span><span class="pick-platform">★ ${'★'.repeat((film.confidence || '').length - 1)}</span></div>
+          <h3 class="pick-title"><a href="../${getFilmUrl(film)}">${title}</a></h3>
+          ${director ? `<div class="pick-credit">${director}</div>` : ''}
+          <a href="${escapeHtml(link.url)}" class="pick-watch-btn" target="_blank" rel="noopener" aria-label="Watch ${title} on ${escapeHtml(value)} (opens in new tab)">▶ Watch</a>
+        </article>`;
+      }).join('');
+      return `<section class="featured-picks platform-picks" aria-labelledby="platform-picks-title">
+  <div class="featured-picks-header">
+    <h2 id="platform-picks-title" class="featured-picks-title">Curator's picks on <em>${escapeHtml(value)}</em></h2>
+    <p class="featured-picks-subtitle">${verifiedHere.length} highest-confidence films from this platform's verified catalog.</p>
+  </div>
+  <div class="featured-picks-grid">${cards}</div>
+</section>`;
+    },
+    detailJsonLd: (value, sorted) => {
+      const meta = platformMeta.platforms[value];
+      const totalRuntime = sorted.reduce((acc, f) => acc + (parseInt(f.runtime) || 0), 0);
+      return JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: `Animated films on ${value}`,
+        description: meta?.intro || `${sorted.length} animated films available on ${value}.`,
+        url: `${SITE_URL}/platforms/${slugify(value)}.html`,
+        about: { '@type': 'Service', name: value, ...(meta?.url ? { url: meta.url } : {}) },
+        numberOfItems: sorted.length,
+        isPartOf: { '@type': 'CollectionPage', name: 'Global Animation Archive', url: SITE_URL },
+      });
+    },
     indexHeading: 'Streaming Platforms',
-    indexSubtitle: (sorted) => `Browse ${sorted.length} platforms where you can watch world animation`,
+    indexSubtitle: () => 'Where to watch world animation — sorted by catalog size.',
     describeIndex: (sorted, total) =>
       `Browse ${sorted.length} streaming platforms. ${total} animated films with verified watch links in the Global Animation Archive.`,
     deps: {
       slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
       SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'),
       writeFileSync, mkdirSync,
+      // Rec #2 (2026-05-03): pass the search/chips helpers so the
+      // tag-cloud index gets the same affordances as country/director
+      // indexes. Without these the index degrades to plain tag cloud.
+      entityIndexControls, entityIndexEnhanceScript, entityIndexTopChips,
     },
   });
   return { count, platformsWithFilms: valuesWithFilms };
+}
+
+/**
+ * RSS 2.0 feed of the most recently added films.
+ *
+ * pubDate uses film.dateAdded (Notion's "Date Added" timestamp), so the
+ * feed reflects when an entry entered the catalog rather than when the
+ * film was made — which is what subscribers actually want to follow.
+ *
+ * Item count capped at 30: enough to fill a feed reader, small enough
+ * to keep the file under 50KB even with full descriptions. Tune via
+ * RSS_ITEM_COUNT if you need a longer scroll-back window.
+ */
+function generateRssFeed() {
+  const RSS_ITEM_COUNT = 30;
+  const FEED_URL = `${SITE_URL}/feed.xml`;
+  const xmlEscape = (s) => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  const sorted = films
+    .filter(f => f.dateAdded)
+    .sort((a, b) => (b.dateAdded || '').localeCompare(a.dateAdded || ''))
+    .slice(0, RSS_ITEM_COUNT);
+
+  const lastBuildDate = sorted.length > 0
+    ? new Date(sorted[0].dateAdded).toUTCString()
+    : new Date().toUTCString();
+
+  const items = sorted.map(film => {
+    const url = `${SITE_URL}/${getFilmUrl(film)}`;
+    const title = film.titleEnglish || film.title || 'Untitled';
+    const meta = [
+      film.year && `${film.year}`,
+      film.country,
+      film.director,
+      film.technique?.[0],
+    ].filter(Boolean).join(' · ');
+    const synopsis = film.synopsis
+      ? (film.synopsis.length > 320 ? film.synopsis.slice(0, 317) + '…' : film.synopsis)
+      : '';
+    const description = `<p><strong>${xmlEscape(meta)}</strong></p>${synopsis ? `<p>${xmlEscape(synopsis)}</p>` : ''}<p><a href="${xmlEscape(url)}">View in archive</a></p>`;
+    const pubDate = new Date(film.dateAdded).toUTCString();
+    return `    <item>
+      <title>${xmlEscape(title)}${film.year ? ` (${film.year})` : ''}</title>
+      <link>${xmlEscape(url)}</link>
+      <guid isPermaLink="true">${xmlEscape(url)}</guid>
+      <pubDate>${pubDate}</pubDate>
+      ${film.country ? `<category>${xmlEscape(film.country)}</category>` : ''}
+      ${(film.technique || []).map(t => `<category>${xmlEscape(t)}</category>`).join('\n      ')}
+      <description>${xmlEscape(description)}</description>
+    </item>`;
+  }).join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Global Animation Archive — New Additions</title>
+    <link>${SITE_URL}/</link>
+    <atom:link href="${FEED_URL}" rel="self" type="application/rss+xml" />
+    <description>Recently added animated films in the Global Animation Archive — international focus, verified watch links, ${RSS_ITEM_COUNT} most recent entries.</description>
+    <language>en</language>
+    <lastBuildDate>${lastBuildDate}</lastBuildDate>
+    <generator>animation-archive build-site.js</generator>
+    <ttl>1440</ttl>
+${items}
+  </channel>
+</rss>
+`;
 }
 
 function generateSitemap(countriesWithFilms, techniquesWithFilms, decadesWithFilms, genresWithFilms, keywordsWithFilms, platformsWithFilms) {
@@ -4677,46 +6360,46 @@ ${coreDesignTokens()}
 html{scroll-behavior:smooth}
 body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:inherit}
-.skip-link{position:absolute;top:-40px;left:0;background:var(--ink);color:var(--cream);padding:8px 16px;z-index:1000;font-family:var(--mono);font-size:12px;text-decoration:none}
+.skip-link{position:absolute;top:-40px;left:0;background:var(--ink);color:var(--cream);padding:var(--space-2) var(--space-4);z-index:1000;font-family:var(--mono);font-size:12px;text-decoration:none}
 .skip-link:focus{top:0}
 .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .masthead{background:var(--paper);border-bottom:1px solid var(--rule)}
-.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:10px 32px;border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
-.masthead-main{text-align:center;padding:28px 32px 24px}
-.masthead-title{font-family:'Playfair Display',serif;font-size:36px;font-weight:400;letter-spacing:.02em;margin-bottom:4px}
-.breadcrumb{padding:12px 32px;background:var(--paper);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink-muted);letter-spacing:.05em}
+.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:10px var(--space-6);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
+.masthead-main{text-align:center;padding:28px var(--space-6) var(--space-5)}
+.masthead-title{font-family:'Playfair Display',serif;font-size:36px;font-weight:400;letter-spacing:.02em;margin-bottom:var(--space-1)}
+.breadcrumb{padding:var(--space-3) var(--space-6);background:var(--paper);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink-muted);letter-spacing:.05em}
 .breadcrumb a{color:var(--ink-muted);text-decoration:none;transition:color .15s}
 .breadcrumb a:hover,.breadcrumb a:focus{color:var(--accent)}
-.breadcrumb-sep{margin:0 8px;color:var(--ink-muted)}
-.error-page{display:flex;align-items:center;justify-content:center;min-height:60vh;padding:48px 32px}
+.breadcrumb-sep{margin:0 var(--space-2);color:var(--ink-muted)}
+.error-page{display:flex;align-items:center;justify-content:center;min-height:60vh;padding:var(--space-7) var(--space-6)}
 .error-content{text-align:center;max-width:500px}
-.error-code{font-family:var(--mono);font-size:120px;font-weight:600;color:var(--rule);line-height:1;margin-bottom:16px}
-.error-title{font-family:'Playfair Display',serif;font-size:var(--type-page-hero);font-weight:400;margin-bottom:16px}
-.error-message{font-family:'Source Serif 4',serif;font-size:18px;color:var(--ink-muted);margin-bottom:24px}
-.error-path{font-family:var(--mono);font-size:12px;color:var(--ink-muted);margin-bottom:24px;word-break:break-all}
+.error-code{font-family:var(--mono);font-size:120px;font-weight:600;color:var(--rule);line-height:1;margin-bottom:var(--space-4)}
+.error-title{font-family:'Playfair Display',serif;font-size:var(--type-page-hero);font-weight:400;margin-bottom:var(--space-4)}
+.error-message{font-family:'Source Serif 4',serif;font-size:18px;color:var(--ink-muted);margin-bottom:var(--space-5)}
+.error-path{font-family:var(--mono);font-size:12px;color:var(--ink-muted);margin-bottom:var(--space-5);word-break:break-all}
 .error-path code{background:var(--data-bg);padding:2px 6px;color:var(--ink);border-radius:2px}
 /* Round 16 #3: hide the row when its <code> is empty (no JS / not a typo'd path). :has(:empty) keeps the no-JS empty state from rendering "You tried: " with nothing after it. */
 .error-path:has(code:empty){display:none}
 /* Round 16 #2: fuzzy-match suggestion line above the search box. Hidden when empty (no match found OR JS hasn't loaded). The accent left-border signals "we found something for you". */
-.error-suggestion{font-family:'Source Serif 4',serif;font-size:15px;color:var(--ink);margin-bottom:24px;padding:12px 16px;background:var(--paper);border:1px solid var(--rule);border-left:3px solid var(--accent);text-align:left}
+.error-suggestion{font-family:'Source Serif 4',serif;font-size:15px;color:var(--ink);margin-bottom:var(--space-5);padding:var(--space-3) var(--space-4);background:var(--paper);border:1px solid var(--rule);border-left:3px solid var(--accent);text-align:left}
 .error-suggestion:empty{display:none}
 .error-suggestion a{color:var(--accent);font-weight:600;text-decoration:none}
 .error-suggestion a:hover,.error-suggestion a:focus{text-decoration:underline}
-.error-search{display:flex;gap:0;justify-content:center;margin:0 auto 24px;max-width:min(380px,100%)}
-.error-search-input{flex:1;padding:12px 16px;border:1px solid var(--rule);border-right:none;background:var(--paper);font-family:var(--mono);font-size:13px;min-height:44px;box-sizing:border-box}
+.error-search{display:flex;gap:0;justify-content:center;margin:0 auto var(--space-5);max-width:min(380px,100%)}
+.error-search-input{flex:1;padding:var(--space-3) var(--space-4);border:1px solid var(--rule);border-right:none;background:var(--paper);font-family:var(--mono);font-size:13px;min-height:44px;box-sizing:border-box}
 .error-search-input:focus{outline:2px solid var(--accent);outline-offset:-2px;border-color:var(--ink)}
-.error-search-btn{padding:12px 20px;border:1px solid var(--ink);background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;min-height:44px;box-sizing:border-box;transition:background .2s}
+.error-search-btn{padding:var(--space-3) 20px;border:1px solid var(--ink);background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;min-height:44px;box-sizing:border-box;transition:background .2s}
 .error-search-btn:hover,.error-search-btn:focus{background:var(--accent);border-color:var(--accent);outline:none}
-.error-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
-.error-btn{font-family:var(--mono);font-size:12px;font-weight:500;padding:14px 24px;min-height:44px;box-sizing:border-box;display:inline-flex;align-items:center;text-decoration:none;transition:all .2s}
+.error-actions{display:flex;gap:var(--space-4);justify-content:center;flex-wrap:wrap}
+.error-btn{font-family:var(--mono);font-size:12px;font-weight:500;padding:14px var(--space-5);min-height:44px;box-sizing:border-box;display:inline-flex;align-items:center;text-decoration:none;transition:all .2s}
 .error-btn-primary{background:var(--ink);color:var(--cream)}
 .error-btn-primary:hover,.error-btn-primary:focus{background:var(--accent);outline:none}
 .error-btn-secondary{background:var(--paper);color:var(--ink);border:1px solid var(--rule)}
 .error-btn-secondary:hover,.error-btn-secondary:focus{border-color:var(--ink);outline:none}
-.footer{background:var(--ink);color:var(--cream);padding:32px}
-.footer-inner{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap}
+.footer{background:var(--ink);color:var(--cream);padding:var(--space-6)}
+.footer-inner{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:var(--space-5);flex-wrap:wrap}
 .footer-logo{font-family:'Playfair Display',serif;font-size:18px}
-.footer-links{display:flex;gap:24px}
+.footer-links{display:flex;gap:var(--space-5)}
 .footer-random,.footer-report{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.6);text-decoration:none;transition:color .2s}
 .footer-random:hover,.footer-report:hover{color:var(--cream)}
 .footer-timestamp{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.7)}
@@ -4726,7 +6409,7 @@ a{color:inherit}
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="masthead">
-  <div class="masthead-top"><span><a href="/" style="color:inherit;text-decoration:none">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-top"><span><a href="/" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
   <div class="masthead-main"><h1 class="masthead-title">Global Animation Archive</h1></div>
 </header>
 ${generateBreadcrumb([
@@ -4822,6 +6505,69 @@ ${generateFooter('/')}
 </body></html>`;
 }
 
+/**
+ * Standalone /license.html page — full text of the catalog data license,
+ * scoped to what it does and does NOT cover. Linked from every page's
+ * footer + the About section. Researchers and journalists land here when
+ * they need to verify they can quote the data, embed a screenshot of the
+ * catalog, or include extracts in academic publications.
+ */
+function generateLicensePage() {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>License &amp; Usage — Global Animation Archive</title>
+<meta name="description" content="Catalog data licensed under ${LICENSE.shortName}. Free to reuse with attribution. Films are © their respective rights-holders.">
+<link rel="canonical" href="${SITE_URL}/license.html">
+${FAVICON}
+${FONT_HEAD}
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<header class="masthead">
+  <div class="masthead-top"><span><a href="index.html" class="masthead-back">← BACK TO COLLECTION</a></span><span>A Living Research Collection</span><span>UPDATED: ${BUILD_DATE}</span></div>
+  <div class="masthead-main"><h1 class="masthead-title">License &amp; Usage</h1></div>
+</header>
+<main class="static-page" id="main-content">
+  <div class="static-page-inner">
+    <h2>Catalog data &mdash; ${LICENSE.shortName}</h2>
+    <p>The data in this archive &mdash; including film descriptions, historical context notes, methodology, classifications (country, technique, decade, genre), curated watch-link compilations, and confidence ratings &mdash; is licensed under the <a href="${LICENSE.url}" target="_blank" rel="noopener"><strong>${LICENSE.fullName}</strong></a> license.</p>
+
+    <h3>What you can do</h3>
+    <ul>
+      <li>Quote, cite, and excerpt freely &mdash; for academic papers, journalism, blog posts, video essays, podcasts, anything.</li>
+      <li>Build derivative works &mdash; remix the data, combine with other sources, train models, host extracts elsewhere.</li>
+      <li>Use commercially or non-commercially, no permission needed.</li>
+      <li>Modify the data and redistribute the modified version.</li>
+    </ul>
+
+    <h3>What you must do</h3>
+    <ul>
+      <li>Credit &ldquo;${LICENSE.attribution}&rdquo; somewhere visible.</li>
+      <li>Link back to <a href="${SITE_URL}/">${SITE_URL.replace(/^https?:\/\//, '')}</a> when the medium supports links.</li>
+      <li>Indicate if you modified the data.</li>
+      <li>Don&rsquo;t imply this archive endorses your use.</li>
+    </ul>
+
+    <h3>What this license does <em>not</em> cover</h3>
+    <p>The <strong>films themselves</strong> remain the copyright of their respective creators, studios, and rights-holders. The CC BY 4.0 license here applies to the catalog metadata about those films &mdash; it does not grant any right to redistribute, copy, or modify the films. Watch links surface third-party hosting; we don&rsquo;t own the hosting and can&rsquo;t license what the platforms host.</p>
+
+    <h3>Citation example</h3>
+    <p>If you&rsquo;re writing for a publication or academic journal, a citation like this works:</p>
+    <blockquote>
+      <p><em>Global Animation Archive</em> (animationarchive.netlify.app), CC BY 4.0. Accessed <span class="citation-date">${BUILD_DATE}</span>.</p>
+    </blockquote>
+
+    <h3>Questions</h3>
+    <p>If your use case doesn&rsquo;t obviously fit any of the above &mdash; or you want to verify a specific quote, screenshot, or extract is in scope &mdash; email <a href="mailto:${CORRECTIONS_EMAIL}?subject=${encodeURIComponent('Animation Archive — license question')}">${CORRECTIONS_EMAIL}</a>. The default answer is yes.</p>
+  </div>
+</main>
+${generateFooter()}
+</body></html>`;
+}
+
 function generateRobotsTxt() {
   return `# Global Animation Archive
 User-agent: *
@@ -4849,16 +6595,61 @@ function build() {
   const fontsDst = './dist/fonts';
   if (fs.existsSync(fontsSrc)) {
     mkdirSync(fontsDst, { recursive: true });
+    // Only copy the fonts actually referenced by @font-face rules. The
+    // -500 / -600 weight files are byte-identical duplicates of the
+    // variable font binary (verified via md5) — copying them would
+    // bloat dist/fonts/ from ~239KB to ~470KB for nothing. iCloud
+    // duplicate files (with " 2.woff2" or ".woff2" pairs) are also
+    // filtered. Keep this list in sync with FONT_HEAD's @font-face declarations.
+    const FONTS_USED = new Set([
+      'inter.woff2',
+      'jetbrains-mono.woff2',
+      'playfair-display.woff2',
+      'playfair-display-italic.woff2',
+      'source-serif-4.woff2',
+      'source-serif-4-italic.woff2',
+    ]);
     let fontCount = 0;
+    let fontSkipped = 0;
     for (const file of fs.readdirSync(fontsSrc)) {
-      if (file.endsWith('.woff2')) {
-        try {
-          fs.copyFileSync(`${fontsSrc}/${file}`, `${fontsDst}/${file}`);
-          fontCount++;
-        } catch (e) { /* file may already exist with same content */ }
-      }
+      if (!file.endsWith('.woff2')) continue;
+      if (!FONTS_USED.has(file)) { fontSkipped++; continue; }
+      try {
+        fs.copyFileSync(`${fontsSrc}/${file}`, `${fontsDst}/${file}`);
+        fontCount++;
+      } catch (e) { /* file may already exist with same content */ }
     }
-    console.log(`  ✓ ${fontCount} fonts copied to dist/fonts/ (self-hosted, immutable cache)`);
+    console.log(`  ✓ ${fontCount} fonts copied to dist/fonts/${fontSkipped ? ` (${fontSkipped} unused weight duplicates skipped)` : ''}`);
+  }
+
+  // Copy the prebuilt OG card into dist. Every page references
+  // ${SITE_URL}/og-image.png (see OG_IMAGE), so it must exist in dist on
+  // every deploy. The image is generated by scripts/generate-og-image.py
+  // (Python + Pillow) and committed at ./assets/og-image.png so the
+  // Netlify build — which is Node-only and has no Python/Pillow — can ship
+  // it without running the generator. Run `npm run og` locally to refresh
+  // the committed asset when the homepage stats change.
+  const ogSrc = './assets/og-image.png';
+  if (fs.existsSync(ogSrc)) {
+    fs.copyFileSync(ogSrc, './dist/og-image.png');
+    console.log('  ✓ og-image.png copied to dist/');
+  } else {
+    console.warn('  ⚠ assets/og-image.png missing — social cards will 404. Run `npm run og`.');
+  }
+
+  // Copy self-hosted poster images. fetch-notion.js downloads Notion's
+  // "Poster images" into data/posters/ (Notion's own URLs expire), and each
+  // film carries a `poster` object referencing a file here. Detail pages and
+  // the homepage showcase render from dist/posters/.
+  const posterSrc = './data/posters';
+  if (fs.existsSync(posterSrc)) {
+    mkdirSync('./dist/posters', { recursive: true });
+    let posterCount = 0;
+    for (const file of fs.readdirSync(posterSrc)) {
+      try { fs.copyFileSync(`${posterSrc}/${file}`, `./dist/posters/${file}`); posterCount++; }
+      catch { /* skip unreadable */ }
+    }
+    console.log(`  ✓ ${posterCount} posters copied to dist/posters/`);
   }
 
   // ----- Batch D2: hash + emit JS assets BEFORE index.html -----
@@ -4905,14 +6696,35 @@ function build() {
   writeFileSync('./dist/index.html', generateIndexPage());
   console.log('  ✓ index.html (paginated, first ' + FILMS_PER_PAGE + ' films)');
 
+  // BUILD_SKIP_FILMS=1 short-circuits the per-film page loop. Used by the
+  // standalone surface regenerators (build-decades-only.js,
+  // build-platforms-only.js) so they can hit the cheap surfaces (decade,
+  // country, platform pages) without paying the 2,300-film loop cost.
+  // Existing dist/films/ pages from a prior full build remain in place.
+  const SKIP_FILMS = process.env.BUILD_SKIP_FILMS === '1';
   let count = 0;
-  for (const film of films) {
+  let filmFailures = 0;
+  if (SKIP_FILMS) {
+    console.log('  ⊘ BUILD_SKIP_FILMS=1 — skipping film-page loop');
+  } else for (const film of films) {
     const slug = slugify(film.titleEnglish);
     const filename = `${slug}-${film.id.slice(0,8)}.html`;
-    writeFileSync(`./dist/films/${filename}`, generateFilmPage(film));
-    count++;
+    try {
+      writeFileSync(`./dist/films/${filename}`, generateFilmPage(film));
+      count++;
+    } catch (err) {
+      // EDEADLK / EAGAIN from iCloud sync coordination on macOS — skip
+      // the offending file rather than aborting the whole pipeline. The
+      // existing on-disk page (from a prior build) remains usable.
+      if (err.code === 'EAGAIN' || err.errno === -35 || /deadlock/i.test(err.message)) {
+        filmFailures++;
+        if (filmFailures <= 3) console.warn(`  ⚠ skipped ${filename} (filesystem lock — likely iCloud)`);
+      } else {
+        throw err;
+      }
+    }
   }
-  console.log(`  ✓ ${count} film pages (with OG tags + JSON-LD)`);
+  console.log(`  ✓ ${count} film pages (with OG tags + JSON-LD)${filmFailures ? ` — ${filmFailures} skipped due to filesystem locks` : ''}`);
 
   // Generate country pages
   const { count: countryCount, countriesWithFilms } = generateCountryPages();
@@ -4978,6 +6790,12 @@ function build() {
 
   writeFileSync('./dist/robots.txt', generateRobotsTxt());
   console.log('  ✓ robots.txt');
+
+  writeFileSync('./dist/feed.xml', generateRssFeed());
+  console.log('  ✓ feed.xml (RSS 2.0, 30 most recent additions)');
+
+  writeFileSync('./dist/license.html', generateLicensePage());
+  console.log('  ✓ license.html (CC BY 4.0)');
 
   writeFileSync('./dist/404.html', generate404Page());
   console.log('  ✓ 404.html');

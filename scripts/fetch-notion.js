@@ -4,10 +4,10 @@
  */
 
 import 'dotenv/config';
-import { Client } from '@notionhq/client';
-import { writeFileSync, mkdirSync } from 'fs';
+import { writeFileSync, mkdirSync, readFileSync, readdirSync, unlinkSync } from 'fs';
+import { imageSize } from './lib/image-size.js';
+import { queryAll } from './lib/notion.js';
 
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const DATABASE_ID = process.env.NOTION_DATABASE_ID || '9bdc62e48ffe43fda6b992248570c49f';
 
 // Property extractors for different Notion property types
@@ -23,6 +23,9 @@ const extractors = {
   created_time: (prop) => prop?.created_time || null,
   last_edited_time: (prop) => prop?.last_edited_time || null,
   relation: (prop) => prop?.relation?.map(r => r.id) || [],
+  // Notion "files" props return signed S3 URLs that expire ~1h, so we only
+  // keep them long enough to download the file (see downloadPosters).
+  files: (prop) => prop?.files?.map(f => (f.type === 'file' ? f.file?.url : f.external?.url)).filter(Boolean) || [],
 };
 
 function extractFilm(page) {
@@ -78,11 +81,89 @@ function extractFilm(page) {
     studioRelation: extractors.relation(props['Studio (Link)']),
     directorRelation: extractors.relation(props['Director (Link)']),
     seriesRelation: extractors.relation(props['Series/Universe']),
+
+    // Temporary: signed poster URLs, downloaded + replaced with a local
+    // `poster` object by downloadPosters(). Stripped before films.json is written.
+    posterUrls: extractors.files(props['Poster images']),
   };
 }
 
-// Extract studio data from Notion page
-// Note: In the Notion workspace, the "Directors" database (ae6d444a...) actually contains Studios
+// Download poster images referenced by Notion "Poster images" and self-host
+// them. Notion serves expiring signed S3 URLs, so a static site cannot link
+// them directly — we download at fetch time (when the URLs are fresh), save
+// under data/posters/, measure pixel dimensions (Node-only, no Pillow), and
+// bake a { file, w, h, ar } object into each film. build-site.js copies
+// data/posters/ into dist/ and renders from these local files.
+function extFromBuffer(buf) {
+  if (buf[0] === 0x89 && buf[1] === 0x50) return 'png';
+  if (buf[0] === 0xff && buf[1] === 0xd8) return 'jpg';
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return 'gif';
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46) return 'webp';
+  return 'img';
+}
+
+async function downloadPosters(films) {
+  const withPosters = films.filter(f => f.posterUrls && f.posterUrls.length);
+  console.log(`\n🖼  Downloading ${withPosters.length} poster image(s)...`);
+  mkdirSync('./data/posters', { recursive: true });
+
+  const existing = readdirSync('./data/posters');
+  const posterFor = (buf, file) => {
+    const dims = imageSize(buf);
+    if (!dims || !dims.width || !dims.height) throw new Error('could not read dimensions');
+    return { file, w: dims.width, h: dims.height, ar: Math.round((dims.width / dims.height) * 1000) / 1000 };
+  };
+
+  let ok = 0, kept = 0, failed = 0;
+  const CONCURRENCY = 8;
+  for (let i = 0; i < withPosters.length; i += CONCURRENCY) {
+    const batch = withPosters.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(async (film) => {
+      const url = film.posterUrls[0]; // one image per film today; take the first
+      const id8 = film.id.slice(0, 8);
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const buf = Buffer.from(await res.arrayBuffer());
+        const file = `${id8}.${extFromBuffer(buf)}`;
+        film.poster = posterFor(buf, file);
+        writeFileSync(`./data/posters/${file}`, buf);
+        ok++;
+      } catch (e) {
+        // Transient failure: keep the previously downloaded poster, if any,
+        // rather than dropping the film's artwork from the site.
+        const previous = existing.find(f => f.startsWith(`${id8}.`));
+        if (previous) {
+          try {
+            film.poster = posterFor(readFileSync(`./data/posters/${previous}`), previous);
+            kept++;
+            console.warn(`  ⚠ poster download failed for "${film.titleEnglish || film.id}" (${e.message}); kept previous file`);
+            return;
+          } catch { /* fall through */ }
+        }
+        failed++;
+        console.warn(`  ⚠ poster failed for "${film.titleEnglish || film.id}": ${e.message}`);
+      }
+    }));
+  }
+  // Never persist the expiring signed URLs.
+  for (const f of films) delete f.posterUrls;
+
+  // Prune files no film references any more (poster removed in Notion, or
+  // replaced with a different format), so data/posters/ mirrors films.json.
+  const referenced = new Set(films.filter(f => f.poster).map(f => f.poster.file));
+  let pruned = 0;
+  for (const file of readdirSync('./data/posters')) {
+    if (!referenced.has(file)) { unlinkSync(`./data/posters/${file}`); pruned++; }
+  }
+
+  console.log(`  ✓ ${ok} posters saved to data/posters/` +
+    `${kept ? `, ${kept} kept from previous run` : ''}` +
+    `${failed ? `, ${failed} failed` : ''}` +
+    `${pruned ? `, ${pruned} orphaned file(s) pruned` : ''}`);
+}
+
+// Extract studio data from a page in "Animation Archive: Studios" (ae6d444a...)
 function extractStudio(page) {
   const props = page.properties;
 
@@ -102,8 +183,7 @@ function extractStudio(page) {
   };
 }
 
-// Extract director data from Notion page
-// Note: In the Notion workspace, the "Studios" database (59f9c337...) actually contains Directors
+// Extract director data from a page in "Animation Archive: Directors" (59f9c337...)
 function extractDirector(page) {
   const props = page.properties;
 
@@ -149,32 +229,14 @@ function extractSeries(page) {
 async function fetchAllFilms() {
   console.log('🎬 Fetching films from Notion...');
 
-  const films = [];
-  let cursor = undefined;
-  let pageCount = 0;
+  const pages = await queryAll(DATABASE_ID, {
+    sorts: [
+      { property: 'Year', direction: 'descending' },
+      { property: 'Title (English)', direction: 'ascending' }
+    ]
+  }, (batch, n, total) => console.log(`  Page ${n}: fetched ${batch.length} films (total: ${total})`));
 
-  do {
-    const response = await notion.databases.query({
-      database_id: DATABASE_ID,
-      start_cursor: cursor,
-      page_size: 100,
-      sorts: [
-        { property: 'Year', direction: 'descending' },
-        { property: 'Title (English)', direction: 'ascending' }
-      ]
-    });
-
-    for (const page of response.results) {
-      films.push(extractFilm(page));
-    }
-
-    cursor = response.next_cursor;
-    pageCount++;
-    console.log(`  Page ${pageCount}: fetched ${response.results.length} films (total: ${films.length})`);
-
-  } while (cursor);
-
-  return films;
+  return pages.map(extractFilm);
 }
 
 // Fetch related database by getting the database ID from relation properties
@@ -186,43 +248,28 @@ async function fetchRelatedDatabase(databaseId, extractFn, label) {
 
   console.log(`📚 Fetching ${label} from Notion...`);
 
+  // Errors propagate and fail the whole fetch. This used to return [] on
+  // error, which let one transient Notion failure publish a catalog with
+  // zero studios/directors/series; the scheduled refresh commits whatever
+  // this script writes, so failing loudly is the safe behavior.
+  const pages = await queryAll(databaseId, {}, (batch, n, total) =>
+    console.log(`  Page ${n}: fetched ${batch.length} ${label} (total: ${total})`));
+
   const items = [];
-  let cursor = undefined;
-  let pageCount = 0;
-
-  try {
-    do {
-      const response = await notion.databases.query({
-        database_id: databaseId,
-        start_cursor: cursor,
-        page_size: 100,
-      });
-
-      for (const page of response.results) {
-        try {
-          items.push(extractFn(page));
-        } catch (e) {
-          console.log(`    ⚠ Error extracting item: ${e.message}`);
-        }
-      }
-
-      cursor = response.next_cursor;
-      pageCount++;
-      console.log(`  Page ${pageCount}: fetched ${response.results.length} ${label} (total: ${items.length})`);
-
-    } while (cursor);
-  } catch (e) {
-    console.log(`  ⚠ Error fetching ${label}: ${e.message}`);
-    return [];
+  for (const page of pages) {
+    try {
+      items.push(extractFn(page));
+    } catch (e) {
+      console.log(`    ⚠ Error extracting item: ${e.message}`);
+    }
   }
-
   return items;
 }
 
-// Database IDs for related entities
-// Note: The Notion database names are swapped - "Directors" DB contains Studios, "Studios" DB contains Directors
-const STUDIOS_DATABASE_ID = 'ae6d444ad0d847d49f7ff716642c5955';  // Actually labeled "Directors" in Notion
-const DIRECTORS_DATABASE_ID = '59f9c337c2ae490b9b59561129c911a0'; // Actually labeled "Studios" in Notion
+// Database IDs for related entities. (These were once mislabeled in Notion,
+// Studios vs Directors; the titles were corrected and now match.)
+const STUDIOS_DATABASE_ID = 'ae6d444ad0d847d49f7ff716642c5955';  // "Animation Archive: Studios"
+const DIRECTORS_DATABASE_ID = '59f9c337c2ae490b9b59561129c911a0'; // "Animation Archive: Directors"
 const SERIES_DATABASE_ID = '6a5c2864-8159-45bd-8662-a47c03bd649d';
 
 // Get database IDs - using hardcoded values since we know them
@@ -403,6 +450,9 @@ async function main() {
 
     // Ensure data directory exists
     mkdirSync('./data', { recursive: true });
+
+    // Download + self-host poster images (replaces expiring Notion URLs).
+    await downloadPosters(films);
 
     // Write films data
     writeFileSync('./data/films.json', JSON.stringify(films, null, 2));

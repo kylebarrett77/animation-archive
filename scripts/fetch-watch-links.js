@@ -16,71 +16,55 @@
  */
 
 import 'dotenv/config';
-import { Client } from '@notionhq/client';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { queryAll } from './lib/notion.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const WATCH_LINKS_DB_ID = 'e19f5cd9525446ca8e352f6b9121b3af';
 const DATA_DIR = path.join(__dirname, '..', 'data');
-const DELAY_MS = 350;
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function fetchAllWatchLinks(notion) {
+async function fetchAllWatchLinks() {
   const entries = [];
-  let cursor = undefined;
-  let page = 0;
 
   console.log('Fetching watch links from Notion...');
 
-  do {
-    const response = await notion.databases.query({
-      database_id: WATCH_LINKS_DB_ID,
-      start_cursor: cursor,
-      page_size: 100,
-    });
+  // The Notion client retries rate-limited requests with backoff, so no
+  // manual delay between pages is needed.
+  const results = await queryAll(WATCH_LINKS_DB_ID, {}, (batch, n, total) =>
+    console.log(`  Page ${n}: ${batch.length} results (${total} total)`));
 
-    for (const result of response.results) {
-      const props = result.properties;
+  for (const result of results) {
+    const props = result.properties;
 
-      // Extract Film relation IDs
-      const filmRelation = props['Film']?.relation || [];
-      const filmIds = filmRelation.map(r => r.id);
+    // Extract Film relation IDs
+    const filmRelation = props['Film']?.relation || [];
+    const filmIds = filmRelation.map(r => r.id);
 
-      // Extract all properties
-      const entry = {
-        id: result.id,
-        label: props['Label']?.title?.[0]?.plain_text || '',
-        filmIds,
-        url: props['URL']?.url || null,
-        platform: props['Platform']?.select?.name || 'Other',
-        accessType: props['Access Type']?.select?.name || 'FREE',
-        videoQuality: props['Video Quality']?.select?.name || null,
-        audio: props['Audio']?.select?.name || null,
-        subtitles: (props['Subtitles']?.multi_select || []).map(s => s.name),
-        completeness: props['Completeness']?.select?.name || null,
-        linkStatus: props['Link Status']?.select?.name || 'Unverified',
-        lastVerified: props['Last Verified']?.date?.start || null,
-        qualityRank: props['Quality Rank']?.number || null,
-        region: (props['Region']?.multi_select || []).map(r => r.name),
-        notes: props['Notes']?.rich_text?.[0]?.plain_text || null,
-      };
+    // Extract all properties
+    const entry = {
+      id: result.id,
+      label: props['Label']?.title?.[0]?.plain_text || '',
+      filmIds,
+      url: props['URL']?.url || null,
+      platform: props['Platform']?.select?.name || 'Other',
+      accessType: props['Access Type']?.select?.name || 'FREE',
+      videoQuality: props['Video Quality']?.select?.name || null,
+      audio: props['Audio']?.select?.name || null,
+      subtitles: (props['Subtitles']?.multi_select || []).map(s => s.name),
+      completeness: props['Completeness']?.select?.name || null,
+      linkStatus: props['Link Status']?.select?.name || 'Unverified',
+      lastVerified: props['Last Verified']?.date?.start || null,
+      qualityRank: props['Quality Rank']?.number || null,
+      region: (props['Region']?.multi_select || []).map(r => r.name),
+      notes: props['Notes']?.rich_text?.[0]?.plain_text || null,
+    };
 
-      entries.push(entry);
-    }
-
-    cursor = response.has_more ? response.next_cursor : undefined;
-    page++;
-    console.log(`  Page ${page}: ${response.results.length} results (${entries.length} total)`);
-
-    if (cursor) await sleep(DELAY_MS);
-  } while (cursor);
+    entries.push(entry);
+  }
 
   return entries;
 }
@@ -129,10 +113,8 @@ async function main() {
     process.exit(1);
   }
 
-  const notion = new Client({ auth: process.env.NOTION_TOKEN });
-
   // Fetch watch links
-  const watchLinks = await fetchAllWatchLinks(notion);
+  const watchLinks = await fetchAllWatchLinks();
   console.log(`\nFetched ${watchLinks.length} watch link entries`);
 
   // Save raw watch links

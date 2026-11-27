@@ -95,13 +95,13 @@ function generateWatchLinksHTML(watchLinks) {
   // no watch links, all-broken watch links) share one visual treatment.
   if (!watchLinks || watchLinks.length === 0) {
     return `
-      <div class="watch-links-section">
-        <h3>Watch</h3>
+      <section class="watch-links-section">
+        <h2>Watch</h2>
         <div class="empty-state">
           <p class="empty-state-message">No watch links available yet.</p>
           <a href="#report-form" class="empty-state-cta">Help us find one →</a>
         </div>
-      </div>`;
+      </section>`;
   }
 
   // Filter using the centralized status partitions instead of a single
@@ -111,13 +111,13 @@ function generateWatchLinksHTML(watchLinks) {
 
   if (activeLinks.length === 0) {
     return `
-      <div class="watch-links-section">
-        <h3>Watch</h3>
+      <section class="watch-links-section">
+        <h2>Watch</h2>
         <div class="empty-state">
           <p class="empty-state-message">All watch links are currently unavailable.${hiddenCount > 0 ? ` (${hiddenCount} broken or unavailable link${hiddenCount > 1 ? 's' : ''})` : ''}</p>
           <a href="#report-form" class="empty-state-cta">Help us find a working link →</a>
         </div>
-      </div>`;
+      </section>`;
   }
 
   // Group by access type for organized display
@@ -126,7 +126,15 @@ function generateWatchLinksHTML(watchLinks) {
   const paidLinks = activeLinks.filter(l => l.accessType === 'RENT' || l.accessType === 'BUY');
   const otherLinks = activeLinks.filter(l => !['FREE', 'ADS', 'SUB', 'RENT', 'BUY'].includes(l.accessType));
 
-  let html = `<div class="watch-links-section">\n  <h3>Watch</h3>\n  <div class="watch-links-grid">`;
+  // Heading at H2 (was H3) to repair heading-order accessibility on detail
+  // pages. The other body sections (Synopsis / Background / Production /
+  // Curator's Notes / Research Sources) all use H2; "Watch" was the only
+  // outlier. Label is also more specific now: "Other ways to watch" since
+  // build-site.js's generateWatchLinksSection wrapper only invokes this
+  // when there are 2+ links (single-link films use the header CTA only).
+  const linkCount = activeLinks.length;
+  const heading = linkCount > 1 ? `Other ways to watch <span class="watch-count">${linkCount}</span>` : 'Watch';
+  let html = `<section class="watch-links-section">\n  <h2>${heading}</h2>\n  <div class="watch-links-grid">`;
 
   // Render each group
   if (freeLinks.length > 0) {
@@ -149,7 +157,7 @@ function generateWatchLinksHTML(watchLinks) {
     html += `\n  <p class="dead-links-notice">${hiddenCount} link${hiddenCount > 1 ? 's' : ''} currently unavailable</p>`;
   }
 
-  html += `\n</div>`;
+  html += `\n</section>`;
   return html;
 }
 
@@ -263,8 +271,8 @@ function generateLegacyHTML(legacyValue) {
     const icon = PLATFORM_ICONS[platform] || '🔗';
 
     return `
-      <div class="watch-links-section">
-        <h3>Watch</h3>
+      <section class="watch-links-section">
+        <h2>Watch</h2>
         <div class="watch-links-grid">
           <a href="${escapeHtml(url)}" class="watch-link-card" target="_blank" rel="noopener noreferrer">
             <span class="link-info">
@@ -273,14 +281,14 @@ function generateLegacyHTML(legacyValue) {
             </span>
           </a>
         </div>
-      </div>`;
+      </section>`;
   }
 
   // Bare URL
   if (legacyValue.startsWith('http')) {
     return `
-      <div class="watch-links-section">
-        <h3>Watch</h3>
+      <section class="watch-links-section">
+        <h2>Watch</h2>
         <div class="watch-links-grid">
           <a href="${escapeHtml(legacyValue)}" class="watch-link-card" target="_blank" rel="noopener noreferrer">
             <span class="link-info">
@@ -288,14 +296,14 @@ function generateLegacyHTML(legacyValue) {
             </span>
           </a>
         </div>
-      </div>`;
+      </section>`;
   }
 
   return `
-    <div class="watch-links-section">
-      <h3>Watch</h3>
+    <section class="watch-links-section">
+      <h2>Watch</h2>
       <p class="no-links">Watch link data needs migration.</p>
-    </div>`;
+    </section>`;
 }
 
 function escapeHtml(str) {

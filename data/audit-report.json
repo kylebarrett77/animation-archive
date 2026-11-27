@@ -1,17 +1,11 @@
 {
-  "generatedAt": "2026-04-14T11:38:10.998Z",
+  "generatedAt": "2026-11-22T01:23:23.017Z",
   "totalFilms": 2330,
   "missingData": {
     "noTitle": [],
     "noYear": [],
     "noCountry": [],
-    "noTechnique": [
-      {
-        "id": "71e22b68-b3a7-4c30-8e66-c3ab8d37765b",
-        "title": "Zak Tales",
-        "year": 1990
-      }
-    ],
+    "noTechnique": [],
     "noDirector": [],
     "noSynopsis": 0
   },
@@ -100,38 +94,21 @@
       "Silhouette",
       "Stop Motion"
     ],
-    "directors": 1630,
+    "directors": 1631,
     "formats": {
       "Series": 1016,
       "Feature": 598,
-      "Short": 694,
-      "Segment": 21,
-      "Unknown": 1
+      "Short": 695,
+      "Segment": 21
     },
     "confidence": {
-      "★★★★": 1139,
-      "★★★": 524,
+      "★★★★": 1141,
+      "★★★": 523,
       "★★★★★": 664,
-      "★★": 2,
-      "★": 1
+      "★★": 2
     }
   },
-  "potentialDuplicates": [
-    {
-      "film1": {
-        "id": "f298ffb2-78e4-4879-8919-96a6109fb4aa",
-        "title": "Estab Life: Great Escape",
-        "year": 2022,
-        "country": "Japan"
-      },
-      "film2": {
-        "id": "8030c847-93e4-43e6-8903-b7baa5be06e4",
-        "title": "Estab-Life: Great Escape",
-        "year": 2022,
-        "country": "Japan"
-      }
-    }
-  ],
+  "potentialDuplicates": [],
   "directorVariations": [
     [
       "Bong Joon-ho",

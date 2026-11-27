@@ -1,0 +1,77 @@
+{
+  "_doc": "Per-country intro copy for /countries/<slug>.html pages. Keys must match the Notion 'Country' property values verbatim. Build skips the hero intro for countries not listed here (smaller catalogs render the default stat-grid layout). Fields: tradition (3-6 word framing tagline shown under the H1), intro (1-3 sentence prose, plain text — no markdown), eraNote (optional historical-period framing rendered next to the year-range stat).",
+  "countries": {
+    "USSR": {
+      "tradition": "State-funded experimentation, 1934–1991",
+      "intro": "Soviet animation through Soyuzmultfilm and the regional studios — Norshteyn, Khitruk, Tsekhanovsky, Atamanov. State funding meant animators had time and material that Western commercial pipelines couldn't match; the experimental cutout and paint-on-glass traditions emerged from that latitude. Animatsiya.net hosts the bulk of the catalog with English subtitles.",
+      "eraNote": "Studios collapsed 1991; successor Russian and post-Soviet animation lives under separate country tags."
+    },
+    "Russia": {
+      "tradition": "Post-Soviet continuation, 1992–present",
+      "intro": "Russian animation after the Soyuzmultfilm collapse — small private studios, the Pilot collective, Yuri Norshteyn's still-unfinished The Overcoat. Smaller production scale than the Soviet era but the auteur tradition continued. Animatsiya.net curates much of the post-1991 catalog."
+    },
+    "Japan": {
+      "tradition": "The world's deepest commercial animation industry",
+      "intro": "Japan produces more animated film and television than any other country. The catalog here spans Tezuka's foundational 1960s television work through Studio Ghibli, the OVA boom, the digital-era Madhouse / Bones / Trigger / Science SARU studios, and contemporary streaming-era production. Most premium watch links route through Crunchyroll, Netflix, or Japan-only services (Niconico, U-NEXT, dアニメストア).",
+      "eraNote": "1932 to present; production volume tripled after 2015 with streaming-platform commissioning."
+    },
+    "China": {
+      "tradition": "Shanghai School to contemporary Donghua",
+      "intro": "Chinese animation has two distinct traditions in this catalog: the mid-century Shanghai Animation Film Studio era (Wan Brothers' Havoc in Heaven, the ink-wash films of Te Wei, Princess Iron Fan) and the contemporary Donghua boom led by streaming services Bilibili, iQIYI, Tencent Video, and Youku. Bilibili is the dominant platform for both archival and current work."
+    },
+    "Czechoslovakia": {
+      "tradition": "Surrealist puppet and stop-motion, 1949–1992",
+      "intro": "Czechoslovak animation had no commercial peer — Jan Švankmajer, Jiří Trnka, Karel Zeman, Jan Balej. State support during the Communist era enabled long-form puppet and stop-motion work that found Western audiences only after the Velvet Revolution. Successor Czech Republic continues the tradition at smaller scale.",
+      "eraNote": "Country split 1993; successor Czech Republic tag tracks 1993-onward production."
+    },
+    "Czech Republic": {
+      "tradition": "Continuing the Trnka–Švankmajer tradition",
+      "intro": "Post-1993 Czech animation — Švankmajer's late work, the Trnka studio successors, contemporary independents at AniDox and Anifilm. Smaller catalog than Czechoslovakia but the surrealist and stop-motion lineage continues unbroken."
+    },
+    "Yugoslavia": {
+      "tradition": "Zagreb School and the Eastern European avant-garde",
+      "intro": "The Zagreb School (Zagreb Film studio, est. 1956) defined a Yugoslav animation aesthetic — minimalist character design, absurdist humor, explicit social commentary. Vatroslav Mimica, Dušan Vukotić, Borivoj Dovniković, Pavao Štalter. Won the first Eastern European animation Oscar (Surogat, 1961). Animation continued under the successor states.",
+      "eraNote": "Country dissolved 1992; successor Croatia, Serbia, Slovenia tags track post-1992 work."
+    },
+    "France": {
+      "tradition": "Auteur and arthouse animation",
+      "intro": "France has Europe's largest animation industry by output and a deep arthouse tradition — René Laloux, Sylvain Chomet, Michel Ocelot, Folimage. The catalog here skews toward festival and theatrical work; commercial TV animation lives mostly in dedicated international tags. State support via the CNC keeps mid-budget arthouse production viable in a way most countries can't match."
+    },
+    "Canada": {
+      "tradition": "The NFB experimental tradition",
+      "intro": "Canadian animation in this catalog is dominated by the National Film Board of Canada — Norman McLaren, Caroline Leaf, Co Hoedeman, Ryan Larkin, the entire NFB archive available free worldwide via nfb.ca. Commercial Canadian animation (Nelvana, etc.) also represented but the experimental NFB tradition is the country's signature contribution to world animation."
+    },
+    "USA": {
+      "tradition": "Disney through indie shorts",
+      "intro": "The USA catalog spans Disney/Pixar/DreamWorks theatrical animation, the Cartoon Network / Adult Swim cable era, and the indie short-film tradition (UPA, Sally Cruikshank, Bill Plympton). Commercial scope is enormous; auteur and experimental work also represented. Most premium content sits on subscription services (Disney+, Hulu, HBO Max, Crunchyroll for licensed anime)."
+    },
+    "India": {
+      "tradition": "Educational shorts to streaming-era features",
+      "intro": "Indian animation in this catalog ranges from the National Award-winning educational shorts of the 1970s–80s (Ek Anek Aur Ekta, The Climb) to the contemporary streaming-era features and series. Recent boom in home-grown studios (Green Gold, Toonz, 88 Pictures) co-produces with international partners. YouTube hosts many of the older state-broadcast pieces free."
+    },
+    "Egypt": {
+      "tradition": "The Frenkel Brothers to contemporary",
+      "intro": "Egyptian animation has the deepest Arabic-language tradition — the Frenkel Brothers' 1936 Mish Mish Effendi predates many Western animation traditions. The catalog includes mid-century state production, the Bakkar series, and contemporary features like The Knight and the Princess. Most older work hosted on YouTube; newer work routes through MENA-region services like Shahid."
+    },
+    "Cuba": {
+      "tradition": "Juan Padrón and ICAIC, 1959–present",
+      "intro": "Cuban animation centers on Juan Padrón and the ICAIC studio — the Elpidio Valdés series, Vampires in Havana and its sequel, the Quinoscopios shorts. State-funded, frequently anti-imperial in subject, with a graphic-novel-influenced visual style that's distinctively Cuban. Most catalog hosted free on YouTube via ICAIC's own channel."
+    },
+    "Estonia": {
+      "tradition": "Priit Pärn and Eesti Joonisfilm",
+      "intro": "Estonian animation built around Priit Pärn — surreal, politically caustic, internationally awarded. Eesti Joonisfilm and Nukufilm studios continue producing both 2D and stop-motion at festival quality. Olga and Priit Pärn's collaborations represent some of the most inventive contemporary world animation."
+    },
+    "Romania": {
+      "tradition": "Ion Popescu-Gopo and the post-Communist generation",
+      "intro": "Romanian animation has two anchors: Ion Popescu-Gopo's Cannes-winning Brief History (1957) and his subsequent state-studio work, and the post-1989 generation working through Animation Studio Bucharest and independent production. Maria, Mirabela (1981) is the country's best-known feature. Most work hosted free on YouTube."
+    },
+    "Hungary": {
+      "tradition": "Pannóniafilm and the Magyar avant-garde",
+      "intro": "Hungarian animation centers on Pannóniafilm Studio (1951–present) — Marcell Jankovics, Ferenc Rofusz (Oscar 1981 for The Fly), the Hungarian Folk Tales series. Post-1989 production continues at smaller scale through independents and the Moholy-Nagy University animation program."
+    },
+    "Argentina": {
+      "tradition": "Quirino Cristiani to contemporary indie",
+      "intro": "Argentina produced the world's first animated feature — Quirino Cristiani's El Apóstol (1917, lost). The contemporary catalog includes Juan Pablo Buscarini's adventure features, Boogie based on the Roberto Fontanarrosa comic, and a small but active festival-circuit presence."
+    }
+  }
+}

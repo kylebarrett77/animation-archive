@@ -68,12 +68,12 @@
     "CGI": 300,
     "2D Digital": 587,
     "Mixed": 159,
-    "2D Cel": 1183,
+    "2D Cel": 1184,
     "Stop Motion": 153,
     "Cutout": 90,
     "Experimental": 103,
     "Rotoscope": 24,
-    "Puppet": 98,
+    "Puppet": 99,
     "Clay": 14,
     "Paint on Glass": 9,
     "Documentary": 7,
@@ -87,7 +87,7 @@
   "formats": {
     "Series": 1016,
     "Feature": 598,
-    "Short": 694,
+    "Short": 695,
     "Segment": 21
   },
   "decades": {
@@ -97,33 +97,33 @@
     "1940": 52,
     "1950": 122,
     "1960": 187,
-    "1970": 231,
-    "1980": 385,
+    "1970": 232,
+    "1980": 384,
     "1990": 293,
     "2000": 367,
-    "2010": 350,
-    "2020": 298
+    "2010": 351,
+    "2020": 297
   },
   "genres": {
-    "Adventure": 1070,
-    "Drama": 689,
-    "Comedy": 672,
+    "Adventure": 1075,
+    "Drama": 691,
+    "Comedy": 675,
     "Cosmic Horror": 14,
-    "Mecha": 193,
-    "Military Sci-Fi": 101,
+    "Mecha": 194,
+    "Military Sci-Fi": 102,
     "Cyberpunk": 83,
-    "Thriller": 185,
+    "Thriller": 186,
     "Post-Apocalyptic": 71,
     "Philosophical": 250,
     "Noir": 32,
-    "Space Opera": 202,
+    "Space Opera": 203,
     "Dystopia": 89,
     "Hard Sci-Fi": 102,
     "Documentary": 40,
-    "Horror": 148,
+    "Horror": 149,
     "Anthology": 48,
     "Experimental": 293,
-    "Satire": 218,
+    "Satire": 219,
     "First Contact": 13,
     "Psychedelic": 36,
     "Utopia": 7,
@@ -131,57 +131,57 @@
     "Biopunk": 7
   },
   "keywords": {
-    "Robots": 345,
-    "AI": 146,
+    "Robots": 352,
+    "AI": 151,
     "Megacity": 168,
-    "Earth (Future)": 307,
+    "Earth (Future)": 310,
     "What Is Human": 61,
     "Humanity": 23,
-    "Childhood": 488,
-    "War": 469,
-    "Gods": 89,
-    "Violent": 178,
+    "Childhood": 506,
+    "War": 474,
+    "Gods": 90,
+    "Violent": 183,
     "Underwater": 37,
     "Coexistence": 33,
-    "Spaceship": 172,
+    "Spaceship": 173,
     "Survival": 363,
     "Memory": 70,
     "Isolation": 91,
-    "Bleak": 251,
+    "Bleak": 253,
     "Mecha": 172,
-    "Family": 374,
+    "Family": 377,
     "Freedom": 157,
-    "Hopeful": 631,
-    "Space": 335,
-    "Aliens": 393,
-    "Cyborgs": 76,
+    "Hopeful": 633,
+    "Space": 338,
+    "Aliens": 399,
+    "Cyborgs": 79,
     "Corporations": 72,
-    "Class": 142,
-    "Identity": 410,
-    "Androids": 42,
+    "Class": 143,
+    "Identity": 418,
+    "Androids": 43,
     "Wasteland": 54,
-    "Virtual World": 46,
+    "Virtual World": 47,
     "Simulation": 18,
     "Parallel Dimension": 52,
-    "Surreal": 442,
+    "Surreal": 444,
     "Loneliness": 40,
     "Connection": 215,
     "Ecological": 77,
     "Rebellion": 180,
-    "Government": 149,
-    "Psychological": 47,
-    "Detective": 23,
+    "Government": 152,
+    "Psychological": 57,
+    "Detective": 32,
     "Extinction": 22,
     "Genetic Engineering": 28,
-    "School": 53,
+    "School": 57,
     "Consciousness": 90,
     "Death": 217,
-    "Alien Planet": 149,
-    "Monsters": 189,
-    "Control": 187,
+    "Alien Planet": 151,
+    "Monsters": 197,
+    "Control": 189,
     "Time Loop": 13,
     "Reincarnation": 6,
-    "Time Travel": 73,
+    "Time Travel": 75,
     "Invasion": 106,
     "Earth (Alternate)": 203,
     "Colonization": 31,
@@ -191,24 +191,24 @@
     "Wordless": 86,
     "Meditative": 180,
     "Immortality": 27,
-    "Erotic": 23,
+    "Erotic": 24,
     "Mars": 23,
     "Dimensional Travel": 17,
     "Moon": 17,
-    "Uplifted Animals": 159,
+    "Uplifted Animals": 162,
     "Pandemic": 7,
     "First Contact": 27,
-    "Surveillance": 39,
-    "Murder": 12,
-    "Ghosts": 39,
+    "Surveillance": 40,
+    "Murder": 14,
+    "Ghosts": 40,
     "Underground": 20,
     "Nature vs Technology": 52,
-    "Dreams": 56,
+    "Dreams": 57,
     "Nuclear": 23,
-    "Mutants": 36,
+    "Mutants": 39,
     "Machine Consciousness": 22,
-    "Music": 41,
-    "Clones": 21,
+    "Music": 42,
+    "Clones": 22,
     "Space Station": 19,
     "Labor": 22,
     "Evolution": 26,
@@ -219,14 +219,13 @@
     "Faster Than Light": 10,
     "Cryogenics": 3
   },
-  "watchable": 1601,
-  "withSubtitles": 269,
+  "watchable": 1819,
+  "withSubtitles": 272,
   "byConfidence": {
-    "★★★★": 1139,
-    "★★★": 524,
+    "★★★★": 1141,
+    "★★★": 523,
     "★★★★★": 664,
-    "★★": 2,
-    "★": 1
+    "★★": 2
   },
   "studioCount": 783,
   "directorCount": 1172,
@@ -484,7 +483,7 @@
   "techniquesSorted": [
     {
       "name": "2D Cel",
-      "count": 1183
+      "count": 1184
     },
     {
       "name": "2D Digital",
@@ -508,7 +507,7 @@
     },
     {
       "name": "Puppet",
-      "count": 98
+      "count": 99
     },
     {
       "name": "Cutout",
@@ -582,11 +581,11 @@
     },
     {
       "decade": 1970,
-      "count": 231
+      "count": 232
     },
     {
       "decade": 1980,
-      "count": 385
+      "count": 384
     },
     {
       "decade": 1990,
@@ -598,25 +597,25 @@
     },
     {
       "decade": 2010,
-      "count": 350
+      "count": 351
     },
     {
       "decade": 2020,
-      "count": 298
+      "count": 297
     }
   ],
   "genresSorted": [
     {
       "name": "Adventure",
-      "count": 1070
+      "count": 1075
     },
     {
       "name": "Drama",
-      "count": 689
+      "count": 691
     },
     {
       "name": "Comedy",
-      "count": 672
+      "count": 675
     },
     {
       "name": "Experimental",
@@ -628,31 +627,31 @@
     },
     {
       "name": "Satire",
-      "count": 218
+      "count": 219
     },
     {
       "name": "Space Opera",
-      "count": 202
+      "count": 203
     },
     {
       "name": "Mecha",
-      "count": 193
+      "count": 194
     },
     {
       "name": "Thriller",
-      "count": 185
+      "count": 186
     },
     {
       "name": "Horror",
-      "count": 148
+      "count": 149
+    },
+    {
+      "name": "Military Sci-Fi",
+      "count": 102
     },
     {
       "name": "Hard Sci-Fi",
       "count": 102
-    },
-    {
-      "name": "Military Sci-Fi",
-      "count": 101
     },
     {
       "name": "Dystopia",
@@ -706,31 +705,31 @@
   "keywordsSorted": [
     {
       "name": "Hopeful",
-      "count": 631
+      "count": 633
     },
     {
       "name": "Childhood",
-      "count": 488
+      "count": 506
     },
     {
       "name": "War",
-      "count": 469
+      "count": 474
     },
     {
       "name": "Surreal",
-      "count": 442
+      "count": 444
     },
     {
       "name": "Identity",
-      "count": 410
+      "count": 418
     },
     {
       "name": "Aliens",
-      "count": 393
+      "count": 399
     },
     {
       "name": "Family",
-      "count": 374
+      "count": 377
     },
     {
       "name": "Survival",
@@ -738,19 +737,19 @@
     },
     {
       "name": "Robots",
-      "count": 345
+      "count": 352
     },
     {
       "name": "Space",
-      "count": 335
+      "count": 338
     },
     {
       "name": "Earth (Future)",
-      "count": 307
+      "count": 310
     },
     {
       "name": "Bleak",
-      "count": 251
+      "count": 253
     },
     {
       "name": "Death",
@@ -766,11 +765,15 @@
     },
     {
       "name": "Monsters",
-      "count": 189
+      "count": 197
     },
     {
       "name": "Control",
-      "count": 187
+      "count": 189
+    },
+    {
+      "name": "Violent",
+      "count": 183
     },
     {
       "name": "Rebellion",
@@ -781,12 +784,8 @@
       "count": 180
     },
     {
-      "name": "Violent",
-      "count": 178
-    },
-    {
       "name": "Spaceship",
-      "count": 172
+      "count": 173
     },
     {
       "name": "Mecha",
@@ -798,7 +797,7 @@
     },
     {
       "name": "Uplifted Animals",
-      "count": 159
+      "count": 162
     },
     {
       "name": "Freedom",
@@ -806,19 +805,19 @@
     },
     {
       "name": "Government",
-      "count": 149
-    },
-    {
-      "name": "Alien Planet",
-      "count": 149
+      "count": 152
     },
     {
       "name": "AI",
-      "count": 146
+      "count": 151
+    },
+    {
+      "name": "Alien Planet",
+      "count": 151
     },
     {
       "name": "Class",
-      "count": 142
+      "count": 143
     },
     {
       "name": "Dreamlike",
@@ -833,28 +832,28 @@
       "count": 91
     },
     {
-      "name": "Consciousness",
+      "name": "Gods",
       "count": 90
     },
     {
-      "name": "Gods",
-      "count": 89
+      "name": "Consciousness",
+      "count": 90
     },
     {
       "name": "Wordless",
       "count": 86
     },
     {
+      "name": "Cyborgs",
+      "count": 79
+    },
+    {
       "name": "Ecological",
       "count": 77
     },
     {
-      "name": "Cyborgs",
-      "count": 76
-    },
-    {
       "name": "Time Travel",
-      "count": 73
+      "count": 75
     },
     {
       "name": "Corporations",
@@ -869,16 +868,20 @@
       "count": 61
     },
     {
+      "name": "Psychological",
+      "count": 57
+    },
+    {
+      "name": "School",
+      "count": 57
+    },
+    {
       "name": "Dreams",
-      "count": 56
+      "count": 57
     },
     {
       "name": "Wasteland",
       "count": 54
-    },
-    {
-      "name": "School",
-      "count": 53
     },
     {
       "name": "Parallel Dimension",
@@ -893,23 +896,19 @@
       "count": 52
     },
     {
-      "name": "Psychological",
+      "name": "Virtual World",
       "count": 47
     },
     {
-      "name": "Virtual World",
-      "count": 46
+      "name": "Androids",
+      "count": 43
     },
     {
-      "name": "Androids",
+      "name": "Music",
       "count": 42
     },
     {
       "name": "Religion",
-      "count": 41
-    },
-    {
-      "name": "Music",
       "count": 41
     },
     {
@@ -918,10 +917,14 @@
     },
     {
       "name": "Surveillance",
-      "count": 39
+      "count": 40
     },
     {
       "name": "Ghosts",
+      "count": 40
+    },
+    {
+      "name": "Mutants",
       "count": 39
     },
     {
@@ -929,12 +932,12 @@
       "count": 37
     },
     {
-      "name": "Mutants",
-      "count": 36
-    },
-    {
       "name": "Coexistence",
       "count": 33
+    },
+    {
+      "name": "Detective",
+      "count": 32
     },
     {
       "name": "Colonization",
@@ -961,15 +964,11 @@
       "count": 26
     },
     {
-      "name": "Humanity",
-      "count": 23
-    },
-    {
-      "name": "Detective",
-      "count": 23
-    },
-    {
       "name": "Erotic",
+      "count": 24
+    },
+    {
+      "name": "Humanity",
       "count": 23
     },
     {
@@ -989,12 +988,12 @@
       "count": 22
     },
     {
-      "name": "Labor",
+      "name": "Clones",
       "count": 22
     },
     {
-      "name": "Clones",
-      "count": 21
+      "name": "Labor",
+      "count": 22
     },
     {
       "name": "Underground",
@@ -1017,12 +1016,12 @@
       "count": 17
     },
     {
-      "name": "Time Loop",
-      "count": 13
+      "name": "Murder",
+      "count": 14
     },
     {
-      "name": "Murder",
-      "count": 12
+      "name": "Time Loop",
+      "count": 13
     },
     {
       "name": "Faster Than Light",

@@ -3,13 +3,22 @@
   "version": "1.0.0",
   "description": "Static site generator for Global Animation Archive - pulls from Notion, builds HTML",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "fetch": "node scripts/fetch-notion.js",
     "fetch:links": "node scripts/fetch-watch-links.js",
     "fetch:all": "npm run fetch && npm run fetch:links",
+    "check:data": "node scripts/check-data.js",
     "build": "node scripts/build-site.js",
-    "dev": "npm run fetch:all && npm run build && npx serve dist",
-    "deploy": "npm run fetch:all && npm run build",
+    "og": "python3 scripts/generate-og-image.py && cp dist/og-image.png assets/og-image.png",
+    "clean": "bash scripts/clean-stale-dist.sh",
+    "clean:all": "bash scripts/clean-stale-dist.sh --films",
+    "clean:dupes": "node scripts/clean-icloud-dupes.js",
+    "rebuild": "npm run clean && npm run clean:dupes -- --delete && npm run build && npm run og",
+    "dev": "npm run fetch:all && npm run build && npm run og && npx serve dist",
+    "refresh": "npm run fetch:all && npm run check:data && npm run build",
     "validate:links": "node scripts/validate-watch-links.js --report-only",
     "audit": "node scripts/audit-data.js",
     "validate": "node scripts/validate-links.js",
@@ -18,7 +27,7 @@
     "ci": "npm run audit && npm run build && npm run audit:a11y"
   },
   "dependencies": {
-    "@notionhq/client": "^2.3.0"
+    "@notionhq/client": "^5.31.1"
   },
   "devDependencies": {
     "dotenv": "^16.3.1",

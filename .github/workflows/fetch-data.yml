@@ -1,14 +1,23 @@
 #############################################################
-# Scheduled data refresh
+# Scheduled data refresh — the only part of the system that
+# talks to Notion.
 #
-# Pulls the latest films + watch-links from Notion, audits the
-# snapshot, and commits data/** back to main. The push triggers
-# a Netlify rebuild automatically — Netlify never calls Notion
-# itself, so NOTION_TOKEN only lives in GitHub secrets.
+# Fetches films, related entities, posters and watch links,
+# re-validates watch links (writing changed statuses back to
+# Notion), sanity-checks the snapshot, smoke-builds, and commits
+# data/** to main. That push triggers Netlify, which builds the
+# site from the committed snapshot; Netlify never calls Notion.
 #
-# Cadence:
-#   - Daily cron at 06:00 UTC
-#   - Manual dispatch via Actions UI
+# Setup: add the repository secret NOTION_TOKEN
+#   (Settings -> Secrets and variables -> Actions).
+#   NOTION_DATABASE_ID is optional; scripts default to the Films DB.
+#
+# Cadence: daily 06:00 UTC, or manually (Actions -> Run workflow).
+#
+# A commit (and so a Netlify build) only happens when catalog data
+# actually changes; refreshed reports never trigger one on their own.
+# The keepalive step stops GitHub from auto-disabling the schedule
+# after 60 days without commits, which is what froze the site in 2026.
 #############################################################
 
 name: Fetch Notion data
@@ -19,81 +28,97 @@ on:
   workflow_dispatch:
     inputs:
       skip_commit:
-        description: 'Run fetch + audit but do not commit (dry run)'
-        required: false
-        default: 'false'
+        description: 'Dry run: fetch, check and build, but do not commit'
+        type: boolean
+        default: false
+      skip_validate:
+        description: 'Skip watch-link validation (no write-back to Notion)'
+        type: boolean
+        default: false
 
 concurrency:
   group: fetch-data
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: write   # commit the refreshed snapshot
+  actions: write    # keepalive: re-enable this workflow
 
 jobs:
   refresh:
-    name: Refresh films + watch-links
+    name: Refresh Notion snapshot
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Link validation (probing ~2,000 URLs) is the long pole; the build
+    # itself takes under a minute.
+    timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 1
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Fetch films + watch-links
+      - name: Fetch films, entities, posters and watch links
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
         run: npm run fetch:all
 
-      # Re-classify watch links using policy + HTTP probe, then write
-      # statuses back to Notion. Added 2026-04-25 — see
-      # scripts/lib/platform-trust.js + ops/WATCH-LINK-HARDENING.md.
-      # continue-on-error: true because a network blip on a single platform
-      # shouldn't halt the daily snapshot — the next cron tick will retry.
-      - name: Validate watch links (write back to Notion)
+      # Re-classify watch links (platform policy + HTTP probe) and write
+      # changed statuses back to Notion. A network blip on one platform
+      # should not halt the snapshot, so failures here are tolerated.
+      - name: Validate watch links (writes changed statuses to Notion)
+        if: ${{ !inputs.skip_validate }}
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         continue-on-error: true
         run: node scripts/validate-watch-links.js --fix
 
-      # Re-fetch so the snapshot we commit reflects status writes from the
-      # validate step above. Without this, the dist/ build would lag the
-      # Notion truth by one cron tick.
-      - name: Re-fetch watch-links after validation
+      # Re-fetch so the committed snapshot reflects the statuses just written.
+      - name: Re-fetch watch links after validation
+        if: ${{ !inputs.skip_validate }}
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
         run: npm run fetch:links
 
-      - name: Audit snapshot
+      - name: Sanity-check snapshot
+        run: npm run check:data
+
+      - name: Audit snapshot (report only)
         run: npm run audit
 
       - name: Smoke build
         run: npm run build
 
       - name: Commit refreshed data
-        if: github.event.inputs.skip_commit != 'true'
+        if: ${{ !inputs.skip_commit }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Force-add in case data/ was previously gitignored.
-          git add -f data/*.json
+          git add data/films.json data/studios.json data/directors.json \
+                  data/series.json data/stats.json data/watch-links.json
+          git add -A data/posters
           if git diff --cached --quiet; then
-            echo "No data changes — nothing to commit."
+            echo "No catalog changes; nothing to commit."
             exit 0
           fi
-          STAMP=$(date -u +'%Y-%m-%d')
-          git commit -m "chore(data): refresh Notion snapshot ${STAMP}"
+          # Ride along with a real change only; never commit reports alone.
+          git add data/*-report.json
+          git commit -m "chore(data): refresh Notion snapshot $(date -u +'%Y-%m-%d')"
           git push origin HEAD:main
+
+      - name: Keepalive (prevent 60-day auto-disable)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/fetch-data.yml/enable"
