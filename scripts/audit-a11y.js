@@ -17,7 +17,7 @@
  *   6. Every <a class="watch-btn" target="_blank"> has rel="noopener"
  *      and an aria-label (the generated glyph-only ones are unlabeled
  *      without this)
- *   7. CSS does NOT regress the --ink-faint contrast token back to #a8a29e
+ *   7. Muted text and the on-dark accent keep ≥4.5:1 contrast (computed from the live CSS tokens)
  *
  * Exits 1 on failure so `npm run ci` catches regressions.
  */
@@ -64,10 +64,15 @@ check(
   /\.filter-item\{[^}]*min-height:44px/.test(css),
   'CSS regression: .filter-item lost min-height:44px (WCAG 2.5.5 touch target)'
 );
-check(
-  /--ink-faint\s*:\s*#6b6660/i.test(css),
-  'CSS regression: --ink-faint not set to a11y-safe value #6b6660'
-);
+// --ink-faint was retired (merged into --ink-muted); check the live tokens'
+// actual contrast instead of a fixed hex value.
+const token = name => (css.match(new RegExp(`--${name}\\s*:\\s*(#[0-9a-f]{6})`, 'i')) || [])[1];
+const lum = hex => { const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+for (const [fg, bg, label] of [['ink-muted', 'cream', 'muted text on cream'], ['accent-on-dark', 'ink', 'accent label on the dark stats bar']]) {
+  const f = token(fg), b = token(bg);
+  check(f && b && ratio(f, b) >= 4.5, `Contrast: ${label} (--${fg} ${f} on --${bg} ${b}) is ${f && b ? ratio(f, b).toFixed(2) : '?'}:1, needs 4.5:1`);
+}
 
 // --- HTML-level checks ---
 const pages = pickSample();
