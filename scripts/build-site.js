@@ -2574,7 +2574,10 @@ html{scroll-behavior:smooth}body{font-family:var(--font-prose);background:var(--
 .entity-index-stat{text-align:center}
 .entity-index-stat .stat-value{display:block;font-family:var(--font-display);font-size:36px;font-weight:400;color:var(--ink)}
 .entity-index-stat .stat-label{font-family:var(--mono);font-size:var(--type-data-sm);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted)}
-.directors-alphabet{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-2);margin-bottom:40px;padding:var(--space-4);background:var(--paper);border:1px solid var(--rule)}
+.directors-alphabet{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-2);margin-bottom:40px;padding:var(--space-4);background:var(--paper);border:1px solid var(--rule);position:sticky;top:0;z-index:20}
+.directors-letter-section{scroll-margin-top:96px}
+.studio-top-row{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;margin:0 0 var(--space-5)}
+.studio-top-label{font-family:var(--mono);font-size:var(--type-data-sm);color:var(--ink-muted);text-transform:uppercase;letter-spacing:.1em}
 .alphabet-link{font-family:var(--mono);font-size:var(--type-body-sm);font-weight:600;padding:var(--space-2) var(--space-3);text-decoration:none;color:var(--ink-muted);transition:color .15s,background .15s}
 .alphabet-link:hover,.alphabet-link:focus{color:var(--accent);background:var(--cream)}
 .directors-list{display:flex;flex-direction:column;gap:40px}
@@ -3534,10 +3537,15 @@ function updateDisplay(resetPagination){
         if(clearAllBtn)clearAllBtn.style.display='inline-block';
       }
     }else{
-      paint(sorted);
+      // Filtered views page too (site audit #15): rendering every match at
+      // once put ~50k nodes in the DOM for large filters.
+      paint(sorted.slice(0,loadedCount));
       if(noResultsEl)noResultsEl.style.display='none';
     }
-    if(loadMoreBtn)loadMoreBtn.style.display='none';
+    if(loadMoreBtn){
+      loadMoreBtn.style.display=(sorted.length===0||loadedCount>=sorted.length)?'none':'inline-block';
+      loadMoreBtn.querySelector('.load-more-count').textContent='('+Math.max(0,sorted.length-loadedCount)+' remaining)';
+    }
   }else{
     if(noResultsEl)noResultsEl.style.display='none';
     paint(sorted.slice(0,loadedCount));
@@ -3578,9 +3586,9 @@ searchInput.addEventListener('input',function(){
   // off in parallel; updateDisplay re-renders as each resolves. Until
   // catalog is ready, the SSR'd 50 rows stay visible — the user sees
   // their query reflected in the input but no row filtering yet.
-  ensureCatalog().then(function(){if(searchInput.value)updateDisplay();});
-  loadKeywords().then(function(){if(searchInput.value)updateDisplay();});
-  if(catalogReady)updateDisplay();
+  ensureCatalog().then(function(){if(searchInput.value)updateDisplay(true);});
+  loadKeywords().then(function(){if(searchInput.value)updateDisplay(true);});
+  if(catalogReady)updateDisplay(true);
 });
 
 filterItems.forEach(item=>{
@@ -3597,7 +3605,7 @@ filterItems.forEach(item=>{
     if(type==='keyword')loadKeywords().then(updateDisplay);
     if(activeFilters[type]===value){delete activeFilters[type];this.classList.remove('active');this.setAttribute('aria-selected','false');}
     else{filterItems.forEach(fi=>{if(fi.dataset.filterType===type){fi.classList.remove('active');fi.setAttribute('aria-selected','false');}});activeFilters[type]=value;this.classList.add('active');this.setAttribute('aria-selected','true');}
-    if(catalogReady)updateDisplay();
+    if(catalogReady)updateDisplay(true);
   };
   item.addEventListener('click',handler);
   item.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();handler.call(this);}});
@@ -5697,8 +5705,11 @@ ${generateBreadcrumb([
   ${/* Round 12 #1: search filters .entity-card by name. */ ''}
   ${entityIndexControls(studios.length, 'studios')}
 
-  <div class="entity-grid">
-    ${sortedStudios.map(studio => {
+  ${(() => {
+    // A–Z sections with a sticky letter bar (site audit #14); the biggest
+    // studios stay one click away as a link row (links, not cards, so the
+    // index search doesn't list them twice).
+    const card = studio => {
       const filmCount = films.filter(f => f.studioEntities?.some(s => s.id === studio.id)).length;
       return `<a href="${slugify(studio.name)}-${studio.id.slice(0,8)}.html" class="entity-card">
       <div class="entity-card-info">
@@ -5710,7 +5721,21 @@ ${generateBreadcrumb([
         ${studio.founded ? `<div class="entity-card-dates">${studio.founded}${studio.closed ? `–${studio.closed}` : studio.active ? '–Present' : ''}</div>` : ''}
       </div>
     </a>`;
-    }).join('\n    ')}
+    };
+    const top = sortedStudios.slice(0, 12).map(st => `<a href="${slugify(st.name)}-${st.id.slice(0,8)}.html" class="stat-tag">${escapeHtml(st.name)} <span class="stat-tag-count">(${studioFilmCount(st)})</span></a>`).join('');
+    const byLetter = {};
+    for (const st of [...sortedStudios].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }))) {
+      const ch = st.name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').charAt(0).toUpperCase();
+      const letter = /[A-Z]/.test(ch) ? ch : '#';
+      (byLetter[letter] = byLetter[letter] || []).push(st);
+    }
+    const letters = Object.keys(byLetter).sort((a, b) => a === '#' ? 1 : b === '#' ? -1 : a.localeCompare(b));
+    return `<div class="studio-top-row"><span class="studio-top-label">Most films:</span> ${top}</div>
+  <nav class="directors-alphabet" aria-label="Jump to letter">${letters.map(l => `<a href="#letter-${l}" class="alphabet-link">${l}</a>`).join('')}</nav>
+  ${letters.map(l => `<section class="directors-letter-section" id="letter-${l}"><h2 class="letter-heading">${l}</h2><div class="entity-grid">
+    ${byLetter[l].map(card).join('\n    ')}
+  </div></section>`).join('\n  ')}`;
+  })()}
   </div>
 </main>
 ${generateFooter('../')}
