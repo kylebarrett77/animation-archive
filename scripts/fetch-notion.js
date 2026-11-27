@@ -138,7 +138,8 @@ async function downloadPosters(films) {
         return;
       }
       try {
-        const res = await fetch(src.url);
+        // Image hosts like Wikimedia reject generic user agents.
+        const res = await fetch(src.url, { headers: { 'User-Agent': 'GlobalAnimationArchive/1.0 (https://animationarchive.netlify.app)' } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const card = await renderCard(Buffer.from(await res.arrayBuffer()));
         writeFileSync(`./data/posters/${file}`, card.buffer);
