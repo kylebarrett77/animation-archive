@@ -39,6 +39,10 @@ on:
         description: 'Skip poster sourcing (no poster writes to Notion)'
         type: boolean
         default: false
+      skip_refine:
+        description: 'Skip the data check (no relation/field writes to Notion)'
+        type: boolean
+        default: false
 
 concurrency:
   group: fetch-data
@@ -54,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     # Link validation (probing ~2,000 URLs) is the long pole; the build
     # itself takes under a minute.
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -96,6 +100,28 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
         run: npm run fetch:all
+
+      # Self-check the catalog (scripts/refine-data.js). Writes only additive,
+      # exact fixes: missing Studio/Director relations named by the film's
+      # own credits, and empty Wikipedia/IMDB fields confirmed by Wikidata.
+      # Disagreeing facts, wrong IMDb links, missing entity pages and free
+      # copies on the Internet Archive go to the 🔎 Automated Data Check page in
+      # Notion (and reports/refine-review.html). Runs that write log a Session.
+      - name: Check and refine catalog data
+        id: refine
+        if: ${{ !inputs.skip_refine }}
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
+        continue-on-error: true
+        run: node scripts/refine-data.js --apply --publish
+
+      - name: Re-fetch after data refinement
+        if: ${{ steps.refine.outputs.written > 0 }}
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: npm run fetch
 
       # Re-classify watch links (platform policy + HTTP probe) and write
       # changed statuses back to Notion. A network blip on one platform
@@ -141,11 +167,11 @@ jobs:
           git commit -m "chore(data): refresh Notion snapshot $(date -u +'%Y-%m-%d')"
           git push origin HEAD:main
 
-      - name: Upload poster review page
+      - name: Upload review pages (posters, data check)
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: poster-review-${{ github.run_id }}
+          name: review-${{ github.run_id }}
           path: reports/
           if-no-files-found: ignore
           retention-days: 14
