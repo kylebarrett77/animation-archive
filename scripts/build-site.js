@@ -435,33 +435,34 @@ function slugify(str) { return (str || 'untitled').toLowerCase().replace(/[^a-z0
 function getValidUrl(url) { return (url && url !== 'N/A' && url.toLowerCase() !== 'n/a' && url.startsWith('http')) ? url : null; }
 function getFilmUrl(film, basePath = '') { return `${basePath}films/${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
 
-// ---- Poster / artwork treatment (see fetch-notion.js downloadPosters) ----
-// Films carry an optional `poster` = { file, w, h, ar }. Aspect ratio drives
-// how each image is presented, since the "Poster images" field holds a mix of
-// tall posters and wide title-cards.
-const POSTER_PORTRAIT_MAX = 0.8;  // ar below this = tall poster → detail-page hero
-const POSTER_SQUARE_MAX = 1.25;   // ar up to this = square-ish; above = wide
-const POSTER_AR_CLAMP = 3.2;      // clamp ultra-wide banners in the justified grid
-// Sort order for the homepage showcase: by shape bucket, then newest-first.
-function posterBucket(ar) { return ar < POSTER_PORTRAIT_MAX ? 0 : (ar <= POSTER_SQUARE_MAX ? 1 : 2); }
-function filmsWithPosters(list) {
-  return list.filter(f => f.poster && f.poster.file)
-    .sort((a, b) => posterBucket(a.poster.ar) - posterBucket(b.poster.ar)
-      || (b.year || 0) - (a.year || 0)
-      || (a.titleEnglish || '').localeCompare(b.titleEnglish || ''));
+// ---- Poster cards (see scripts/lib/poster-card.js, fetch-notion.js) ----
+// Every film's artwork is pre-rendered into a standard 2:3 WebP card
+// (480x720; non-poster art is fitted over a blurred copy of itself), so
+// pages only ever lay out one shape.
+const POSTER_CARD_W = 480;
+const POSTER_CARD_H = 720;
+const POSTER_SHOWCASE_LIMIT = 24;
+const POSTER_CREDIT = { tmdb: 'Poster: TMDB', wikipedia: 'Image: Wikipedia' };
+
+// The card <img>, inside a frame painted with the image's dominant colour so
+// the layout is stable and tinted while the image loads.
+function posterFrame(film, basePath = '', { lazy = true } = {}) {
+  const p = film.poster;
+  return `<span class="poster-frame" style="background-color:${p.color || '#2b2a28'}"><img src="${basePath}posters/${p.file}" alt="${escapeHtml(film.titleEnglish || 'Untitled')} poster" width="${POSTER_CARD_W}" height="${POSTER_CARD_H}"${lazy ? ' loading="lazy"' : ''} decoding="async"></span>`;
 }
-// Homepage showcase: aspect-bucketed, justified rows, object-fit:contain (no crop).
+
+// Homepage: the most recently added films that have artwork.
 function generatePosterShowcase(list) {
-  const items = filmsWithPosters(list);
-  if (items.length === 0) return '';
-  const cards = items.map(f => {
-    const g = Math.min(f.poster.ar, POSTER_AR_CLAMP);
-    return `<a class="ps-item" href="${getFilmUrl(f)}" style="flex-grow:${g};flex-basis:${Math.round(g * 150)}px" title="${escapeHtml(f.titleEnglish || 'Untitled')}${f.year ? ` (${f.year})` : ''}"><span class="ps-imgwrap"><img src="posters/${f.poster.file}" alt="${escapeHtml(f.titleEnglish || 'Untitled')} artwork" width="${f.poster.w}" height="${f.poster.h}" loading="lazy"></span></a>`;
-  }).join('');
+  const withArt = list.filter(f => f.poster && f.poster.file);
+  if (withArt.length === 0) return '';
+  const items = [...withArt]
+    .sort((a, b) => (b.dateAdded || '').localeCompare(a.dateAdded || '') || (b.year || 0) - (a.year || 0))
+    .slice(0, POSTER_SHOWCASE_LIMIT);
+  const cards = items.map(f => `<a class="poster-card" href="${getFilmUrl(f)}">${posterFrame(f)}<span class="poster-title">${escapeHtml(f.titleEnglish || 'Untitled')}</span><span class="poster-year">${f.year || ''}</span></a>`).join('');
   return `
     <section class="poster-showcase" aria-labelledby="poster-showcase-h">
-      <div class="content-header"><div><h2 class="content-title" id="poster-showcase-h">Recently Illustrated</h2><span class="content-meta">${items.length} films with artwork</span></div></div>
-      <div class="ps-grid">${cards}<span class="ps-spacer"></span></div>
+      <div class="content-header"><div><h2 class="content-title" id="poster-showcase-h">Recently Added</h2><span class="content-meta">${withArt.length.toLocaleString()} films with artwork</span></div></div>
+      <div class="poster-grid">${cards}</div>
     </section>`;
 }
 function getFilmFilename(film) { return `${slugify(film.titleEnglish)}-${film.id.slice(0,8)}.html`; }
@@ -1053,6 +1054,15 @@ function generateLinkedEntities(film) {
 
 /// Generate footer with random film link
 // pathPrefix: '' for root, '../' for sub-pages
+// Credit for auto-sourced artwork, built from the sources actually in use.
+const POSTER_ATTRIBUTION = (() => {
+  const sources = new Set(films.filter(f => f.poster).map(f => f.poster.source));
+  const parts = [];
+  if (sources.has('tmdb')) parts.push('Some poster images via <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>; this product uses the TMDB API but is not endorsed or certified by TMDB.');
+  if (sources.has('wikipedia')) parts.push('Some images via <a href="https://www.wikipedia.org/" target="_blank" rel="noopener">Wikipedia</a>.');
+  return parts.length ? ' ' + parts.join(' ') : '';
+})();
+
 function generateFooter(pathPrefix = '') {
   // For static pages, pick a random film at build time (changes daily with rebuilds)
   const randomFilm = films[Math.floor(Math.random() * films.length)];
@@ -1062,7 +1072,7 @@ function generateFooter(pathPrefix = '') {
   // pre-filled subject. mailto: works without JavaScript and without an
   // external form provider — appropriate for a personal research archive.
   const reportSubject = encodeURIComponent('Animation Archive: broken/missing watch link');
-  return `<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="${randomUrl}" class="footer-random">🎲 Random Film</a><a href="mailto:${CORRECTIONS_EMAIL}?subject=${reportSubject}" class="footer-report">📝 Report broken link</a><a href="${pathPrefix}feed.xml" class="footer-rss" aria-label="Subscribe to RSS feed of new additions">📡 RSS</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div><div class="footer-license"><p>Catalog data is licensed <a href="${LICENSE.url}" target="_blank" rel="noopener">${LICENSE.shortName}</a> &mdash; cite as &ldquo;${LICENSE.attribution}&rdquo;. Films are &copy; their respective rights-holders. <a href="${pathPrefix}license.html">Full terms</a>.</p></div></footer><button class="back-to-top" aria-label="Back to top">↑</button>`;
+  return `<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="${randomUrl}" class="footer-random">🎲 Random Film</a><a href="mailto:${CORRECTIONS_EMAIL}?subject=${reportSubject}" class="footer-report">📝 Report broken link</a><a href="${pathPrefix}feed.xml" class="footer-rss" aria-label="Subscribe to RSS feed of new additions">📡 RSS</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div><div class="footer-license"><p>Catalog data is licensed <a href="${LICENSE.url}" target="_blank" rel="noopener">${LICENSE.shortName}</a> &mdash; cite as &ldquo;${LICENSE.attribution}&rdquo;. Films and poster images are &copy; their respective rights-holders.${POSTER_ATTRIBUTION} <a href="${pathPrefix}license.html">Full terms</a>.</p></div></footer><button class="back-to-top" aria-label="Back to top">↑</button>`;
 }
 
 // Film of the Day: deterministic selection by calendar date.
@@ -1812,7 +1822,7 @@ ${FAVICON}
 <script type="application/ld+json">${generateCollectionJsonLd()}</script>
 
 ${FONT_HEAD}
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -1961,7 +1971,7 @@ ${/* Rec #2 (2026-05-03): featured-picks panel moved here from inside main-
   </div>
 </section>
 ${generateEmailSignupSection()}
-<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="#" class="footer-random" id="footer-random-link">🎲 Random</a><a href="feed.xml" class="footer-rss" aria-label="Subscribe to RSS feed of new additions">📡 RSS</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div><div class="footer-license"><p>Catalog data is licensed <a href="${LICENSE.url}" target="_blank" rel="noopener">${LICENSE.shortName}</a> &mdash; cite as &ldquo;${LICENSE.attribution}&rdquo;. Films are &copy; their respective rights-holders. <a href="license.html">Full terms</a>.</p></div></footer>
+<footer class="footer"><div class="footer-inner"><div class="footer-logo">Global Animation Archive</div><div class="footer-links"><a href="#" class="footer-random" id="footer-random-link">🎲 Random</a><a href="feed.xml" class="footer-rss" aria-label="Subscribe to RSS feed of new additions">📡 RSS</a></div><div class="footer-timestamp">BUILD: ${BUILD_TIMESTAMP}</div></div><div class="footer-license"><p>Catalog data is licensed <a href="${LICENSE.url}" target="_blank" rel="noopener">${LICENSE.shortName}</a> &mdash; cite as &ldquo;${LICENSE.attribution}&rdquo;. Films and poster images are &copy; their respective rights-holders.${POSTER_ATTRIBUTION} <a href="license.html">Full terms</a>.</p></div></footer>
 <button class="back-to-top" aria-label="Back to top">↑</button>
 <!-- Round 9 #4: relative path (no leading /) so the catalog loads regardless of how the site is served — file://, Live Server with project-root, npx serve dist, Netlify. Only injected on the homepage; sub-pages don't filter. -->
 <script>window.__CATALOG_URL=${JSON.stringify(ASSET_URLS.filmsIndex)}</script>
@@ -2115,20 +2125,14 @@ function generateFilmPage(film) {
   const specs = [film.format, film.color, film.sound].filter(Boolean).join(' · ');
   const description = film.synopsis || `${film.titleEnglish || 'Animated film'} (${film.year || 'Year unknown'}) - ${techniques} animation from ${film.country || 'Unknown country'}`;
 
-  // Poster treatment: a tall poster becomes a hero image beside the title;
-  // wider title-card art drops below the header as an "artwork strip" (no
-  // sliver hero). Both use object-fit:contain so nothing is cropped.
+  // Artwork: every film with a poster gets the same 2:3 card beside its
+  // header, with a source credit for auto-sourced images.
   const poster = film.poster;
-  const isPortraitPoster = poster && poster.ar < POSTER_PORTRAIT_MAX;
-  const posterAlt = escapeHtml(film.titleEnglish || 'Untitled');
-  const posterHeroOpen = isPortraitPoster
+  const posterHeroOpen = poster
     ? `<div class="detail-hero-flex">
-    <div class="detail-poster"><img src="../posters/${poster.file}" alt="${posterAlt} poster" width="${poster.w}" height="${poster.h}"></div>`
+    <figure class="detail-poster">${posterFrame(film, '../', { lazy: false })}${POSTER_CREDIT[poster.source] ? `<figcaption>${POSTER_CREDIT[poster.source]}</figcaption>` : ''}</figure>`
     : '';
-  const posterHeroClose = isPortraitPoster ? `</div>` : '';
-  const posterStrip = (poster && !isPortraitPoster)
-    ? `<figure class="detail-artwork"><img src="../posters/${poster.file}" alt="${posterAlt} artwork" width="${poster.w}" height="${poster.h}"></figure>`
-    : '';
+  const posterHeroClose = poster ? `</div>` : '';
   
   return `<!DOCTYPE html>
 <html lang="en">
@@ -2158,7 +2162,7 @@ ${film.year ? `<meta property="video:release_date" content="${film.year}">` : ''
 <script type="application/ld+json">${generateFilmJsonLd(film)}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -2216,7 +2220,6 @@ ${generateBreadcrumb([
       return `<a href="${escapeHtml(link.url)}" class="${cls}" target="_blank" rel="noopener" aria-label="${aria}">${label}</a>${subs}`;
     })()}${renderLibraryButtons(film)}</div>
   </div>${posterHeroClose}
-  ${posterStrip}
   <div class="detail-body">
     <div class="detail-content">
       ${/* Watch links lifted above the prose 2026-04-25 — primary user
@@ -2915,21 +2918,21 @@ ul.watch-order-list{list-style:disc}
 .no-results{padding:var(--space-5) var(--space-4)}
 .no-results-title{font-size:20px}
 }
-/* ---- Poster / artwork treatment ---- */
+/* ---- Poster cards (pre-rendered 2:3 WebP; see scripts/lib/poster-card.js) ---- */
+.poster-frame{display:block;aspect-ratio:2/3;border-radius:6px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.18)}
+.poster-frame img{display:block;width:100%;height:100%;object-fit:cover}
 .detail-hero-flex{display:flex;gap:40px;align-items:flex-start}
 .detail-hero-flex .detail-header{flex:1;min-width:0}
-.detail-poster{flex:0 0 200px;max-width:200px;border-radius:8px;overflow:hidden;background:rgba(0,0,0,.06);box-shadow:0 2px 12px rgba(0,0,0,.18)}
-.detail-poster img{width:100%;height:auto;display:block}
-.detail-artwork{margin:0 0 40px;border-radius:8px;overflow:hidden;background:rgba(0,0,0,.05)}
-.detail-artwork img{width:100%;max-height:280px;object-fit:contain;object-position:left;display:block}
+.detail-poster{flex:0 0 200px;max-width:200px;margin:0 0 40px}
+.detail-poster figcaption{margin-top:6px;font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted)}
 .poster-showcase{margin:0 0 var(--space-6)}
-.ps-grid{display:flex;flex-wrap:wrap;gap:12px;margin-top:var(--space-3)}
-.ps-item{display:block;border-radius:6px;overflow:hidden;background:rgba(0,0,0,.06);box-shadow:0 1px 5px rgba(0,0,0,.12);transition:transform .12s ease,box-shadow .12s ease}
-.ps-item:hover,.ps-item:focus-visible{transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,.2)}
-.ps-imgwrap{display:block;height:150px}
-.ps-item img{width:100%;height:100%;object-fit:contain;display:block;background:rgba(0,0,0,.04)}
-.ps-spacer{flex-grow:9999}
-@media(max-width:768px){.detail-hero-flex{flex-direction:column;gap:20px}.detail-poster{flex-basis:auto;max-width:160px}.ps-imgwrap{height:118px}}`;
+.poster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:18px 16px;margin-top:var(--space-5);padding:0 var(--space-6)}
+.poster-card{display:block;color:inherit;text-decoration:none}
+.poster-card .poster-frame{transition:transform .12s ease,box-shadow .12s ease}
+.poster-card:hover .poster-frame,.poster-card:focus-visible .poster-frame{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.poster-title{display:block;margin-top:6px;font-size:var(--type-meta);font-weight:600;line-height:1.3}
+.poster-year{display:block;font-family:var(--mono);font-size:var(--type-data-xs);color:var(--ink-muted)}
+@media(max-width:768px){.detail-hero-flex{flex-direction:column;gap:20px}.detail-poster{flex-basis:auto;max-width:160px;margin:0}.poster-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px 12px;padding:0 var(--space-4)}}`;
 }
 
 function generateJS() {
@@ -3747,7 +3750,7 @@ ${FAVICON}
 <script type="application/ld+json">${generateCountryJsonLd(country, countryFilms)}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -3905,7 +3908,7 @@ ${FAVICON}
   })}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -4076,7 +4079,7 @@ ${FAVICON}
 <script type="application/ld+json">${generateTechniqueJsonLd(technique, techniqueFilms)}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -4216,7 +4219,7 @@ ${FAVICON}
   })}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -4347,7 +4350,7 @@ ${FAVICON}
   })}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -4593,7 +4596,7 @@ ${FAVICON}
 <script type="application/ld+json">${generateDecadeJsonLd(decade, decadeFilms)}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -4884,7 +4887,7 @@ ${FAVICON}
   })}</script>
 
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -5229,7 +5232,7 @@ ${FAVICON}
 <meta property="og:site_name" content="Global Animation Archive">
 <meta property="og:image" content="${OG_IMAGE}">
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -5381,7 +5384,7 @@ ${FAVICON}
 <meta property="og:title" content="Studios — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -5521,7 +5524,7 @@ ${FAVICON}
 <meta property="og:title" content="${escapeHtml(director.name)} — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -5737,7 +5740,7 @@ ${FAVICON}
 <meta property="og:title" content="${escapeHtml(series.name)} — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -5829,7 +5832,7 @@ ${FAVICON}
 <meta property="og:title" content="Series & Universes — Global Animation Archive">
 <meta property="og:description" content="${escapeHtml(description)}">
 ${fontHead('../')}
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -5901,7 +5904,7 @@ function generateGenrePages() {
       `Browse ${sorted.length} animation genres from around the world. ${total} films categorized in the Global Animation Archive.`,
     deps: {
       slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
-      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'),
+      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'), CSS_HREF: ASSET_URLS.css,
       writeFileSync, mkdirSync,
       entityIndexControls, entityIndexEnhanceScript, entityIndexTopChips,
     },
@@ -5934,7 +5937,7 @@ function generateKeywordPages() {
       `Browse ${sorted.length} animation keywords and themes. ${total} films tagged in the Global Animation Archive.`,
     deps: {
       slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
-      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'),
+      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'), CSS_HREF: ASSET_URLS.css,
       writeFileSync, mkdirSync,
       entityIndexControls, entityIndexEnhanceScript, entityIndexTopChips,
     },
@@ -6100,7 +6103,7 @@ function generatePlatformPages() {
       `Browse ${sorted.length} streaming platforms. ${total} animated films with verified watch links in the Global Animation Archive.`,
     deps: {
       slugify, escapeHtml, generateTableRows, generateBreadcrumb, generateFooter,
-      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'),
+      SITE_URL, FAVICON, BUILD_DATE, FONT_HEAD: fontHead('../'), CSS_HREF: ASSET_URLS.css,
       writeFileSync, mkdirSync,
       // Rec #2 (2026-05-03): pass the search/chips helpers so the
       // tag-cloud index gets the same affordances as country/director
@@ -6522,7 +6525,7 @@ function generateLicensePage() {
 <link rel="canonical" href="${SITE_URL}/license.html">
 ${FAVICON}
 ${FONT_HEAD}
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="${ASSET_URLS.css}">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -6580,10 +6583,15 @@ Sitemap: ${SITE_URL}/sitemap.xml
 // Batch D2: module-level holder populated at the top of build() before
 // generateIndexPage() runs. index.html reads these as content-hashed
 // script URLs so we can serve the JS with immutable cache headers.
-const ASSET_URLS = { filmsIndex: 'films-index.js', app: 'app.js' };
+const ASSET_URLS = { filmsIndex: 'films-index.js', app: 'app.js', css: 'styles.css' };
 
 function build() {
   console.log('🔨 Building static site...');
+
+  // Version the stylesheet URL by content (styles.css?v=<hash>). styles.css is
+  // cached for an hour (netlify.toml), so without this, a deploy that adds CSS
+  // serves new HTML with the old stylesheet to returning visitors.
+  ASSET_URLS.css = `styles.css?v=${contentHash(generateCSS())}`;
   mkdirSync('./dist', { recursive: true });
   mkdirSync('./dist/films', { recursive: true });
 
@@ -6643,6 +6651,8 @@ function build() {
   // the homepage showcase render from dist/posters/.
   const posterSrc = './data/posters';
   if (fs.existsSync(posterSrc)) {
+    // Start clean so cards removed or renamed upstream don't linger in dist/.
+    fs.rmSync('./dist/posters', { recursive: true, force: true });
     mkdirSync('./dist/posters', { recursive: true });
     let posterCount = 0;
     for (const file of fs.readdirSync(posterSrc)) {

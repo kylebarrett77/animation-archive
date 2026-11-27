@@ -4,8 +4,9 @@
  */
 
 import 'dotenv/config';
-import { writeFileSync, mkdirSync, readFileSync, readdirSync, unlinkSync } from 'fs';
-import { imageSize } from './lib/image-size.js';
+import { writeFileSync, mkdirSync, readFileSync, readdirSync, unlinkSync, existsSync } from 'fs';
+import { createHash } from 'crypto';
+import { renderCard } from './lib/poster-card.js';
 import { queryAll } from './lib/notion.js';
 
 const DATABASE_ID = process.env.NOTION_DATABASE_ID || '9bdc62e48ffe43fda6b992248570c49f';
@@ -25,7 +26,9 @@ const extractors = {
   relation: (prop) => prop?.relation?.map(r => r.id) || [],
   // Notion "files" props return signed S3 URLs that expire ~1h, so we only
   // keep them long enough to download the file (see downloadPosters).
-  files: (prop) => prop?.files?.map(f => (f.type === 'file' ? f.file?.url : f.external?.url)).filter(Boolean) || [],
+  files: (prop) => (prop?.files || [])
+    .map(f => ({ name: f.name || '', url: f.type === 'file' ? f.file?.url : f.external?.url }))
+    .filter(f => f.url),
 };
 
 function extractFilm(page) {
@@ -82,64 +85,84 @@ function extractFilm(page) {
     directorRelation: extractors.relation(props['Director (Link)']),
     seriesRelation: extractors.relation(props['Series/Universe']),
 
-    // Temporary: signed poster URLs, downloaded + replaced with a local
-    // `poster` object by downloadPosters(). Stripped before films.json is written.
-    posterUrls: extractors.files(props['Poster images']),
+    // Temporary: poster files ({ name, url }; Notion-hosted URLs are signed
+    // and expire), replaced with a local `poster` object by downloadPosters().
+    // Stripped before films.json is written.
+    posterFiles: extractors.files(props['Poster images']),
   };
 }
 
-// Download poster images referenced by Notion "Poster images" and self-host
-// them. Notion serves expiring signed S3 URLs, so a static site cannot link
-// them directly — we download at fetch time (when the URLs are fresh), save
-// under data/posters/, measure pixel dimensions (Node-only, no Pillow), and
-// bake a { file, w, h, ar } object into each film. build-site.js copies
-// data/posters/ into dist/ and renders from these local files.
-function extFromBuffer(buf) {
-  if (buf[0] === 0x89 && buf[1] === 0x50) return 'png';
-  if (buf[0] === 0xff && buf[1] === 0xd8) return 'jpg';
-  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return 'gif';
-  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46) return 'webp';
-  return 'img';
-}
+// Turn each film's "Poster images" artwork into the archive's standard 2:3
+// poster card (scripts/lib/poster-card.js) and self-host it. Notion serves
+// signed S3 URLs that expire, so a static site cannot link them directly.
+//
+// - The first file in the property is the film's artwork.
+// - Cards live at data/posters/<full page id>.webp; build-site.js copies them
+//   to dist/. (Not an 8-char prefix: Notion IDs created together share long
+//   prefixes, e.g. 100+ films start with 2dc9fae4-b254, so prefixes collide.)
+// - A card is only re-rendered when its source changes. The stable source key
+//   is a hash of the URL without its query string (Notion re-signs URLs on
+//   every fetch, but the file path stays the same; hashing keeps workspace
+//   paths out of the public films.json).
+// - The file's name records provenance: names written by source-posters.js
+//   start with "TMDB" or "Wikipedia"; anything else is a manual upload.
+const sourceOf = name => /^tmdb/i.test(name) ? 'tmdb' : /^wikipedia/i.test(name) ? 'wikipedia' : 'notion';
 
 async function downloadPosters(films) {
-  const withPosters = films.filter(f => f.posterUrls && f.posterUrls.length);
-  console.log(`\n🖼  Downloading ${withPosters.length} poster image(s)...`);
+  const withPosters = films.filter(f => f.posterFiles && f.posterFiles.length);
+  console.log(`\n🖼  Preparing ${withPosters.length} poster card(s)...`);
   mkdirSync('./data/posters', { recursive: true });
 
-  const existing = readdirSync('./data/posters');
-  const posterFor = (buf, file) => {
-    const dims = imageSize(buf);
-    if (!dims || !dims.width || !dims.height) throw new Error('could not read dimensions');
-    return { file, w: dims.width, h: dims.height, ar: Math.round((dims.width / dims.height) * 1000) / 1000 };
-  };
+  // Previous snapshot (still on disk at this point) lets unchanged art skip
+  // the download and re-render entirely.
+  const previous = new Map();
+  try {
+    for (const f of JSON.parse(readFileSync('./data/films.json', 'utf8'))) {
+      if (f.poster) previous.set(f.id, f.poster);
+    }
+  } catch { /* first run: nothing to reuse */ }
 
-  let ok = 0, kept = 0, failed = 0;
+  let rendered = 0, reused = 0, kept = 0, failed = 0;
   const CONCURRENCY = 8;
   for (let i = 0; i < withPosters.length; i += CONCURRENCY) {
     const batch = withPosters.slice(i, i + CONCURRENCY);
     await Promise.all(batch.map(async (film) => {
-      const url = film.posterUrls[0]; // one image per film today; take the first
-      const id8 = film.id.slice(0, 8);
+      const src = film.posterFiles[0];
+      const srcKey = createHash('sha1').update(src.url.split('?')[0]).digest('hex').slice(0, 16);
+      const source = sourceOf(src.name);
+      const file = `${film.id.replace(/-/g, '')}.webp`;
+      const prev = previous.get(film.id);
+      const prevUsable = prev && prev.file === file && prev.srcKey && existsSync(`./data/posters/${file}`);
+
+      if (prevUsable && prev.srcKey === srcKey) {
+        film.poster = { ...prev, source };
+        reused++;
+        return;
+      }
       try {
-        const res = await fetch(url);
+        // Image hosts like Wikimedia reject generic user agents.
+        const res = await fetch(src.url, { headers: { 'User-Agent': 'GlobalAnimationArchive/1.0 (https://animationarchive.netlify.app)' } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const buf = Buffer.from(await res.arrayBuffer());
-        const file = `${id8}.${extFromBuffer(buf)}`;
-        film.poster = posterFor(buf, file);
-        writeFileSync(`./data/posters/${file}`, buf);
-        ok++;
+        // Decide from the headers before downloading the body: a "poster"
+        // can turn out to be a full film (Wikimedia lead media can be video).
+        const type = res.headers.get('content-type') || '';
+        const size = Number(res.headers.get('content-length') || 0);
+        // Only reject types that are clearly not images; some CDNs omit the
+        // header or send octet-stream for real images (sharp validates those).
+        if (type && !type.startsWith('image/') && !type.includes('octet-stream')) { res.body?.cancel(); throw new Error(`not an image (${type})`); }
+        if (size > 30 * 1024 * 1024) { res.body?.cancel(); throw new Error(`too large (${Math.round(size / 1048576)} MB)`); }
+        const card = await renderCard(Buffer.from(await res.arrayBuffer()));
+        writeFileSync(`./data/posters/${file}`, card.buffer);
+        film.poster = { file, srcW: card.srcW, srcH: card.srcH, ar: card.ar, color: card.color, source, srcKey };
+        rendered++;
       } catch (e) {
-        // Transient failure: keep the previously downloaded poster, if any,
-        // rather than dropping the film's artwork from the site.
-        const previous = existing.find(f => f.startsWith(`${id8}.`));
-        if (previous) {
-          try {
-            film.poster = posterFor(readFileSync(`./data/posters/${previous}`), previous);
-            kept++;
-            console.warn(`  ⚠ poster download failed for "${film.titleEnglish || film.id}" (${e.message}); kept previous file`);
-            return;
-          } catch { /* fall through */ }
+        // Transient failure: keep the previous card rather than dropping the
+        // film's artwork from the site.
+        if (prevUsable) {
+          film.poster = prev;
+          kept++;
+          console.warn(`  ⚠ poster failed for "${film.titleEnglish || film.id}" (${e.message}); kept previous card`);
+          return;
         }
         failed++;
         console.warn(`  ⚠ poster failed for "${film.titleEnglish || film.id}": ${e.message}`);
@@ -147,20 +170,20 @@ async function downloadPosters(films) {
     }));
   }
   // Never persist the expiring signed URLs.
-  for (const f of films) delete f.posterUrls;
+  for (const f of films) delete f.posterFiles;
 
-  // Prune files no film references any more (poster removed in Notion, or
-  // replaced with a different format), so data/posters/ mirrors films.json.
+  // Prune files no film references any more (art removed in Notion, or files
+  // from an older format), so data/posters/ mirrors films.json.
   const referenced = new Set(films.filter(f => f.poster).map(f => f.poster.file));
   let pruned = 0;
-  for (const file of readdirSync('./data/posters')) {
-    if (!referenced.has(file)) { unlinkSync(`./data/posters/${file}`); pruned++; }
+  for (const name of readdirSync('./data/posters')) {
+    if (!referenced.has(name)) { unlinkSync(`./data/posters/${name}`); pruned++; }
   }
 
-  console.log(`  ✓ ${ok} posters saved to data/posters/` +
+  console.log(`  ✓ ${rendered} rendered, ${reused} unchanged` +
     `${kept ? `, ${kept} kept from previous run` : ''}` +
     `${failed ? `, ${failed} failed` : ''}` +
-    `${pruned ? `, ${pruned} orphaned file(s) pruned` : ''}`);
+    `${pruned ? `, ${pruned} stale file(s) pruned` : ''}`);
 }
 
 // Extract studio data from a page in "Animation Archive: Studios" (ae6d444a...)

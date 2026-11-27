@@ -35,6 +35,10 @@ on:
         description: 'Skip watch-link validation (no write-back to Notion)'
         type: boolean
         default: false
+      skip_posters:
+        description: 'Skip poster sourcing (no poster writes to Notion)'
+        type: boolean
+        default: false
 
 concurrency:
   group: fetch-data
@@ -68,6 +72,26 @@ jobs:
         run: npm ci
 
       - name: Fetch films, entities, posters and watch links
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: npm run fetch:all
+
+      # Find artwork for films that have none: TMDB by IMDb ID, then the lead
+      # image of the film's own Wikipedia article. Exact matches are written to
+      # Notion; title guesses only appear in the uploaded review page.
+      # TMDB_TOKEN is optional (Wikipedia only without it).
+      - name: Source posters for films without art
+        id: posters
+        if: ${{ !inputs.skip_posters }}
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
+        continue-on-error: true
+        run: node scripts/source-posters.js --apply --only-missing
+
+      - name: Re-fetch after poster sourcing
+        if: ${{ steps.posters.outputs.written > 0 }}
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
@@ -116,6 +140,15 @@ jobs:
           git add data/*-report.json
           git commit -m "chore(data): refresh Notion snapshot $(date -u +'%Y-%m-%d')"
           git push origin HEAD:main
+
+      - name: Upload poster review page
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: poster-review-${{ github.run_id }}
+          path: reports/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Keepalive (prevent 60-day auto-disable)
         if: always()

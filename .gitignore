@@ -22,3 +22,6 @@ data/.*
 # Notion is the source of truth; fetch-notion.js downloads the build copies
 # into data/posters/.
 assets/poster images/
+
+# Local review artifacts from source-posters.js (plan, review page, write logs).
+reports/
