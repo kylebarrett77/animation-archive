@@ -37,7 +37,7 @@ else picks = queue.filter(q => q.status === status && !q.linked && !/session 46/
 
 const [films, ents, schema] = await Promise.all([filmsIndex(), entityIndex(), schemaOptions()]);
 const pre = picks.map(q => {
-  const yearInTitle = Number((q.title.match(/\((\d{4})\)/) || [])[1]) || null;
+  const yearInTitle = Number((q.title.match(/\([^)]*?\b(1[89]\d\d|20\d\d)\b[^)]*\)/) || [])[1]) || null;   // '(1989)', '(Los Fruittis, 1989)', '(2021 CGI film)'
   const dups = findDuplicates(films, { titles: [q.title, q.orig !== 'N/A' ? q.orig : ''], year: q.year || yearInTitle, director: q.director });
   const people = q.director.split(/,|&|\band\b/).map(s => s.replace(/\([^)]*\)/g, '').trim()).filter(s => s && !/unknown|various/i.test(s));
   return { queue: q, duplicates: dups, directors: people.map(n => ({ name: n, ...resolve(ents.directors, n) })) };
