@@ -32,7 +32,7 @@ export async function lint(draft, ctx = {}) {
     else if (f.queueId && q[0].title !== f.queueTitle) E(w, `queueId belongs to "${q[0].title}", not "${f.queueTitle}"`);
     else if (q[0].linked) E(w, 'Queue item is already linked to a Films entry');
     // Routed to Duplicate / Cannot Find by promote: only the Queue match matters, nothing will be entered.
-    if (/^\s*(DUPLICATE OF|CANNOT FIND):/i.test(f.conflicts || '')) continue;
+    if (/^\s*(DUPLICATE OF|CANNOT FIND|IN PRODUCTION):/i.test(f.conflicts || '')) continue;
     // fields
     for (const k of REQ) if (p[k] === undefined || p[k] === null || p[k] === '' || (Array.isArray(p[k]) && !p[k].length)) E(w, `missing ${k}`);
     if (typeof p.Year !== 'number') E(w, 'Year must be a number');
