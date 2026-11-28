@@ -75,7 +75,7 @@ for (let i = 0; i < all.length; i += 80) {
   rows.push(...await sparql(`SELECT ?item ?en ?native ?orig (MIN(?date) AS ?first) ?links ?imdb (GROUP_CONCAT(DISTINCT ?dirLabel; separator=", ") AS ?dirs) ?nativeWiki WHERE {
     VALUES ?item { ${ids} } ?item wikibase:sitelinks ?links .
     OPTIONAL { ?item wdt:P577 ?date } OPTIONAL { ?item wdt:P1476 ?orig } OPTIONAL { ?item wdt:P345 ?imdb }
-    OPTIONAL { ?item wdt:P57 ?dir . ?dir rdfs:label ?dirLabel FILTER(lang(?dirLabel) IN ("en","${nativeLang}")) }
+    OPTIONAL { ?item wdt:P57 ?dir . OPTIONAL { ?dir rdfs:label ?dEn FILTER(lang(?dEn)="en") } OPTIONAL { ?dir rdfs:label ?dNat FILTER(lang(?dNat)="${nativeLang}") } BIND(COALESCE(?dEn, ?dNat) AS ?dirLabel) }   # one name per person
     OPTIONAL { ?item rdfs:label ?en FILTER(lang(?en)="en") } OPTIONAL { ?item rdfs:label ?native FILTER(lang(?native)="${nativeLang}") }
     OPTIONAL { ?nativeWiki schema:about ?item; schema:isPartOf <https://${nativeLang}.wikipedia.org/> }
   } GROUP BY ?item ?en ?native ?orig ?links ?imdb ?nativeWiki`));
