@@ -62,7 +62,7 @@ export async function lint(draft, ctx = {}) {
     const sim = t => Math.max(0, ...names.map(n => titleSimilarity(n, t || '')));
     if (tt) {
       const wd = await wikidataByImdb(tt).catch(() => null);
-      if (wd && wd.length) { if (Math.max(...wd.map(x => sim(x.label))) < 0.5) W(w, `IMDb ${tt} is Wikidata ${wd[0].qid} "${wd[0].label}", which does not resemble the title; double-check`); }
+      if (wd && wd.length) { if (wd.some(x => x.label) && Math.max(...wd.filter(x => x.label).map(x => sim(x.label))) < 0.5) W(w, `IMDb ${tt} is Wikidata ${wd[0].qid} "${wd[0].label}", which does not resemble the title; double-check`); }
       else if (hasTmdb()) {
         const t = await tmdbFindImdb(tt).catch(() => null);
         if (!t) E(w, `IMDb ${tt} not found on Wikidata or TMDB; confirm or use N/A`);

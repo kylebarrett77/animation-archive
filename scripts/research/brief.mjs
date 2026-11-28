@@ -108,7 +108,7 @@ ${nativeLine(g)}
 - Verify the year, format, episode count, runtime and director across 2+ sources.
 - Never invent URLs.
   - IMDb: tt-IDs confirmed via Wikidata P345 or a Wikipedia external link (IMDb blocks fetches). Use "N/A" if IMDb has no entry for the work itself; note any episode-only IDs in Notes.
-  - Wikipedia: the work's own article (English, else ja.wikipedia, else "N/A").
+  - Wikipedia: the work's own article (English, else the article in the work's own language, else "N/A").
   - Letterboxd: only if the page exists, else "N/A".
 - Fill Alternate Titles (include native-script titles and romanization) to prevent future duplicates.
 

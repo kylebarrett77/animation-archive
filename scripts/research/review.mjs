@@ -43,7 +43,7 @@ const isNative = (s, country) => {
 };
 const STUDIOISH = /\b(studios?|animation|films?|pictures|entertainment|productions?|media|lab|company|ltd|inc)\b/i;
 // Claims about the work's standing, not plot: "the first Iranian feature", "highest-grossing", "the only animated…".
-const CLAIM = /\b((?:the|its|country's|nation's)\s+(?:very\s+)?first\b(?!\s+(?:time|episode|season|part|half|act|translator))|first[- ]ever|highest[- ]grossing|best[- ]selling|record[- ](?:breaking|setting)|the only (?:animated|feature|film|series|animation)|earliest (?:surviving|known|animated)|pioneered)/i;
+const CLAIM = /\b((?:the|its|country's|nation's)\s+(?:very\s+)?first\b(?!\s+(?:time|episode|season|part|half|act|translator|phase|film of|feature of|work of|short of))|first[- ]ever|highest[- ]grossing|best[- ]selling|record[- ](?:breaking|setting)|the only (?:animated|feature|film|series|animation)|earliest (?:surviving|known|animated)|pioneered)/i;
 const ATTRIB = /\b(according to|described as|calls?|called|claimed|claims|billed as|marketed as|reports?|reported(ly)?|per |by the count of|as .* puts it|says|said|counts?)\b/i;
 const sentences = t => String(t || '').replace(/<[^>]+>/g, '').split(/(?<=[.!?])\s+/);
 
