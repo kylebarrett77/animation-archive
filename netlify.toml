@@ -15,6 +15,11 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  # Netlify charges 15 credits per production deploy (300/month on Free; at 0 the site
+  # pauses). Skip the build unless something the site is built from changed: research
+  # scripts, reports, docs and workflows never deploy. Exit 0 = skip, non-zero = build;
+  # a missing CACHED_COMMIT_REF (first build) makes git diff fail, so it builds.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- data assets fonts scripts/build-site.js scripts/lib scripts/watch-links-renderer.js netlify.toml package.json package-lock.json .nvmrc"
 
 [build.environment]
   # Node version comes from .nvmrc (shared with local nvm and GitHub
