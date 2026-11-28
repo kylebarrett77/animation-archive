@@ -152,7 +152,18 @@ jobs:
 
       - name: Commit refreshed data
         if: ${{ !inputs.skip_commit }}
+        env:
+          # Each commit to main is a Netlify production deploy (15 credits; 300/month on Free).
+          # Scheduled runs commit the snapshot weekly (Sunday) unless the repo variable
+          # DATA_DEPLOY says otherwise: weekly (default) | daily | manual. Manual runs always commit.
+          DATA_DEPLOY: ${{ vars.DATA_DEPLOY || 'weekly' }}
         run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "$DATA_DEPLOY" = "manual" ] || { [ "$DATA_DEPLOY" = "weekly" ] && [ "$(date -u +%u)" != "7" ]; }; then
+              echo "DATA_DEPLOY=$DATA_DEPLOY: not committing today (checks and Notion updates still ran)."
+              exit 0
+            fi
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/films.json data/studios.json data/directors.json \
