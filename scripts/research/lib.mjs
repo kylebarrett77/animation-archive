@@ -23,6 +23,7 @@ export const DB = {
   series: '6a5c2864815945bd8662a47c03bd649d',
   watch: 'e19f5cd9525446ca8e352f6b9121b3af',
   sessions: '157b71aed4894f70adf9e03f4d37d628',
+  rules: '4269fae4b2548138b511cfa486087a2a',
 };
 export const DS = {
   films: '54a05454-abf6-46c2-9e67-22f683e5e838',
@@ -32,6 +33,8 @@ export const DS = {
   series: 'c40481db-dedf-441d-9131-2130ee76f9ea',
   watch: '081a1b55-8709-423d-8320-fb977b9819e0',
   sessions: '97313c25-5f6e-4498-a61d-58ad292febd1',
+  sources: '8bbf91e9-85e8-4fb7-b84d-5c140444684d',
+  rules: '4269fae4-b254-816b-9072-000b5797a014',
 };
 export const UA = 'GlobalAnimationArchive/1.0 (https://animationarchive.netlify.app)';
 export const WORK_DIR = process.env.RESEARCH_DIR || 'reports/research';
@@ -105,7 +108,7 @@ export async function filmsIndex() {
     const pr = p.properties;
     const names = ['Title (English)', 'Original Title', 'Romanized Title'].map(k => plain(pr[k]))
       .concat(plain(pr['Alternate Titles']).split(/[;,|]/)).map(s => s.replace(/\([^)]*\)/g, ' ').trim()).filter(s => s && s !== 'N/A' && s !== 'None');
-    return { id: p.id, title: plain(pr['Title (English)']), year: pr.Year?.number, format: pr.Format?.select?.name, director: plain(pr.Director), names };
+    return { id: p.id, title: plain(pr['Title (English)']), year: pr.Year?.number, format: pr.Format?.select?.name, country: pr.Country?.select?.name, director: plain(pr.Director), names };
   });
 }
 /** Candidate duplicates for a work: strength 'exact' (same name, year ±1), 'similar' (≥0.85), 'director-year'. */
@@ -147,4 +150,63 @@ export async function wikipediaSummary(url) {
 export const queueMatches = (queue, f) => {
   const key = id => String(id || '').replace(/-/g, '');
   return f.queueId ? queue.filter(q => key(q.id) === key(f.queueId)) : queue.filter(q => q.title === f.queueTitle);
+};
+
+// ---------------------------------------------------------------- Sources DB (curated research sources)
+// Region Focus options in the Sources DB, keyed by Films/Queue country.
+const REGION = {
+  'USSR/Russia': ['USSR', 'Russia', 'Ukraine', 'Georgia', 'Armenia', 'Belarus', 'Kazakhstan', 'Uzbekistan', 'Azerbaijan', 'Moldova'],
+  'Eastern Europe': ['Czechoslovakia', 'Czech Republic', 'Slovakia', 'Poland', 'Hungary', 'Yugoslavia', 'Croatia', 'Serbia', 'Montenegro', 'Slovenia', 'Bosnia and Herzegovina', 'North Macedonia', 'Romania', 'Bulgaria', 'East Germany', 'Estonia', 'Latvia', 'Lithuania', 'Albania'],
+  'Western Europe': ['France', 'UK', 'Germany', 'Italy', 'Spain', 'Portugal', 'Belgium', 'Netherlands', 'Luxembourg', 'Switzerland', 'Austria', 'Ireland', 'Sweden', 'Denmark', 'Norway', 'Finland', 'Iceland', 'Greece'],
+  USA: ['USA'], Japan: ['Japan'], China: ['China', 'Taiwan', 'Hong Kong'], Korea: ['South Korea', 'North Korea'], India: ['India', 'Pakistan', 'Bangladesh', 'Sri Lanka', 'Nepal'],
+  'Latin America': ['Brazil', 'Argentina', 'Mexico', 'Cuba', 'Chile', 'Colombia', 'Peru', 'Venezuela', 'Bolivia', 'Uruguay', 'Ecuador', 'Paraguay', 'Puerto Rico', 'Dominican Republic', 'Guatemala', 'Costa Rica', 'Panama', 'Honduras', 'El Salvador', 'Nicaragua', 'Jamaica', 'Trinidad and Tobago'],
+  Africa: ['South Africa', 'Nigeria', 'Kenya', 'Zambia', 'Egypt', 'Tunisia', 'Morocco', 'Algeria', 'Ghana', 'Rwanda', 'Tanzania', 'Mozambique', 'Angola', 'Ethiopia', 'Senegal', 'Cameroon', 'Ivory Coast', 'Congo', 'Sudan', 'Zimbabwe', 'Uganda'],
+};
+export const regionOf = country => Object.keys(REGION).find(r => REGION[r].includes(country)) || 'Global';
+// Aggregators every brief already names; not worth repeating as "curated" leads.
+const GENERIC = /^(IMDb|TMDB|Letterboxd|Internet Archive|Wikimedia Commons|Animation Wiki|BCDB — Main|IMDb — )/i;
+export async function sourcesIndex() {
+  const n = getNotion(); const all = []; let cur;
+  do { const r = await n.dataSources.query({ data_source_id: DS.sources, start_cursor: cur, page_size: 100 }); all.push(...r.results); cur = r.has_more ? r.next_cursor : null; } while (cur);
+  return all.map(p => ({ id: p.id, name: plain(p.properties.Name), url: p.properties.URL?.url || '', type: p.properties.Type?.select?.name, reliability: p.properties.Reliability?.select?.name,
+    regions: (p.properties['Region Focus']?.multi_select || []).map(o => o.name), languages: (p.properties.Language?.multi_select || []).map(o => o.name),
+    specialty: plain(p.properties.Specialty), notes: plain(p.properties.Notes) }));
+}
+export const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
+const ALIAS = {
+  Iran: 'Iran|Iranian|Persian|Tehran|Kanoon', Brazil: 'Brazil|Brasil|Brazilian|Brasileira', Spain: 'Spain|Spanish|España|Español|Española', 'East Germany': 'East Germany|GDR|DDR|DEFA|DIAF|Animationsfilm',
+  Germany: 'Germany|German|Deutsch', Bulgaria: 'Bulgaria|Bulgarian|Sofia', Taiwan: 'Taiwan|Taiwanese', Japan: 'Japan|Japanese|日本|アニメ', China: 'China|Chinese|Donghua|中国',
+  'South Korea': 'Korea|Korean|한국', USSR: 'USSR|Soviet|Russia|Russian|Soyuzmult|Animatsiya', Russia: 'Russia|Russian', Czechoslovakia: 'Czech|Czechoslovak|Slovak', 'Czech Republic': 'Czech',
+  Poland: 'Poland|Polish|Polsk', Hungary: 'Hungary|Hungarian|Pannónia', Yugoslavia: 'Yugoslav|Zagreb|Animafest', Croatia: 'Croatia|Croatian|Zagreb|Animafest', Estonia: 'Estonia|Estonian|Nukufilm',
+  France: 'France|French|Français', Italy: 'Italy|Italian|Italiana', Netherlands: 'Netherlands|Dutch|Eye Film', Belgium: 'Belgium|Belgian|Belvision', Norway: 'Norway|Norwegian|Norsk',
+  Sweden: 'Sweden|Swedish|Svensk', Switzerland: 'Swiss|Switzerland', Ireland: 'Ireland|Irish', UK: 'British|BFI|Britain', Canada: 'Canada|Canadian|NFB|OIAF', Australia: 'Australia|NFSA',
+  Mexico: 'Mexico|Mexican|Mexicana', Argentina: 'Argentina|Argentine', India: 'India|Indian', Israel: 'Israel', 'South Africa': 'Africa|African', Nigeria: 'Africa|African', Kenya: 'Africa|African',
+};
+/** Curated sources for a country: ones that name it (or its adjective/aliases) first, then up to 3 pan-regional ones; High reliability first. */
+export function sourcesFor(index, country, limit = 8) {
+  const region = regionOf(country); const rank = { High: 0, Medium: 1, Low: 2 };
+  const re = new RegExp(`(${ALIAS[country] || String(country).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'i');
+  const text = s => `${s.name} ${s.specialty} ${s.notes} ${s.url}`;
+  const byRel = (a, b) => (rank[a.reliability] ?? 3) - (rank[b.reliability] ?? 3);
+  const named = index.filter(s => !GENERIC.test(s.name) && re.test(text(s))).sort(byRel);
+  // Regional: tagged with the region but not naming some other single country (e.g. Retina Latina, not the Hungarian archive).
+  const otherCountry = new RegExp(`(${Object.entries(ALIAS).filter(([c]) => c !== country && regionOf(c) === region).map(([, a]) => a).join('|') || '^$'})`, 'i');
+  const regional = region === 'Global' ? [] : index.filter(s => !GENERIC.test(s.name) && !named.includes(s) && s.regions.includes(region) && !otherCountry.test(text(s))).sort(byRel).slice(0, 3).map(s => ({ ...s, regional: true }));
+  return [...named, ...regional].slice(0, limit);
+}
+
+// ---------------------------------------------------------------- Research Rules (what the workflow has learned)
+const RULE_REGION = { ...Object.fromEntries(Object.entries(REGION).map(([r, cs]) => [r, cs])),
+  'Middle East': ['Iran', 'Egypt', 'Turkey', 'Israel', 'UAE', 'Saudi Arabia', 'Lebanon'], 'Southeast Asia': ['Thailand', 'Vietnam', 'Philippines', 'Malaysia', 'Indonesia', 'Singapore', 'Cambodia', 'Myanmar', 'Laos'] };
+export const ruleScopesFor = countries => ['All', ...new Set(countries.flatMap(c => Object.keys(RULE_REGION).filter(r => RULE_REGION[r].includes(c))))];
+export async function rulesIndex() {
+  const n = getNotion(); const all = []; let cur;
+  do { const r = await n.dataSources.query({ data_source_id: DS.rules, start_cursor: cur, page_size: 100 }); all.push(...r.results); cur = r.has_more ? r.next_cursor : null; } while (cur);
+  return all.map(p => ({ id: p.id, rule: plain(p.properties.Rule), kind: p.properties.Kind?.select?.name, status: p.properties.Status?.select?.name,
+    scope: (p.properties.Scope?.multi_select || []).map(o => o.name), why: plain(p.properties.Why), example: plain(p.properties.Example), enforcedBy: plain(p.properties['Enforced By']) }));
+}
+/** Active rules relevant to a batch: matching region scopes (or All) plus any topical scopes requested. */
+export const rulesFor = (index, countries, topics = []) => {
+  const want = new Set([...ruleScopesFor(countries), ...topics]);
+  return index.filter(r => r.status === 'Active' && r.scope.some(s => want.has(s)));
 };

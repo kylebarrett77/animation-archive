@@ -2,13 +2,17 @@
 /**
  * log-session.mjs — write the Sessions entry and checkpoint report from promote logs.
  *   node scripts/research/log-session.mjs --session 189 --title "Validation — …" \
- *        --logs reports/research/promote-session189-*.json [--calls calls.txt] [--blockers blockers.txt] [--sources "…"] [--time "~2 hours"] [--dry]
+ *        --logs reports/research/promote-session189-*.json [--calls calls.txt] [--blockers blockers.txt] [--sources "…"] [--time "~2 hours"]
+ *        [--duplicates N] [--cannot-find N] [--dry]
+ * Also measures the session (Research Engine design, loop 2): every change review made to an agent's draft
+ * (draft-N.agent.json vs draft-N.json in reports/research/session<N>/) is written to overrides.json and
+ * counted, with Queue corrections and native-source share from review-N.json, onto the Sessions entry.
  * Refuses to reuse a session number that already exists (the protocol's
  * numbering-collision lesson). Prints the protocol's checkpoint report.
  */
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync, readdirSync, writeFileSync } from 'fs';
 import { getNotion, queryAll } from '../lib/notion.js';
-import { loadEnv, DB, DS, plain, today } from './lib.mjs';
+import { loadEnv, DB, DS, WORK_DIR, plain, today } from './lib.mjs';
 
 loadEnv();
 const a = process.argv.slice(2);
@@ -30,6 +34,34 @@ const nums = rows.map(r => Number((plain(r.properties.Session).match(/^Session\s
 if (nums.includes(session)) { console.error(`Session ${session} already exists. Next free number is ${Math.max(...nums) + 1}.`); process.exit(1); }
 if (session !== Math.max(...nums) + 1) console.warn(`note: Session ${session} is not the next sequential number (${Math.max(...nums) + 1}).`);
 
+// ---- measure: review overrides (agent draft vs final), Queue corrections, native-source share
+const dir = `${WORK_DIR}/session${session}`; const overrides = []; let reviewStats = [];
+const short = v => (typeof v === 'string' ? v : JSON.stringify(v ?? null)).replace(/\s+/g, ' ').slice(0, 80);
+if (existsSync(dir)) for (const f of readdirSync(dir).filter(x => /^draft-\d+\.agent\.json$/.test(x))) {
+  const agent = JSON.parse(readFileSync(`${dir}/${f}`, 'utf8')); const finalPath = `${dir}/${f.replace('.agent', '')}`;
+  if (!existsSync(finalPath)) continue; const fin = JSON.parse(readFileSync(finalPath, 'utf8'));
+  for (const fa of agent.films || []) {
+    const ff = (fin.films || []).find(x => x.queueTitle === fa.queueTitle); const w = fa.properties?.['Title (English)'] || fa.queueTitle;
+    if (!ff) { overrides.push({ work: w, field: '(work)', from: 'drafted', to: 'removed from draft' }); continue; }
+    for (const k of new Set([...Object.keys(fa.properties || {}), ...Object.keys(ff.properties || {})])) {
+      if (JSON.stringify(fa.properties?.[k]) !== JSON.stringify(ff.properties?.[k])) overrides.push({ work: w, field: k, from: short(fa.properties?.[k]), to: short(ff.properties?.[k]) });
+    }
+    for (const k of ['directors', 'studios', 'series', 'icon', 'queueId']) if (JSON.stringify(fa[k]) !== JSON.stringify(ff[k])) overrides.push({ work: w, field: k, from: short(fa[k]), to: short(ff[k]) });
+    const urls = x => (x.watchLinks || []).map(l => l.url || l.URL).sort().join(' ');
+    if (urls(fa) !== urls(ff)) overrides.push({ work: w, field: 'watchLinks', from: urls(fa) || 'none', to: urls(ff) || 'none' });
+  }
+  for (const kind of ['directors', 'studios']) {
+    const names = d => (d.entities?.[kind] || []).map(e => `${e.Name}|${e.Nationality || e.Country || ''}`).sort().join('; ');
+    if (names(agent) !== names(fin)) overrides.push({ work: `(entities.${kind})`, field: kind, from: names(agent) || 'none', to: names(fin) || 'none' });
+  }
+}
+if (existsSync(dir)) reviewStats = readdirSync(dir).filter(x => /^review-\d+\.json$/.test(x)).flatMap(x => JSON.parse(readFileSync(`${dir}/${x}`, 'utf8')).stats || []);
+if (existsSync(dir)) writeFileSync(`${dir}/overrides.json`, JSON.stringify(overrides, null, 1));
+const nonEng = reviewStats.filter(x => x.nonEnglish);
+const metrics = { overrides: overrides.length, queueCorrections: reviewStats.reduce((n, x) => n + (x.queueDeltas || 0), 0),
+  nativeShare: nonEng.length ? nonEng.filter(x => x.native >= 2).length / nonEng.length : null, failures: failed.length + logs.filter(l => l.recovered).length,
+  duplicates: Number(opt('--duplicates') || 0), cannotFind: Number(opt('--cannot-find') || 0) };
+
 const methodology = [
   `Promoted ${films.length} Queue item(s) to Films via the research pipeline (scripts/research: brief → lint → promote).`,
   `Films: ${films.map(f => `${f.film} (${f.year})`).join(', ')}.`,
@@ -38,6 +70,7 @@ const methodology = [
   series.length ? `Series created: ${series.map(s => `${s.series} (${s.films} films)`).join(', ')}.` : '',
   watch ? `Watch links added: ${watch} (Unverified).` : '',
   read(opt('--calls')),
+  `Measured: ${metrics.overrides} review override(s)${overrides.length ? ` (${[...new Set(overrides.map(o => o.field))].slice(0, 8).join(', ')})` : ''}; ${metrics.queueCorrections} Queue correction(s); native-source share ${metrics.nativeShare == null ? 'n/a' : Math.round(metrics.nativeShare * 100) + '%'}; ${metrics.failures} pipeline failure(s). Details: ${dir}/overrides.json, review-N.md.`,
 ].filter(Boolean).join('\n\n');
 const blockers = [failed.length ? `Failed (re-run promote to resume): ${failed.map(f => `${f.film}: ${f.error}`).join('; ')}` : '', read(opt('--blockers'))].filter(Boolean).join('\n') || 'None.';
 const t = s => ({ rich_text: [{ type: 'text', text: { content: String(s).slice(0, 1990) } }] });
@@ -45,7 +78,9 @@ const t = s => ({ rich_text: [{ type: 'text', text: { content: String(s).slice(0
 if (!DRY) await getNotion().pages.create({ parent: { type: 'data_source_id', data_source_id: DS.sessions }, properties: {
   Session: { title: [{ type: 'text', text: { content: `Session ${session}: ${title}` } }] }, Date: { date: { start: today() } }, 'Focus Region': { select: { name: 'Mixed/Other' } },
   'Films Validated': { number: films.length }, 'Films Added': { number: films.length }, 'Queue Items Added': { number: 0 },
-  'Time Spent': t(opt('--time') || 'n/a'), 'Methodology Notes': t(methodology), Blockers: t(blockers), 'New Sources Found': t(opt('--sources') || 'None new.') } });
+  'Time Spent': t(opt('--time') || 'n/a'), 'Methodology Notes': t(methodology), Blockers: t(blockers), 'New Sources Found': t(opt('--sources') || 'None new.'),
+  'Review Overrides': { number: metrics.overrides }, 'Queue Corrections': { number: metrics.queueCorrections }, 'Native Source Share': { number: metrics.nativeShare },
+  'Pipeline Failures': { number: metrics.failures }, 'Duplicates Caught': { number: metrics.duplicates }, 'Cannot Find': { number: metrics.cannotFind } } });
 
 // checkpoint report (protocol format)
 const queue = await queryAll(DB.queue);
