@@ -15,7 +15,7 @@
  */
 import { writeFileSync, mkdirSync } from 'fs';
 import { queryAll } from '../lib/notion.js';
-import { loadEnv, DB, WORK_DIR, plain, schemaOptions, entityIndex, resolve, filmsIndex, findDuplicates, stamp, sourcesIndex, sourcesFor } from './lib.mjs';
+import { loadEnv, DB, WORK_DIR, plain, schemaOptions, entityIndex, resolve, filmsIndex, findDuplicates, stamp, sourcesIndex, sourcesFor, rulesIndex, rulesFor } from './lib.mjs';
 
 loadEnv();
 const args = process.argv.slice(2);
@@ -35,7 +35,7 @@ else picks = queue.filter(q => q.status === status && !q.linked && !/session 46/
     && (!WORLD || !['USA', 'Japan'].includes(q.country)) && (!onlyCountry || q.country === onlyCountry))
   .sort((a, b) => (PRIO[a.prio] ?? 3) - (PRIO[b.prio] ?? 3) || (a.year ?? 9999) - (b.year ?? 9999)).slice(0, N);   // undated items last
 
-const [films, ents, schema, srcIndex] = await Promise.all([filmsIndex(), entityIndex(), schemaOptions(), sourcesIndex()]);
+const [films, ents, schema, srcIndex, ruleIndex] = await Promise.all([filmsIndex(), entityIndex(), schemaOptions(), sourcesIndex(), rulesIndex()]);
 const pre = picks.map(q => {
   const yearInTitle = Number((q.title.match(/\([^)]*?\b(1[89]\d\d|20\d\d)\b[^)]*\)/) || [])[1]) || null;   // '(1989)', '(Los Fruittis, 1989)', '(2021 CGI film)'
   const dups = findDuplicates(films, { titles: [q.title, q.orig !== 'N/A' ? q.orig : ''], year: q.year || yearInTitle, director: q.director });
@@ -78,6 +78,16 @@ const NATIVE = {
 const curatedLine = g => { const cs = [...new Set(g.map(p => p.queue.country).filter(Boolean))];
   const lines = cs.map(c => { const l = sourcesFor(srcIndex, c); return l.length ? `  - ${c}: ${l.map(x => `${x.name}${x.regional ? ' (regional)' : ''} [${x.reliability || '?'}] ${x.url}`).join('; ')}` : `  - ${c}: none yet. Note any good ${c} source you find in "conflicts" under "NEW SOURCE:" so it can be added`; });
   return lines.join('\n'); };
+// Active Research Rules for these works (Notion: Animation Archive: Research Rules). Lint rules are enforced by
+// lint.mjs, so the brief carries the judgment rules and precedents that code can only flag.
+const rulesBlock = g => {
+  const rs = rulesFor(ruleIndex, g.map(p => p.queue.country).filter(Boolean), ['Queue', 'Entities', 'Watch links', 'Series', 'Sources']);
+  const rules = rs.filter(r => r.kind === 'Review' || r.kind === 'Brief'), prec = rs.filter(r => r.kind === 'Precedent');
+  return [`**Archive rules** (learned in earlier sessions; follow them, and say in "conflicts" if a case seems to need an exception):`,
+    ...rules.map(r => `- ${r.rule}`),
+    ``, `**Precedents** (decided cases; apply the same way):`,
+    ...prec.map(r => `- ${r.rule}${r.example ? ` (e.g. ${r.example})` : ''}`)].join('\n');
+};
 const nativeLine = g => { const cs = [...new Set(g.map(p => p.queue.country).filter(c => NATIVE[c]))]; return cs.length ? cs.map(c => `  - ${c}: ${NATIVE[c]}`).join('\n') : '  - (no native-language list for these countries; use the national film archive/database and Wikipedia in the original language)'; };
 
 // ---- brief(s)
@@ -104,7 +114,7 @@ ${nativeLine(g)}
 
 **Entities.** Existing pages you should use by EXACT name when credited: ${knownDirectors.join(', ') || '(none resolved)'}. Any other director or studio name is checked by the linter against the live archive, with romanization and macron variants accepted. A credited director or studio that does not exist yet goes in entities.directors / entities.studios with full researched fields and 3+ sources; thinly sourced people stay in the text only.
 
-**Allowed values.** Anything else is rejected.
+${rulesBlock(g)}\n\n**Allowed values.** Anything else is rejected.
 - Country: ${opts('Country')}
 - Format: ${opts('Format')}. A multi-episode series or OVA is Series; a single OVA or TV special under ~60 min is Short; a feature-length film, OVA or TV movie is Feature.
 - Color: ${opts('Color')}

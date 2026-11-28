@@ -58,3 +58,17 @@ node scripts/research/discover.mjs --country Bulgaria --add Q1,Q2     # Queue it
 ```
 
 Discovered items then go through brief → lint → promote → log like any Queue item; Wikidata fields are leads, not facts.
+
+## Research Rules and review (Research Engine, phase 1)
+
+What the workflow has learned lives in Notion: **Animation Archive: Research Rules** (Kind: Lint / Review / Brief / Precedent / Process; Status: Proposed / Active / Retired; Scope; Why; Example; Enforced By; Origin Session). Briefs include the Active Review/Brief rules and Precedents that match the batch's regions.
+
+```bash
+node scripts/research/rules.mjs list --status Active
+node scripts/research/rules.mjs add new-rules.json          # see rules-seed.json for the shape
+node scripts/research/review.mjs reports/research/session197/draft-*.json   # after lint, before promote
+```
+
+`review.mjs` freezes each agent draft as `draft-N.agent.json` (first run only), then flags Queue deltas, studio-as-director, unattributed superlatives, native-source depth, watch-link copyright (URAA), unexplained country changes, season duplicates and confidence. Resolve every flag (edit, or accept with a reason) before promote. `log-session.mjs` then diffs agent vs final drafts into `session<N>/overrides.json` and writes Review Overrides, Queue Corrections, Native Source Share, Pipeline Failures, Duplicates Caught and Cannot Find onto the Sessions entry (`--duplicates N --cannot-find N`).
+
+Order per session: brief → agents (lint until clean) → **review** → promote → log-session → sources-sync.

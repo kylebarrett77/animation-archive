@@ -23,6 +23,7 @@ export const DB = {
   series: '6a5c2864815945bd8662a47c03bd649d',
   watch: 'e19f5cd9525446ca8e352f6b9121b3af',
   sessions: '157b71aed4894f70adf9e03f4d37d628',
+  rules: '4269fae4b2548138b511cfa486087a2a',
 };
 export const DS = {
   films: '54a05454-abf6-46c2-9e67-22f683e5e838',
@@ -33,6 +34,7 @@ export const DS = {
   watch: '081a1b55-8709-423d-8320-fb977b9819e0',
   sessions: '97313c25-5f6e-4498-a61d-58ad292febd1',
   sources: '8bbf91e9-85e8-4fb7-b84d-5c140444684d',
+  rules: '4269fae4-b254-816b-9072-000b5797a014',
 };
 export const UA = 'GlobalAnimationArchive/1.0 (https://animationarchive.netlify.app)';
 export const WORK_DIR = process.env.RESEARCH_DIR || 'reports/research';
@@ -192,3 +194,19 @@ export function sourcesFor(index, country, limit = 8) {
   const regional = region === 'Global' ? [] : index.filter(s => !GENERIC.test(s.name) && !named.includes(s) && s.regions.includes(region) && !otherCountry.test(text(s))).sort(byRel).slice(0, 3).map(s => ({ ...s, regional: true }));
   return [...named, ...regional].slice(0, limit);
 }
+
+// ---------------------------------------------------------------- Research Rules (what the workflow has learned)
+const RULE_REGION = { ...Object.fromEntries(Object.entries(REGION).map(([r, cs]) => [r, cs])),
+  'Middle East': ['Iran', 'Egypt', 'Turkey', 'Israel', 'UAE', 'Saudi Arabia', 'Lebanon'], 'Southeast Asia': ['Thailand', 'Vietnam', 'Philippines', 'Malaysia', 'Indonesia', 'Singapore', 'Cambodia', 'Myanmar', 'Laos'] };
+export const ruleScopesFor = countries => ['All', ...new Set(countries.flatMap(c => Object.keys(RULE_REGION).filter(r => RULE_REGION[r].includes(c))))];
+export async function rulesIndex() {
+  const n = getNotion(); const all = []; let cur;
+  do { const r = await n.dataSources.query({ data_source_id: DS.rules, start_cursor: cur, page_size: 100 }); all.push(...r.results); cur = r.has_more ? r.next_cursor : null; } while (cur);
+  return all.map(p => ({ id: p.id, rule: plain(p.properties.Rule), kind: p.properties.Kind?.select?.name, status: p.properties.Status?.select?.name,
+    scope: (p.properties.Scope?.multi_select || []).map(o => o.name), why: plain(p.properties.Why), example: plain(p.properties.Example), enforcedBy: plain(p.properties['Enforced By']) }));
+}
+/** Active rules relevant to a batch: matching region scopes (or All) plus any topical scopes requested. */
+export const rulesFor = (index, countries, topics = []) => {
+  const want = new Set([...ruleScopesFor(countries), ...topics]);
+  return index.filter(r => r.status === 'Active' && r.scope.some(s => want.has(s)));
+};
