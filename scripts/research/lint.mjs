@@ -92,11 +92,12 @@ export async function lint(draft, ctx = {}) {
   }
   for (const e of draft.entities?.directors || []) {
     const w = `entity ${e.Name}`; if ((e.sources || []).length < 3) E(w, 'fewer than 3 sources; keep this person in text only');
-    inSet(w, 'Nationality', e.Nationality, schema.directors.Nationality); inSet(w, 'Primary Technique', e['Primary Technique'], schema.directors['Primary Technique']);
+    if (!e.Nationality) E(w, 'missing Nationality (required by Notion); if no source gives it, keep this person in text only'); else inSet(w, 'Nationality', e.Nationality, schema.directors.Nationality); inSet(w, 'Primary Technique', e['Primary Technique'], schema.directors['Primary Technique']);
     const r = resolve(ents.directors, e.Name); if (r.status !== 'missing') E(w, `already exists as "${r.entity?.name || r.candidates.map(c => c.name).join('|')}"; link that instead`);
   }
   for (const e of draft.entities?.studios || []) {
     const w = `entity ${e.Name}`; if ((e.sources || []).length < 3) E(w, 'fewer than 3 sources');
+    if (!e.Country || !e.Type) E(w, 'missing Country or Type (required by Notion)');
     inSet(w, 'Country', e.Country, schema.studios.Country); inSet(w, 'Type', e.Type, schema.studios.Type); inSet(w, 'Notable Techniques', e['Notable Techniques'], schema.studios['Notable Techniques']);
     const r = resolve(ents.studios, e.Name); if (r.status !== 'missing') E(w, `already exists as "${r.entity?.name || r.candidates.map(c => c.name).join('|')}"; link that instead`);
   }

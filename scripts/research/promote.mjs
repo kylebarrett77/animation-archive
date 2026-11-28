@@ -69,6 +69,11 @@ const { errors, warnings } = await lint({ ...draft, films: pending }, ctx);
 const resumeOnly = errors.length && errors.every(e => /possible duplicate of Films/.test(e));
 if (errors.length && !resumeOnly) { console.log(errors.map(e => `ERROR  ${e}`).join('\n')); console.log('Aborted: fix the draft (lint.mjs) and re-run. Nothing was written.'); process.exit(1); }
 const log = { session, file, started: new Date().toISOString(), warnings, entities: [], reusedEntities: reused, films: [], series: [] };
+// Save the log after every write, so a run that crashes midway still records what it created
+// (resume relies on the log to recognise its own entities).
+const out = `${WORK_DIR}/promote-session${session}-${stamp()}${DRY ? '-dry' : ''}.json`;
+const save = () => { mkdirSync(WORK_DIR, { recursive: true }); writeFileSync(out, JSON.stringify(log, null, 1)); };
+for (const k of ['entities', 'films', 'series']) log[k].push = function (...a) { const r = Array.prototype.push.apply(this, a); if (!DRY) save(); return r; };
 
 // ---------- 2. entities
 const idOf = (kind, name) => { const r = resolve(ctx.ents[kind], name); return r.entity?.id || created[kind][name]; };
@@ -151,8 +156,7 @@ if (!DRY) for (const s of draft.series || []) {
   log.series.push({ series: s.Name, id: r.id, films: filmIds.length });
 }
 
-const out = `${WORK_DIR}/promote-session${session}-${stamp()}${DRY ? '-dry' : ''}.json`;
-mkdirSync(WORK_DIR, { recursive: true }); writeFileSync(out, JSON.stringify(log, null, 1));
+save();
 for (const f of log.films) console.log(f.error ? `FAILED  ${f.film}: ${f.error}` : f.skipped ? `skip    ${f.film}: ${f.skipped}` : f.dry ? `dry     ${f.film}: ${f.dry}` : `${f.resumed ? 'resumed' : 'created'} ${f.film} → ${f.page}${f.watchLinks.length ? ` (+${f.watchLinks.length} watch link)` : ''}`);
 for (const e of log.entities) console.log(`entity  ${e.director || e.studio} → ${e.id}`);
 for (const s of log.series) console.log(`series  ${s.series} ${s.id ? '→ ' + s.id : s.skipped}`);
