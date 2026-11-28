@@ -109,6 +109,7 @@ ${g.map((p, i) => `${i + 1}. "${p.queue.title}"${queue.filter(x => x.title === p
 ${nativeLine(g)}
 - The archive's Sources DB (curated; reliability in brackets). Check these first and prefer High:\n${curatedLine(g)}\n- English: Wikipedia, BCDB, Letterboxd, Cartoon Research, festival catalogues. Fan wikis support only.
 - Verify the year, format, episode count, runtime and director across 2+ sources.
+- If a work cannot be verified to exist as described after three levels of research (archive data, native-language web, festival or archive records), keep it in the draft but begin its "conflicts" with `CANNOT FIND: <what you searched>`; promote then routes it to Queue status Cannot Find instead of Films.
 - Never invent URLs.
   - IMDb: tt-IDs confirmed via Wikidata P345 or a Wikipedia external link (IMDb blocks fetches). Use "N/A" if IMDb has no entry for the work itself; note any episode-only IDs in Notes.
   - Wikipedia: the work's own article (English, else the article in the work's own language, else "N/A").
