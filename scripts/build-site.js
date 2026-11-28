@@ -7075,6 +7075,9 @@ async function build() {
   // cached for an hour (netlify.toml), so without this, a deploy that adds CSS
   // serves new HTML with the old stylesheet to returning visitors.
   ASSET_URLS.css = `styles.css?v=${contentHash(generateCSS())}`;
+  // Start from an empty dist/. Netlify restores the previous build's output, and a
+  // leftover page shadows its redirect (renamed slugs) or outlives its entity.
+  fs.rmSync('./dist', { recursive: true, force: true });
   mkdirSync('./dist', { recursive: true });
   mkdirSync('./dist/films', { recursive: true });
 
