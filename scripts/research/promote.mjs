@@ -15,7 +15,7 @@
  */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'fs';
 import { getNotion, queryAll } from '../lib/notion.js';
-import { loadEnv, DB, DS, WORK_DIR, plain, today, stamp, schemaOptions, entityIndex, resolve, filmsIndex } from './lib.mjs';
+import { loadEnv, DB, DS, WORK_DIR, plain, today, stamp, schemaOptions, entityIndex, resolve, filmsIndex, queueMatches } from './lib.mjs';
 import { lint } from './lint.mjs';
 
 loadEnv();
@@ -54,7 +54,7 @@ const ms = a => ({ multi_select: [].concat(a || []).filter(Boolean).map(name => 
 // ---------- 1. lint everything first
 const ctx = { schema: await schemaOptions(), ents: await entityIndex(), films: await filmsIndex(),
   queue: (await queryAll(DB.queue)).map(p => ({ id: p.id, title: plain(p.properties.Title), linked: (p.properties['Film DB Entry']?.relation || []).length, notes: p.properties.Notes?.rich_text || [] })) };
-const pending = draft.films.filter(f => !ctx.queue.find(q => q.title === f.queueTitle && q.linked));   // resumable: skip finished films
+const pending = draft.films.filter(f => !queueMatches(ctx.queue, f).some(q => q.linked));   // resumable: skip finished films
 // Entities this pipeline already created (earlier run of this draft, or a parallel batch) are linked, not re-created.
 // Only exact-name pages whose id appears in a promote log qualify; hand-made pages and variants still fail lint.
 const pipelineIds = new Set(existsSync(WORK_DIR) ? readdirSync(WORK_DIR).filter(f => /^promote-session.*\.json$/.test(f) && !f.includes('-dry'))
@@ -98,7 +98,7 @@ const liveFilms = await queryAll(DB.films);
 const linkedFromQueue = new Set((await queryAll(DB.queue)).flatMap(p => (p.properties['Film DB Entry']?.relation || []).map(r => r.id)));
 const pageFor = {};
 for (const f of draft.films) {
-  const p = f.properties; const q = ctx.queue.find(x => x.title === f.queueTitle);
+  const p = f.properties; const q = queueMatches(ctx.queue, f)[0];
   if (q.linked) { log.films.push({ film: p['Title (English)'], skipped: 'already promoted' }); continue; }
   // resume: an orphan page with the same title + year that no Queue item links to
   const orphan = liveFilms.find(pg => plain(pg.properties['Title (English)']) === p['Title (English)'] && pg.properties.Year?.number === p.Year && !linkedFromQueue.has(pg.id));

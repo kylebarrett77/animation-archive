@@ -142,3 +142,9 @@ export async function wikipediaSummary(url) {
   if (!r.ok) return { error: `HTTP ${r.status}` };
   const j = await r.json(); return { type: j.type, title: j.title, description: j.description };
 }
+
+/** Queue items a draft film refers to: by queueId when given (same-titled Queue items exist), else by exact queueTitle. */
+export const queueMatches = (queue, f) => {
+  const key = id => String(id || '').replace(/-/g, '');
+  return f.queueId ? queue.filter(q => key(q.id) === key(f.queueId)) : queue.filter(q => q.title === f.queueTitle);
+};
