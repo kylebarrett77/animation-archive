@@ -68,6 +68,10 @@ const NATIVE = {
   Brazil: 'pt.wikipedia, Cinemateca Brasileira, AnimaMundi catalogue, Filme B', Argentina: 'es.wikipedia, cinenacional.com, INCAA', Mexico: 'es.wikipedia, IMCINE, Cineteca Nacional', Cuba: 'es.wikipedia, ICAIC, EcuRed', Chile: 'es.wikipedia, CineChile', Colombia: 'es.wikipedia, Proimágenes Colombia', Peru: 'es.wikipedia', Venezuela: 'es.wikipedia',
   Egypt: 'ar.wikipedia, elCinema.com, Egyptian press (Al-Ahram)', 'Saudi Arabia': 'ar.wikipedia, elCinema.com, Saudi Film Commission', UAE: 'ar.wikipedia, elCinema.com', Turkey: 'tr.wikipedia, Sinematurk, Beyazperde', Israel: 'he.wikipedia, Israel Film Archive',
   India: 'Wikipedia in the film\'s language (hi/ml/ta/bn/mr), Films Division archive, Indian press (The Hindu, Scroll.in)', Thailand: 'th.wikipedia, Thai Film Archive', Vietnam: 'vi.wikipedia, Vietnam Animation Studio, Vietnam Film Institute', Indonesia: 'id.wikipedia, filmindonesia.or.id', Malaysia: 'ms.wikipedia, FINAS', Philippines: 'tl.wikipedia, Philippine press (Inquirer)',
+  'South Africa': 'Animation SA, Cape Town International Animation Festival, NFVF, News24, Daily Maverick, Mail & Guardian (af.wikipedia for Afrikaans works)',
+  Nigeria: 'Punch, The Guardian Nigeria, Premium Times, Pulse Nigeria, BellaNaija, Nollywood Reinvented, CEAN box office (yo/ha/ig.wikipedia for works in those languages)',
+  Kenya: 'Daily Nation, The Standard, Business Daily, Kenya Film Commission (sw.wikipedia for Swahili works)', Zambia: 'Zambia Daily Mail, Lusaka Times, Zambian press',
+  Uganda: 'Daily Monitor, New Vision', Ghana: 'Graphic Online, MyJoyOnline', Zimbabwe: 'The Herald, NewsDay',
   'North Korea': 'ko.wikipedia, KMDb, North Korean film literature (via South Korean archives)', Greece: 'el.wikipedia, Greek Film Centre', Austria: 'de.wikipedia, Filmarchiv Austria',
 };
 const nativeLine = g => { const cs = [...new Set(g.map(p => p.queue.country).filter(c => NATIVE[c]))]; return cs.length ? cs.map(c => `  - ${c}: ${NATIVE[c]}`).join('\n') : '  - (no native-language list for these countries; use the national film archive/database and Wikipedia in the original language)'; };
