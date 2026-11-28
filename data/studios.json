@@ -1,5 +1,654 @@
 [
   {
+    "id": "4269fae4-b254-811a-9f99-cdcb619c851c",
+    "url": "https://app.notion.com/p/Estudios-Cruz-Delgado-4269fae4b254811a9f99cdcb619c851c",
+    "name": "Estudios Cruz Delgado",
+    "country": "Spain",
+    "founded": 1963,
+    "closed": null,
+    "active": false,
+    "significance": "Madrid animation studio founded in 1963 by Cruz Delgado on his return from Belvision in Brussels, one of the few Spanish studios of its time devoted to cartoons rather than advertising alone. It made the short El gato con botas (1964), commercials, the Molécula shorts for TVE and Delgado's features (Mágica aventura, 1973; Los viajes de Gulliver, 1983; Los cuatro músicos de Bremen, 1989, the first Goya winner for animation). For the 39-episode Don Quijote de la Mancha (TVE, 1979-81), Delgado and the producer José Romagosa formed Cruz Delgado-José Romagosa S.A., which dubbing and film databases credit as Estudios Cruz Delgado. (Sources: es.wikipedia: Cruz Delgado, eldoblaje.com: Don Quijote de La Mancha [serie de animación], Lambiek Comiclopedia: Cruz Delgado, Ministerio de Cultura, ICAA catalogue: Cruz Delgado: un Quijote de la animación española, TMDB 66407: Don Quijote de la Mancha (production companies))",
+    "notableTechniques": [
+      "2D Cel"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4269fae4-b254-8149-8b12-e654a1632abc"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-816b-8219-f138cf516e45",
+    "url": "https://app.notion.com/p/RG-Animation-Studios-4269fae4b254816b8219f138cf516e45",
+    "name": "RG Animation Studios",
+    "country": "South Korea",
+    "founded": null,
+    "closed": null,
+    "active": false,
+    "significance": "Seoul CG animation studio (RG 애니메이션 스튜디오) run by Aaron Lim (Im A-ron) and Kim Kang-deok, creator of the polar bear Backkom (Bernard) in 2002. It produced the 3D pilot shorts and, with Spain's BRB Internacional and Screen21, France's M6, EBS and Synergy Media, the series Bernard (from 2006), one of the most widely sold Korean animated properties, as well as the feature Mug Travel (2007). The character was sold to China's Alpha Group in 2015. (Sources: KMDb: 빼꼼의 머그잔 여행 (Mug Travel), ko.wikipedia: 빼꼼, en.wikipedia: Bernard (TV series), en.wikipedia: Mug Travel, Namuwiki: 빼꼼 (support))",
+    "notableTechniques": [
+      "CGI"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4269fae4-b254-81ab-a32d-fc9f9ca3721f"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-81fc-a476-ca301fab5221",
+    "url": "https://app.notion.com/p/D-Ocon-Films-4269fae4b25481fca476ca301fab5221",
+    "name": "D'Ocon Films",
+    "country": "Spain",
+    "founded": 1976,
+    "closed": null,
+    "active": true,
+    "significance": "Barcelona animation producer founded in 1976 by Antoni D'Ocon (as D'Ocon Films Productions). Made Los Aurones (1987), Los Fruittis (1990), Delfy y sus amigos, Sylvan, Basket Fever, Scruff (Rovelló) and others, many co-produced with the BBC, TF1, Sony and Fox, and developed the D'Oc Animation System for digital colouring. It had over 100 staff at its peak, filed for insolvency in 2009 and closed in early 2012, its rights passing to Motion Pictures; the D'Ocon Films name has since returned with an official site, a YouTube channel with its classic series and a Fruittis reboot announced in 2019. (Sources: La Soga: Entre Fruittis y Aurones (27 Feb 2015), es.wikipedia: Antoni D'Ocon, ca.wikipedia: Antoni D'Ocon, D'Ocon Films official site, Expansión (23 Feb 2011, cited by es.wikipedia))",
+    "notableTechniques": [
+      "2D Digital"
+    ],
+    "wikipedia": null,
+    "website": "https://www.doconfilms.com",
+    "filmRelations": [
+      "4269fae4-b254-810e-aab9-cb9f3704684e",
+      "4269fae4-b254-818e-9fd8-efce2bd4f737",
+      "bfbe3d22-4ad1-4ec2-be66-f29c0b2740c0"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-816e-8c2b-d8cc29066f42",
+    "url": "https://app.notion.com/p/Showlab-4269fae4b254816e8c2bd8cc29066f42",
+    "name": "Showlab",
+    "country": "Italy",
+    "founded": null,
+    "closed": null,
+    "active": true,
+    "significance": "Turin-based production and distribution company of the Prodea Group (Showlab Srl, with offices in Milan and Rome), active in television production, post-production and VFX services. In children's animation it co-produced the preschool CGI series YoYo with Grid Animation for Rai, the hybrid sitcom Kapuf with Rai Ragazzi, and developed and majority-produced the CGI steampunk series Klincus (2024) with Rai Kids, ZDF, La Fabrique d'Images and Telegael. (Sources: World Screen: Spotlight: Showlab, Kidscreen: RAI Ragazzi and Showlab partner on Kapuf the Little Monster, Cinando: SHOWLAB SRL, tvblog.it: Klincus, la nuova serie animata da sabato su Rai Gulp (12 September 2024))",
+    "notableTechniques": [
+      "CGI"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4269fae4-b254-81ce-9d75-c718460e06cf"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8164-9a58-fc3126b4428a",
+    "url": "https://app.notion.com/p/Engine-Studios-4269fae4b25481649a58fc3126b4428a",
+    "name": "Engine Studios",
+    "country": "Taiwan",
+    "founded": null,
+    "closed": null,
+    "active": true,
+    "significance": "Taiwanese CGI studio (原金國際有限公司) founded by the director and producer Vick Wang (王世偉) after he left the studio behind the CGI series MuMuHug. It co-produced and animated National Tsing Hua University's Indigenous science series Go Go Giwas (吉娃斯愛科學, 2016-), winner of the 51st Golden Bell Award for Best Animation Programme, and makes interactive panorama animation for museums including the National Palace Museum. Its long-gestating original CGI feature project is LAQI (妖怪森林). (Sources: 國立清華大學原住民族科學發展中心: 吉娃斯愛科學, zh.wikipedia: 第51屆金鐘獎, Animationweek: Taiwan animation industry seeking its own way (Vick Wang interview, 10 August 2017), 玩具人 Toy People: 王世偉《妖怪森林》 report (21 July 2024))",
+    "notableTechniques": [
+      "CGI"
+    ],
+    "wikipedia": null,
+    "website": "https://www.enginestudios.com.tw",
+    "filmRelations": [
+      "4269fae4-b254-81c9-9bc5-df8984783f0a"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-811e-8983-fc06158d32e0",
+    "url": "https://app.notion.com/p/studio2-Animation-Lab-4269fae4b254811e8983fc06158d32e0",
+    "name": "studio2 Animation Lab",
+    "country": "Taiwan",
+    "founded": 2006,
+    "closed": null,
+    "active": true,
+    "significance": "Tainan-based independent studio founded by Chiu Li-wei in 2006 (Chinese corporate name studio2 兔子創意股份有限公司). It created the Barkley the Cat franchise, whose 2017 feature ended Taiwan's 12-year absence from the Golden Horse animation nominations and was released in mainland China, and Pigsy (八戒, 2023), winner of the 60th Golden Horse Award for Best Animated Feature. Other work includes The Little Sun, Weather Boy, VR series and The Ship of Theseus segment of the anthology Bliss: Beyond the Edge of Time (2026). It is one of the few Taiwanese studios building original IP rather than doing outsourced work. (Sources: Cartoon Brew: Taiwan's Popular 'Barkley the Cat' Spins Off Into A VR Series (26 September 2018), Asia TV Forum: Big Dreams After Winning at ATF, 巴哈姆特 GNN: 《八戒》 production report, BLISS: Beyond the Edge of Time official site (Chinese))",
+    "notableTechniques": [
+      "CGI"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4269fae4-b254-8103-884e-e0ee5db45917"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8112-ad56-f4db5f0f01e7",
+    "url": "https://app.notion.com/p/TRIKK17-4269fae4b2548112ad56f4db5f0f01e7",
+    "name": "TRIKK17",
+    "country": "Germany",
+    "founded": 2001,
+    "closed": null,
+    "active": true,
+    "significance": "Hamburg animation studio (TRIKK17 – Animationsraum GmbH & Co. KG) founded in 2001 as a stop-motion studio by partners including Sandra Schießl, Björn Magsig, Marion Heinßen and Sören Wendt. It made short films for ZDF's Löwenzahn and Siebenstein and WDR's Die Sendung mit der Maus, music videos for Sasha, Seeed and Udo Lindenberg, and the Grimme-winning Astrid Lindgren adaptation Tomte Tummetott und der Fuchs (2007), before co-producing the CGI series Dinomite & Lucy (2024). (Sources: de.wikipedia: TRIKK17, de.wikipedia: Sandra Schießl (co-founded TRIKK17 in Hamburg, end of 2000), BCDB: TRIKK 17 Studio Directory (Hamburg), wunschliste.de: Minus Drei und die wilde Lucy (TRIKK 17 Animationsraum GmbH & Co. KG), ZDF Studios: Dino Mite press release (2023))",
+    "notableTechniques": [
+      "Stop Motion",
+      "Cutout",
+      "CGI"
+    ],
+    "wikipedia": "https://de.wikipedia.org/wiki/TRIKK17",
+    "website": "https://www.trikk17.com/",
+    "filmRelations": [
+      "4269fae4-b254-8111-a938-c2301444ec1e"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-81d0-9a85-da2829306660",
+    "url": "https://app.notion.com/p/M-A-R-K-13-4269fae4b25481d09a85da2829306660",
+    "name": "M.A.R.K.13",
+    "country": "Germany",
+    "founded": 1999,
+    "closed": null,
+    "active": true,
+    "significance": "Stuttgart computer-animation group founded in 1999 (managing directors Dominique Schuchmann and Holger Weiss), with M.A.R.K.13 Studios making features and series, M.A.R.K.13 COM making commercial work, and PENG! BOOM! TSCHAK! Films (from 2019) developing original IP. Its feature work includes Knight Rusty 1 and 2, Maya the Bee 1 and 2, The Ogglies, Vic the Viking and the Magic Sword, Coconut the Little Dragon 2 and Pettersson & Findus 2, and it is lead producer of the series Dinomite & Lucy (2024). (Sources: M.A.R.K.13 Group (official site: brand since 1999, Stuttgart), AMCRS: M.A.R.K.13 Group portfolio, Digital Production: M.A.R.K.13 on producing Ritter Rost, ZDF Studios: Toon2Tango and ZDF Studios launch worldwide distribution of 'Dino Mite' (2023), Toon2Tango: Dinomite & Lucy (a production by M.A.R.K.13 and TRIKK17))",
+    "notableTechniques": [
+      "CGI"
+    ],
+    "wikipedia": null,
+    "website": "https://mark13.com/",
+    "filmRelations": [
+      "4269fae4-b254-8111-a938-c2301444ec1e"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8186-90be-e31e448c9dcb",
+    "url": "https://app.notion.com/p/Mar-o-Filmes-4269fae4b254818690bee31e448c9dcb",
+    "name": "Marão Filmes",
+    "country": "Brazil",
+    "founded": null,
+    "closed": null,
+    "active": true,
+    "significance": "Production banner of the Rio de Janeiro animator Marcelo Marão (also trading as Marão Desenhos Animados), producer of his shorts such as Até a China (2015) and Eu Queria Ser um Monstro (2009) and of his first feature, Bizarros Peixes das Fossas Abissais (2023), made with Ancine funding by a crew of about ten. (Sources: Marão Filmes (official site: films Bizarros Peixes, Até a China, Eu Queria Ser um Monstro), Marão Filmes: Sobre (Marão Desenhos Animados, managing partner Marão), pt.wikipedia: Bizarros Peixes das Fossas Abissais (estúdio: Marão Filmes), TMDB 1161171 (production company Marão Filmes, BR), Zippy Frames: producers Letícia Friedrich and Marão)",
+    "notableTechniques": [
+      "2D Digital"
+    ],
+    "wikipedia": null,
+    "website": "https://maraofilmes.com.br/",
+    "filmRelations": [
+      "4269fae4-b254-81a2-8dc5-fd82b492b334"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8137-9262-d7af596d5ceb",
+    "url": "https://app.notion.com/p/TED-Ed-4269fae4b25481379262d7af596d5ceb",
+    "name": "TED-Ed",
+    "country": "USA",
+    "founded": 2012,
+    "closed": null,
+    "active": true,
+    "significance": "Youth and education initiative of the nonprofit TED, launched in March-April 2012. It commissions short animated lessons by pairing educators' scripts with independent animators worldwide, and has published more than 1,600 TED-Ed Animations, which were named a Webby honoree (Video Animation, Series and Channels) in 2019. Its freelance commissions have become a significant international outlet for independent animators from countries with small domestic markets, including Iran's Amir Houshang Moein (2020-2021). (Sources: TED: TED-Ed programme page, Cartoon Brew: TED Launches Animated TED-Ed Channel (14 March 2012), The Webby Awards: TED-Ed Animations (2019 Honoree), en.wikipedia: TED (conference) (TED-Ed redirects here))",
+    "notableTechniques": [
+      "2D Digital",
+      "CGI",
+      "Mixed"
+    ],
+    "wikipedia": "https://en.wikipedia.org/wiki/TED_(conference)",
+    "website": "https://ed.ted.com",
+    "filmRelations": [
+      "4269fae4-b254-8169-86dc-c91c7780a519",
+      "4269fae4-b254-8121-bc43-cba9db536475"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8106-9ff3-df230133b697",
+    "url": "https://app.notion.com/p/Vaibhav-Studios-4269fae4b25481069ff3df230133b697",
+    "name": "Vaibhav Studios",
+    "country": "India",
+    "founded": 2003,
+    "closed": null,
+    "active": true,
+    "significance": "Independent Mumbai animation studio founded in 2003 by Vaibhav Kumaresh. It is known for the Channel [V] character Simpoo, the Clinic Plus Chulbuli campaign and award-winning Nick idents. Its Cartoon Network series Lamput brought India its first International Emmy Kids nomination for animation (2019), and the studio's own features begin with the self-financed Return of the Jungle (IFFI 2023; theatrical 2026). (Sources: Vaibhav Studios: About, Homegrown: How Vaibhav Studios became India's first Emmy-nominated homegrown animation studio (30 October 2025), Advanced Television: Cartoon Network's Lamput scores 1 Emmy nom and 2 awards wins (17 October 2019), Scroll.in: Will 'Return of the Jungle' mark a comeback for Indian animated movies? (17 June 2024))",
+    "notableTechniques": [
+      "2D Digital",
+      "Stop Motion",
+      "Puppet",
+      "Cutout",
+      "CGI",
+      "Mixed"
+    ],
+    "wikipedia": null,
+    "website": "https://www.vaibhavstudios.com",
+    "filmRelations": [
+      "4269fae4-b254-8137-b695-f68005e7a0b7"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-81fb-b19d-f3cf1a0f4490",
+    "url": "https://app.notion.com/p/Green-Gold-Animation-4269fae4b25481fbb19df3cf1a0f4490",
+    "name": "Green Gold Animation",
+    "country": "India",
+    "founded": 2001,
+    "closed": null,
+    "active": true,
+    "significance": "Hyderabad studio founded by Rajiv Chilaka in January 2001, and one of India's largest children's animation producers. It created Chhota Bheem (Pogo, 2008-), India's most successful homegrown children's franchise, plus Krishna, Mighty Raju, Arjun: Prince of Bali, Super Bheem and Netflix's Mighty Little Bheem. Its 2012 film Chhota Bheem and the Curse of Damyaan was the franchise's first theatrical release and then one of the top-grossing Indian animated films, followed by Throne of Bali (2013), Mighty Raju: Rio Calling (2014), Himalayan Adventure (2016) and Kung Fu Dhamaka (2019). It runs offices in India, Singapore and the Philippines and a Mumbai subsidiary, Golden Robot Animation (2017). (Sources: en.wikipedia: Green Gold Animations, Scroll.in: Will Chhota Bheem finally score big? (5 January 2016), Business Today: The curious case of Chhota Bheem (20 May 2013), AnimationXpress: Chhota Bheem and the Throne of Bali to hit theatres tomorrow (2 May 2013))",
+    "notableTechniques": [
+      "2D Digital",
+      "CGI"
+    ],
+    "wikipedia": "https://en.wikipedia.org/wiki/Green_Gold_Animations",
+    "website": "https://www.greengold.tv",
+    "filmRelations": [
+      "4269fae4-b254-817e-a7c7-e8e1a99b4949",
+      "4269fae4-b254-8192-b70a-cd75de3a667a"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-818c-ba0c-cc048df1b2d1",
+    "url": "https://app.notion.com/p/KASK-School-of-Arts-Ghent-4269fae4b254818cba0ccc048df1b2d1",
+    "name": "KASK (School of Arts Ghent)",
+    "country": "Belgium",
+    "founded": 1748,
+    "closed": null,
+    "active": true,
+    "significance": "The Royal Academy of Fine Arts of Ghent (Koninklijke Academie voor Schone Kunsten, KASK), founded in 1748 as a drawing school and since 1995 part of the university college HOGENT, now KASK & Conservatorium / School of Arts Gent. Raoul Servais founded its animation department, whose graduation films are produced by the academy. Noureddin Zarrinkelk, sent by Kanoon, studied animation there from 1969 to 1972 and made his first films there, including Pilules: Duty First (1970), which won a school-film distinction at Annecy in 1971. Later alumni include Jonas Geirnaert (Flatlife, 2004). (Sources: en.wikipedia: Royal Academy of Fine Arts (Ghent), KASK & Conservatorium: Animation film course, Annecy Festival archive: Pilules : Duty First (KASK graduation film, 1971 award), Film Fest Gent: Soldatenuurtje (KASK, 1970), en.wikipedia: Raoul Servais (founder of KASK animation faculty), Wikidata Q5546853)",
+    "notableTechniques": [
+      "2D Cel"
+    ],
+    "wikipedia": "https://en.wikipedia.org/wiki/Royal_Academy_of_Fine_Arts_(Ghent)",
+    "website": "https://schoolofartsgent.be",
+    "filmRelations": [
+      "4269fae4-b254-81d5-89e4-ee80170927e5"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-815a-a496-edebedc47ef9",
+    "url": "https://app.notion.com/p/Hoorakhsh-Studios-4269fae4b254815aa496edebedc47ef9",
+    "name": "Hoorakhsh Studios",
+    "country": "Iran",
+    "founded": 2005,
+    "closed": null,
+    "active": true,
+    "significance": "Private Tehran animation studio founded in 2005 by Ashkan Rahgozar (with Ehsan and Arman Rahgozar), originally as Hoorakhsh 7th Sky; it says it was the first Iranian studio to start fully digital 2D production. Besides shorts, commercials, music videos and games, it produced The Last Fiction (2018), its first feature, the first Iranian animated feature shown at Annecy and the first to qualify for the Academy Awards, followed by Juliet and the King and The Dragon's Treasure, and has announced a Shahnameh animated series. One biography gives 2004 as the founding year. (Sources: Cartoon Brew: 'The Last Fiction' Aims to Redefine Iranian Feature Animation (2016), Mehr News: 11 awards for The Last Fiction, the studio's first work (Sept 2019), en.wikipedia: Ashkan Rahgozar (Hoorakhsh 7th Sky, 2005), fa.wikipedia: اشکان رهگذر (استودیو هورخش, 1384), Tehran Times: Iran's 'Last Fiction' among submissions for Oscars consideration (2019))",
+    "notableTechniques": [
+      "2D Digital"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4269fae4-b254-8152-ae94-dc0b514f35da"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8161-8fb2-e3859d2987c0",
+    "url": "https://app.notion.com/p/Homeboyz-Animation-4269fae4b25481618fb2e3859d2987c0",
+    "name": "Homeboyz Animation",
+    "country": "Kenya",
+    "founded": null,
+    "closed": null,
+    "active": false,
+    "significance": "Nairobi animation studio set up around 2008–09 by Tiger Aspect and Myke Rabar's events and venue company Homeboyz Entertainment to make Tinga Tinga Tales, described as the first animation studio in Nairobi and the largest in East Africa at the time. It recruited and trained about 50 local animators, designers, editors and musicians,. (Sources: Skwigly (2020): Homeboyz Entertainment, Myke Rabar, Homeboyz Animation studio, Business Daily Africa (2016): Homeboyz helped build the Nairobi animation and sound studio, Melisa Allela, animationstudies 2.0 (2026): HomeBoyz Animation, Nairobi studio built for the series, Africa Review via World Filmhouse (2011): Kenya's Homeboyz studios, English Wikipedia: Tinga Tinga Tales (produced in Nairobi by Homeboyz Animation))",
+    "notableTechniques": [
+      "2D Digital",
+      "Cutout"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4269fae4-b254-811a-a314-dbecb7c2950d"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8133-948c-f4bd6f9af003",
+    "url": "https://app.notion.com/p/Tiger-Aspect-Productions-4269fae4b2548133948cf4bd6f9af003",
+    "name": "Tiger Aspect Productions",
+    "country": "UK",
+    "founded": 1993,
+    "closed": null,
+    "active": true,
+    "significance": "London television producer, formed in 1993 when Peter Bennett-Jones's Tiger Television (1988) merged with Aspect Film & Television, and part of Endemol/Banijay UK since 2009. Its animation and children's department under Claudia Lloyd made Mr. Bean: The Animated Series (2002), Charlie and Lola (2005–2008) and Tinga Tinga Tales (2010–2011), for which it set up an animation studio in Nairobi with Homeboyz. (Sources: English Wikipedia: Tiger Aspect, Skwigly (2020): Claudia Lloyd, head of Tiger Aspect's animation and children's department, BCDB: Tinga Tinga Tales episode (Tiger Aspect Productions in conjunction with Homeboyz), Melisa Allela, animationstudies 2.0 (2026): developed through Tiger Aspect with HomeBoyz Animation)",
+    "notableTechniques": [
+      "2D Digital",
+      "Cutout"
+    ],
+    "wikipedia": "https://en.wikipedia.org/wiki/Tiger_Aspect",
+    "website": "https://www.tigeraspect.co.uk",
+    "filmRelations": [
+      "4269fae4-b254-811a-a314-dbecb7c2950d"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8136-902c-d0d28ce602b3",
+    "url": "https://app.notion.com/p/Lion-Forge-Entertainment-4269fae4b2548136902cd0d28ce602b3",
+    "name": "Lion Forge Entertainment",
+    "country": "USA",
+    "founded": 2011,
+    "closed": null,
+    "active": true,
+    "significance": "Black-owned American studio founded in St. Louis in 2011 by David Steward II and Carl Reed as the comics publisher Lion Forge Comics, which launched Lion Forge Animation in 2019 and became Lion Forge Entertainment in 2023 (now based in Los Angeles). It produced Hair Love (2019), winner of the 2020 Academy Award for Best Animated Short, its spin-off Young Love (2022) and Iyanu (2025–), the Cartoon Network / HBO Max adaptation of Roye Okupe's Nigerian superhero comics. (Sources: English Wikipedia: Lion Forge Entertainment, BellaNaija (2022): Lion Forge Animation finances and oversees Iyanu, Pulse Nigeria (2025): Lion Forge Entertainment, Black-owned animation studio; David Steward II CEO, St. Louis American: 'Forging ahead: St. Louis' Lion Forge Entertainment teams with Nickelodeon' (2023))",
+    "notableTechniques": [
+      "2D Digital"
+    ],
+    "wikipedia": "https://en.wikipedia.org/wiki/Lion_Forge_Entertainment",
+    "website": "https://lionforgeentertainment.com",
+    "filmRelations": [
+      "4269fae4-b254-8132-82a1-d07e7c22f44e"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8145-a2f4-e40014571e66",
+    "url": "https://app.notion.com/p/32ad-Animation-Studios-4269fae4b2548145a2f4e40014571e66",
+    "name": "32ad Animation Studios",
+    "country": "Nigeria",
+    "founded": 2014,
+    "closed": null,
+    "active": true,
+    "significance": "Lagos 3D animation studio and training academy (Third Academy of Art & Design) run by Adebisi Adetayo, operating since about 2014. It animated Lady Buckit and the Motley Mopsters (2020) in 4K with a crew largely trained in-house, and is a leading example of the studio-as-school model in Nigerian animation. (Sources: Techpoint Africa (2020): 32ad, Lagos animation studio and training centre run by Adetayo, Culture Custodian (2021): running since 2014 as Third Academy of Art & Design; 24 animators trained there, Afrocritik (2022): Hot Ticket Productions and 32ad Animation Studios, English Wikipedia: Lady Buckit and the Motley Mopsters (32ad Animation Studio))",
+    "notableTechniques": [
+      "CGI"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4269fae4-b254-8103-a757-f3f23094d353"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8163-bc38-c356550fc2f2",
+    "url": "https://app.notion.com/p/Hot-Ticket-Productions-4269fae4b2548163bc38c356550fc2f2",
+    "name": "Hot Ticket Productions",
+    "country": "Nigeria",
+    "founded": null,
+    "closed": null,
+    "active": true,
+    "significance": "Lagos media company founded and run by producer Blessing Amidu, which self-financed and produced Lady Buckit and the Motley Mopsters (2020), widely reported as the first Nigerian animated feature released in cinemas, and is developing its spin-off series Secrets of the Multiverse. (Sources: Vanguard (2020): Hot Ticket Productions, Nigerian mass media company; Blessing Amidu CEO/Founder, Techpoint Africa (2020): Blessing Amidu, CEO of Hot Ticket Productions, English Wikipedia: Lady Buckit and the Motley Mopsters (production company), Premium Times: Blessing and Emmanuella Amidu partner on Secrets of the Multiverse)",
+    "notableTechniques": [
+      "CGI"
+    ],
+    "wikipedia": null,
+    "website": "https://motleymopstersmovie.com",
+    "filmRelations": [
+      "4269fae4-b254-8103-a757-f3f23094d353"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-81c3-a4a2-fcfd7fc97257",
+    "url": "https://app.notion.com/p/Frog-Box-4269fae4b25481c3a4a2fcfd7fc97257",
+    "name": "Frog Box",
+    "country": "France",
+    "founded": 2005,
+    "closed": null,
+    "active": true,
+    "significance": "Paris producer of children's animated series founded by Olivier Dumont (formerly OD Media), who acquired the rights to Romuald's Les Pyjamasques and developed them from 2007 into PJ Masks with eOne and TeamTO. Its other productions include Ricky Zoom, Ninja Express and Kiya & the Kimoja Heroes (2023), which it produced for eOne with Triggerfish Animation Studios as co-producer, from a South African Story Lab concept. (Sources: Frog Box: productions and team (frogbox.fr), AVID wiki: Frog Box Productions (founded September 2005 by Olivier Dumont; formerly OD Media), AWN: TeamTO tapped for season 2 production of PJ Masks, France Télévisions: Kiya et les héros de Kimoja (production Frog Box), SAMDB: Kiya & the Kimoja Heroes (produced by Frog Box))",
+    "notableTechniques": [
+      "CGI"
+    ],
+    "wikipedia": null,
+    "website": "https://www.frogbox.fr",
+    "filmRelations": [
+      "4269fae4-b254-8106-ba37-f4f9fb088b7e"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8153-81e5-f1b208d30404",
+    "url": "https://app.notion.com/p/Prabhat-Film-Company-4269fae4b254815381e5f1b208d30404",
+    "name": "Prabhat Film Company",
+    "country": "India",
+    "founded": 1929,
+    "closed": 1953,
+    "active": false,
+    "significance": "Founded in Kolhapur on 1 June 1929 by V. Shantaram, Vishnupant Damle, Keshavrao Dhaiber, S. Fatelal and Sitaram Kulkarni, Prabhat moved to Pune in 1933 and became one of the great studios of early Indian sound cinema, making Marathi and Hindi films such as Amrit Manthan (1934), Sant Tukaram (1936) and Kunku (1937). Its only known animated work is the 1934 cartoon Jambu Kaka, credited to Raghunath K. Kelkar. The company's assets were auctioned in 1952 and it closed on 13 October 1953; its Pune studio became the Film and Television Institute of India. (Sources: Wikipedia: Prabhat Film Company, mr.wikipedia: प्रभात फिल्म कंपनी, Sahapedia: The Cinema of Prabhat Studio, An Overview, D'source (IDC, IIT Bombay): The Story of Indian Animation, Long Ago)",
+    "notableTechniques": [],
+    "wikipedia": "https://en.wikipedia.org/wiki/Prabhat_Film_Company",
+    "website": "http://www.prabhatfilm.com",
+    "filmRelations": [
+      "4269fae4-b254-8167-9a8a-c8c0dd1c1db5"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-817a-93d4-dca2025e127f",
+    "url": "https://app.notion.com/p/Royal-College-of-Art-4269fae4b254817a93d4dca2025e127f",
+    "name": "Royal College of Art",
+    "country": "UK",
+    "founded": 1837,
+    "closed": null,
+    "active": true,
+    "significance": "London's entirely postgraduate art and design university, founded in 1837 as the Government School of Design and renamed in 1896. Animation became a separate area of study in 1985, with the first MA Animation graduates in 1987. Its graduation films, produced by the college's Animation Department, include Ng'endo Mukii's Yellow Fever (2012), and its long association with Aardman underpins British independent animation. (Sources: Wikipedia: Royal College of Art, British Council Films and Festivals: Yellow Fever, Royal College of Art: RCA Animation at 40, Royal College of Art: Animation MA programme)",
+    "notableTechniques": [
+      "Mixed",
+      "2D Digital",
+      "Stop Motion"
+    ],
+    "wikipedia": "https://en.wikipedia.org/wiki/Royal_College_of_Art",
+    "website": "https://www.rca.ac.uk",
+    "filmRelations": [
+      "4269fae4-b254-81bd-9c6d-d805d516c39b"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-81ff-9a37-da38b0da9017",
+    "url": "https://app.notion.com/p/StartAnima-4269fae4b25481ff9a37da38b0da9017",
+    "name": "StartAnima",
+    "country": "Brazil",
+    "founded": 1966,
+    "closed": null,
+    "active": true,
+    "significance": "São Paulo animation studio founded in 1966 by Walbercy Ribas as Start Desenhos Animados. A leading Brazilian commercials house, its spots include Faber-Castell's 'Aquarela' and Johnson & Johnson's little blue man, and it won awards from Venice (1972) to Cannes Lions and the Clios. It produced the hand-drawn feature O Grilo Feliz (2001), the CGI sequel O Grilo Feliz e os Insetos Gigantes (2009) and Rafael Ribas's Lino (2017), the highest-grossing Brazilian animated feature, followed by the series Buzzu na Escola Intergaláctica and Lino: Meu Pai é Fera! (Disney Channel, 2024). (Sources: pt.wikipedia: StartAnima, pt.wikipedia: Walbercy Ribas, iG Gente: Com os pés no chão, 'Lino' supera a crise e levanta o cinema de animação no País (Caio Menezes, 6 September 2017), Estadão, Radar Cultural: Animação brasileira 'Lino' estreia em 1,2 mil salas de cinema na Rússia (Pedro Antunes, 6 February 2018), Tela Viva: Filme Lino bate recorde e se torna a maior animação nacional de todos os tempos (17 November 2017))",
+    "notableTechniques": [
+      "2D Cel",
+      "CGI"
+    ],
+    "wikipedia": "https://pt.wikipedia.org/wiki/StartAnima",
+    "website": "http://www.startanima.com.br/",
+    "filmRelations": [
+      "4269fae4-b254-81a8-a9cf-d995b8022536"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-813b-b8fd-c68516b7dcfd",
+    "url": "https://app.notion.com/p/Otto-Desenhos-Animados-4269fae4b254813bb8fdc68516b7dcfd",
+    "name": "Otto Desenhos Animados",
+    "country": "Brazil",
+    "founded": 1978,
+    "closed": null,
+    "active": true,
+    "significance": "Porto Alegre animation studio founded on 15 August 1978 by Otto Guerra with his partner José Maia. After six years of commercials (some 600 in all) it became the home of Brazilian adult and auteur animation. Its output includes prize-winning shorts from O Natal do Burrinho (1984) on and the features Rocky & Hudson (1994), Wood & Stock: Sexo, Orégano e Rock'n'Roll (2006), Até que a Sbórnia nos Separe (2013) and A Cidade dos Piratas (2018). Series include Rocky & Hudson: Os Caubóis Gays (Canal Brasil, 2020) and Os Filosofinhos (TV Rá-Tim-Bum, 2021). In 2026 it had five features and about 20 shorts completed and competed at Annecy with O Filho da Puta. (Sources: pt.wikipedia: Otto Guerra, Jornal do Comércio: O rei da animação: Otto Guerra finaliza novo longa e lança autobiografia (7 June 2018), Correio da Manhã: Zona animada (Rodrigo Fonseca, 26 June 2026), Cinemateca Brasileira, Filmografia Brasileira: Rocky e Hudson (020533), Cinemateca Brasileira, Filmografia Brasileira: Wood e Stock (033877))",
+    "notableTechniques": [
+      "2D Cel",
+      "2D Digital"
+    ],
+    "wikipedia": null,
+    "website": "https://www.ottodesenhos.com.br/",
+    "filmRelations": [
+      "4269fae4-b254-81c6-bb31-cef78686a13c",
+      "4269fae4-b254-81aa-a68b-e4e7a230c9d5",
+      "4269fae4-b254-816d-ac4b-e2c08ad44380"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8165-aeeb-d1051d1e7412",
+    "url": "https://app.notion.com/p/Telstar-Filmes-4269fae4b2548165aeebd1051d1e7412",
+    "name": "Telstar Filmes",
+    "country": "Brazil",
+    "founded": null,
+    "closed": null,
+    "active": false,
+    "significance": "São Paulo advertising-film studio (also credited as Produções Cinematográficas Telstar) run by the Japanese-Brazilian animator Ypê Nakashima and the advertising man João Luiz de Araújo from the 1960s. It made celebrated animated commercials (Parahyba blankets, Wakamoto) and the animated titles for Luiz Sérgio Person's Panca de Valente (1968). With that income it produced Piconzé (1972), Brazil's third animated feature and second in colour. (Sources: Cinemateca Brasileira, Filmografia Brasileira: Piconzé (024711), pt.wikipedia: Piconzé, Debates (UNIRIO) n. 30, 2026: Mendonça and Lemes on Piconzé, Made in Japan (Editora JBC): Estreia de 'Piconzé', de Ypê Nakashima, completa 40 anos, part 3 (2012))",
+    "notableTechniques": [
+      "2D Cel"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4269fae4-b254-810c-a153-c3ab46eb14b8"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8161-8d8b-e5ff9cf6a98c",
+    "url": "https://app.notion.com/p/Pedro-Ernesto-Stilpen-Independent-4269fae4b25481618d8be5ff9cf6a98c",
+    "name": "Pedro Ernesto Stilpen (Independent)",
+    "country": "Brazil",
+    "founded": null,
+    "closed": null,
+    "active": false,
+    "significance": "Independent credit for the Rio animator Stil (Pedro Ernesto Stilpen), who wrote, drew, directed and often produced his own shorts from the late 1960s, starting with Batuque (1970), on which he is credited as producer alongside B.J.D. Produções Cinematográficas, and continuing through films for Lente Filmes, Quadro Produções and Embrafilme until the 1980s. (Sources: Cinemateca Brasileira, Filmografia Brasileira: Batuque (record 025764), Cinemateca Brasileira, Filmografia Brasileira: credits search 'Stilpen', BrasilAnima: 'Pedro Ernesto Stilpen, o Still' (2011), MAM Rio: 'Stil – Traços de um Mestre' (2019))",
+    "notableTechniques": [
+      "Experimental",
+      "2D Cel"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4269fae4-b254-81bc-b9d1-d851e28a4458"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8180-855f-ea7068285aea",
+    "url": "https://app.notion.com/p/Instituto-Nacional-de-Cinema-Educativo-4269fae4b2548180855fea7068285aea",
+    "name": "Instituto Nacional de Cinema Educativo",
+    "country": "Brazil",
+    "founded": 1936,
+    "closed": 1966,
+    "active": false,
+    "significance": "Brazil's state educational film institute (INCE), created in 1936 (formally instituted in 1937) under Getúlio Vargas's Ministry of Education and Health on the initiative of Edgar Roquette-Pinto, its first director. Under its technical director Humberto Mauro it produced roughly 400 short educational and documentary films for schools and the public, on science, health, flora and fauna and folk culture, often using animated diagrams. Its rare children's fictions include the puppet film O Dragãozinho Manso: Jonjoca (1942); A Velha a Fiar (1964) also mixes live action and puppets. It was abolished on 18 November 1966, when the Instituto Nacional de Cinema (INC) was created. Its collection is preserved by the Cinemateca Brasileira. (Sources: Portuguese Wikipedia: Instituto Nacional de Cinema Educativo, ABRALA/UTFPR: 'Humberto Mauro e o Instituto Nacional de Cinema Educativo/RJ' (2024), Cinemateca Brasileira, Filmografia Brasileira: O Dragãozinho Manso: Jonjoca (record 009603), Portuguese Wikipedia: Humberto Mauro)",
+    "notableTechniques": [
+      "Puppet"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4269fae4-b254-81b5-8e39-e0299105c33b"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-81a4-8f39-e0781a3cf77a",
+    "url": "https://app.notion.com/p/Seel-Thomas-Film-4269fae4b25481a48f39e0781a3cf77a",
+    "name": "Seel-Thomas Film",
+    "country": "Brazil",
+    "founded": null,
+    "closed": null,
+    "active": false,
+    "significance": "Production name used in Brazil by the animator Luiz (Luis, Louis) Seel, combining his surname with that of his wife and model Olivette Thomas. It presented the screen magazine Cine Novidades, whose number 14 is the cartoon Macaco Feio... Macaco Bonito... (dated 1938 by the Cinemateca Brasileira), the oldest Brazilian animated film to survive complete, and it also appears on the end title of Seel's cartoon Frivolitá. The Cinemateca records the company in Rio de Janeiro. (Sources: Cinemateca Brasileira, Filmografia Brasileira: Cine Novidades N.14 / Macaco feio... macaco bonito... (record 005166), Cartoon Research: Milton Knight, 'Brazil: Animated Beginnings' (2021), Internet Archive: Macaco Feio Macaco Bonito (on-screen 'A Seel-Thomas Film presents'))",
+    "notableTechniques": [
+      "2D Cel"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4269fae4-b254-81d6-9bd7-d56eba341b8e"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8134-b033-f1146f9d636e",
+    "url": "https://app.notion.com/p/lvaro-Marins-Independent-4269fae4b2548134b033f1146f9d636e",
+    "name": "Álvaro Marins (Independent)",
+    "country": "Brazil",
+    "founded": null,
+    "closed": null,
+    "active": false,
+    "significance": "Independent credit for the work of the caricaturist Álvaro Marins (Seth), who drew and photographed Kaiser (1917), the first Brazilian animated film, with financing from the businessman and politician Sampaio Corrêa. No production company is recorded for the film; the Cinemateca Brasileira credits Seth personally for animation and photography. (Sources: Cinemateca Brasileira, Filmografia Brasileira: O Kaiser (record 001650), Portuguese Wikipedia: Seth (Álvaro Marins), Andréia Prieto Gomes, 'História da Animação Brasileira' (BrasilAnima), Cartoon Brew: 'Brazilian Animation Turned 100 Years Old Today' (2017))",
+    "notableTechniques": [
+      "2D Cel"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4269fae4-b254-8153-9ed0-d6efd0c1d266"
+    ]
+  },
+  {
+    "id": "4259fae4-b254-8123-b553-fb287ecb7cb7",
+    "url": "https://app.notion.com/p/Ministry-of-Culture-and-Art-Iran-4259fae4b2548123b553fb287ecb7cb7",
+    "name": "Ministry of Culture and Art (Iran)",
+    "country": "Iran",
+    "founded": 1964,
+    "closed": null,
+    "active": false,
+    "significance": "Iran's pre-revolutionary Ministry of Culture and Art (Vezarat-e Farhang va Honar) ran the country's first state animation workshop. It grew out of an animation section of the Office of Fine Arts opened in the late 1950s, where Esfandiar Ahmadieh and Jafar Tajarobchi made Iran's first short cartoons (1960–64). In 1965 the ministry engaged the Prague-trained Nosrat Karimi to run and expand the workshop, which then produced Iran's first cel, cut-out, puppet and pixilation films (Zendegi, Malek Jamshid, Del-e Mush, Pust-e Palang, Hierarchy), and it was the first government body to invest in films for children. Its films are held in the archive of the post-revolutionary Ministry of Culture and Islamic Guidance and were shown with Kanoon's in MoMA's 2023 programme Golden Age of Iranian Animation, 1965-77. (Sources: English Wikipedia: Nosrat Karimi (ministry engaged him in 1965 to run the state animation workshop), Mashregh News / Khabar Online: first Iranian animation (2016), Donya-e-Eqtesad: Iranian animation history, Cinema Iranica: Sam Izadi, 'Unsuccessful Efforts' (animation began in the Office of Fine Arts, later the Ministry of Culture and Arts))",
+    "notableTechniques": [
+      "2D Cel",
+      "Cutout",
+      "Puppet",
+      "Pixilation"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4259fae4-b254-814b-b0d9-c5c3c14fac71",
+      "4259fae4-b254-810f-9834-cbbdff62d071"
+    ]
+  },
+  {
+    "id": "4259fae4-b254-8189-8e1e-d56e068df0bd",
+    "url": "https://app.notion.com/p/Aubeck-4259fae4b25481898e1ed56e068df0bd",
+    "name": "Aubeck",
+    "country": "Japan",
+    "founded": 1986,
+    "closed": 1997,
+    "active": false,
+    "significance": "A Nerima, Tokyo studio (株式会社アウベック) founded on February 15, 1986 by Yūji Yatabe (founder of Animation 501) with Studio Bogey. It began with US television co-productions and moved to domestic work after Dash! Yonkurō (1989). Its credits include Garaga (1989), Tsuru-hime Jaa!, Hello Escargot Island, Huckleberry Finn Monogatari, Arslan Senki II and Elmer's Adventure (1997), its last production. Its successor operation Public & Basic went bankrupt in 2001. Also romanized 'Aubec' (アウベック). (Sources: ja.wikipedia, Wikidata, Anime News Network Encyclopedia (Garaga))",
+    "notableTechniques": [
+      "2D Cel"
+    ],
+    "wikipedia": "https://ja.wikipedia.org/wiki/アウベック",
+    "website": null,
+    "filmRelations": [
+      "4259fae4-b254-8174-a1f7-f096542f7ded"
+    ]
+  },
+  {
+    "id": "4259fae4-b254-8131-8ac5-f3c803671280",
+    "url": "https://app.notion.com/p/Stretch-Films-4259fae4b25481318ac5f3c803671280",
+    "name": "Stretch Films",
+    "country": "USA",
+    "founded": 1991,
+    "closed": null,
+    "active": false,
+    "significance": "John R. Dilworth's New York studio, which produced The Dirdy Birdy, the Oscar-nominated The Chicken from Outer Space and all four seasons of Courage the Cowardly Dog (1999–2002, with Cartoon Network Studios). It is a rare case of a network series made at a small New York independent rather than at a Los Angeles studio. Its work also aired on Nickelodeon, MTV and Sesame Street. (Sources: Wikidata, Wikipedia (John R. Dilworth), AWN (Animation World Network))",
+    "notableTechniques": [
+      "2D Cel",
+      "Mixed"
+    ],
+    "wikipedia": null,
+    "website": "http://stretchfilms.com/",
+    "filmRelations": [
+      "4259fae4-b254-81f2-8168-c7a9f201fa43"
+    ]
+  },
+  {
+    "id": "4259fae4-b254-81f5-9c71-d4f2be9b8c19",
+    "url": "https://app.notion.com/p/MOM-Production-4259fae4b25481f59c71d4f2be9b8c19",
+    "name": "MOM Production",
+    "country": "Japan",
+    "founded": 1960,
+    "closed": 1967,
+    "active": false,
+    "significance": "MOM Production (MOMプロダクション, also cited as MOM Film Studio or MOM Productions) was a Tokyo stop-motion puppet studio founded in September 1960 by Tadahito Mochinaga, a pioneer of Japanese and Chinese puppet animation, with Ōmura Einosuke and Matsumoto Torizō. It operated as subcontractor for Videocraft International/Rankin/Bass. Working from scripts, designs and prerecorded tracks sent from New York, it built and animated the puppets for the Animagic productions The New Adventures of Pinocchio (130 five-minute episodes), Rudolph the Red-Nosed Reindeer (1964), Willy McBean and His Magic Machine (1965), The Daydreamer (1966), The Ballad of Smokey the Bear (1966) and Mad Monster Party? (1967), peaking at around 130 staff. After Mochinaga left in 1967 the studio is reported to have continued as Video Tokyo Production, which animated Santa Claus Is Comin' to Town (1970) and The Year Without a Santa Claus (1974). MOM is thus the Japanese foundation of the Rankin/Bass Animagic tradition. (Sources: Japanese Wikipedia: 持永只仁, Wikipedia: Rankin/Bass Animated Entertainment, Anime News Network Encyclopedia: MOM Production, Cartoon Research: The Japanese Studios of Rankin/Bass, Mental Floss: 9 Cozy Facts About Rankin/Bass, Wikipedia: Tadahito Mochinaga)",
+    "notableTechniques": [
+      "Stop Motion",
+      "Puppet"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4259fae4-b254-8142-b6b9-eee52e4fc11a",
+      "4259fae4-b254-81c4-8227-f62d3e7d9fa0",
+      "403c8283-2ea2-49ef-a6f8-eff665c56086",
+      "6dd4f138-8963-4ea6-a9af-cae4c583fd03"
+    ]
+  },
+  {
+    "id": "4259fae4-b254-81cd-8444-dc4c44bedaaf",
+    "url": "https://app.notion.com/p/Videocraft-International-4259fae4b25481cd8444dc4c44bedaaf",
+    "name": "Videocraft International",
+    "country": "USA",
+    "founded": 1960,
+    "closed": 1968,
+    "active": false,
+    "significance": "Videocraft International, Ltd. was founded in New York City on September 14, 1960 by Arthur Rankin Jr. and Jules Bass, and was renamed Rankin/Bass Productions, Inc. in 1968. Under the Videocraft name it made the first Animagic stop-motion series, The New Adventures of Pinocchio (1960–61), the cel series Tales of the Wizard of Oz (1961), and Rudolph the Red-Nosed Reindeer (1964). It pioneered American TV animation outsourced to Japan, subcontracting puppet work to Tadahito Mochinaga's MOM Production and later working with Toei, Mushi and Topcraft. Its titles belong to the pre-September 1974 Rankin/Bass library now owned by NBCUniversal (Universal Pictures, via DreamWorks Animation). (Sources: Wikipedia: Rankin/Bass Productions, Cartoon Research: The 60th Anniversary of Rudolph, Letterboxd studio: Videocraft International, BCDB: Rudolph)",
+    "notableTechniques": [
+      "Stop Motion",
+      "Puppet",
+      "2D Cel"
+    ],
+    "wikipedia": null,
+    "website": null,
+    "filmRelations": [
+      "4259fae4-b254-8142-b6b9-eee52e4fc11a",
+      "4259fae4-b254-81c4-8227-f62d3e7d9fa0",
+      "0d2043bb-79ea-48b8-be5d-fcf32772d86e",
+      "104c37ad-63c1-4aac-a7cd-fcee74c495a8",
+      "c782155d-f19c-450d-a15b-703eb90aa734",
+      "403c8283-2ea2-49ef-a6f8-eff665c56086"
+    ]
+  },
+  {
     "id": "3429fae4-b254-816e-b636-d1621c99313b",
     "url": "https://app.notion.com/p/Sharefun-Studio-3429fae4b254816eb636d1621c99313b",
     "name": "Sharefun Studio",
@@ -32,7 +681,9 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Bagdasarian_Productions",
     "website": "https://www.chipmunks.com/",
     "filmRelations": [
-      "0ace3483-3163-432b-a6f1-edd78f9f5462"
+      "0ace3483-3163-432b-a6f1-edd78f9f5462",
+      "3b159eac-a056-401a-b179-cc43f8fe8128",
+      "34437abe-2e99-44d5-8cb7-7b0bb1bae56f"
     ]
   },
   {
@@ -52,7 +703,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Classic_Media",
     "website": null,
     "filmRelations": [
-      "29e2d554-1037-46ae-93d9-7a2d24503e27"
+      "29e2d554-1037-46ae-93d9-7a2d24503e27",
+      "18d6b942-976a-4596-aaac-dfd4bebd8522"
     ]
   },
   {
@@ -179,7 +831,9 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Asahi_Production",
     "website": "http://asahi-pro.co.jp/",
     "filmRelations": [
-      "45222df7-d1a4-4eb2-bc64-dbea08919d2c"
+      "45222df7-d1a4-4eb2-bc64-dbea08919d2c",
+      "2ebe6515-2424-4909-840b-f04a7a415063",
+      "2cce1ec0-846b-43d2-82c1-4fdeedab2a92"
     ]
   },
   {
@@ -215,7 +869,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Digital_Frontier",
     "website": "https://www.dfx.co.jp/",
     "filmRelations": [
-      "b391f075-c405-430c-84f2-f0a5a2ee3048"
+      "b391f075-c405-430c-84f2-f0a5a2ee3048",
+      "150974f7-8b09-471f-aaac-30f87162efe2"
     ]
   },
   {
@@ -233,7 +888,8 @@
     "wikipedia": null,
     "website": null,
     "filmRelations": [
-      "8ef116ab-0934-4d03-abcc-c37ea5975b5f"
+      "8ef116ab-0934-4d03-abcc-c37ea5975b5f",
+      "fd101e50-64d5-4aac-a135-50e3b7dd337a"
     ]
   },
   {
@@ -252,7 +908,9 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Cookie_Jar_Group",
     "website": null,
     "filmRelations": [
-      "86e7720b-20e4-4e29-9d5b-c67bbb510c22"
+      "86e7720b-20e4-4e29-9d5b-c67bbb510c22",
+      "dff471db-8aec-4d70-abb6-b1535705b397",
+      "1cae278b-4c60-46b0-82c2-a45e4828f2de"
     ]
   },
   {
@@ -289,7 +947,8 @@
     "wikipedia": null,
     "website": null,
     "filmRelations": [
-      "8904c0ec-82a0-41b9-b341-4265a6b184e2"
+      "8904c0ec-82a0-41b9-b341-4265a6b184e2",
+      "f0a64938-6cc3-45d8-8a06-5522450064d0"
     ]
   },
   {
@@ -474,7 +1133,8 @@
     "filmRelations": [
       "d09f4555-4e9c-4bfd-a6f6-4a7a4b1cdf75",
       "867f0832-38a7-4f78-ac99-5977dc43b7ad",
-      "f2a12733-a9c0-4a14-b30e-4de6f1aa9b7c"
+      "f2a12733-a9c0-4a14-b30e-4de6f1aa9b7c",
+      "4dd6eef5-e4af-4106-9312-de858bdb8b67"
     ]
   },
   {
@@ -567,7 +1227,9 @@
     ],
     "wikipedia": null,
     "website": null,
-    "filmRelations": []
+    "filmRelations": [
+      "67ff155f-0dd0-4f48-8c0b-09c7fc064453"
+    ]
   },
   {
     "id": "75e28c88-40d3-4272-a300-13d192641068",
@@ -638,7 +1300,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Goldcrest_Films",
     "website": "https://goldcrestfilms.com/",
-    "filmRelations": []
+    "filmRelations": [
+      "9c5e7499-4fb8-441a-893f-517ad37b0165"
+    ]
   },
   {
     "id": "dc4bc7fb-f20a-4d82-9d23-53499e147bf9",
@@ -656,7 +1320,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Young_Toys",
     "website": "https://www.youngtoys.com/eng/",
     "filmRelations": [
-      "52932536-089f-4956-b88e-585446d7dc5b"
+      "52932536-089f-4956-b88e-585446d7dc5b",
+      "be46a515-30f6-492b-bd33-53c98dfe60f6"
     ]
   },
   {
@@ -711,7 +1376,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Televisa",
     "website": "https://www.televisa.com/",
-    "filmRelations": []
+    "filmRelations": [
+      "67ff155f-0dd0-4f48-8c0b-09c7fc064453"
+    ]
   },
   {
     "id": "2fa3e425-de7f-47bf-b59b-362ea76b8464",
@@ -901,7 +1568,8 @@
     "website": null,
     "filmRelations": [
       "34523f2e-e9d3-43d6-b82b-a28f62c8dbc1",
-      "8f2aa574-cebc-41c7-b16a-29ca1a1461a7"
+      "8f2aa574-cebc-41c7-b16a-29ca1a1461a7",
+      "42a277a9-12c5-4a7a-8d19-c886ce2f7e61"
     ]
   },
   {
@@ -960,7 +1628,33 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/%C3%81nima_(company)",
     "website": "https://www.helloanima.com/",
-    "filmRelations": []
+    "filmRelations": [
+      "2e49fae4-b254-8121-b524-f44e1ff6c1fc",
+      "2f49fae4-b254-8137-8d23-d8bed72effc4",
+      "2e49fae4-b254-81e1-8687-fc40c7f0bfc0",
+      "89427cea-e62a-4479-8175-ee0a7a49e5ef",
+      "40b4e400-9b0b-4938-8803-7d27ebd8f7ab",
+      "281b9bed-8af6-45c4-8da5-181b2bf9f0a8",
+      "b65f02ae-aa74-40eb-b2ab-b04fa683e526",
+      "011693eb-5443-440f-aa88-7083ed797c09",
+      "e9521fb8-c4fb-420c-846c-721f89f3a469",
+      "622c4f9e-ebaa-49fe-a70b-a583bde491fd",
+      "90e9efbe-b88c-4da1-a027-857807422f07",
+      "1ef892b8-65a8-4291-968c-a05e8cbbd82d",
+      "00aa9501-3cd2-4c83-bed5-bea3fe7542be",
+      "86b5b010-f574-4c57-ab8b-7c3ebe9ef228",
+      "8d81db65-387e-42c2-a699-0b56a12381ea",
+      "67ff155f-0dd0-4f48-8c0b-09c7fc064453",
+      "581e9c63-73b1-432d-b7f4-055dc8bce0be",
+      "4e148dfc-a08c-4dc3-9eba-3f47c3ce3b28",
+      "2f49fae4-b254-8143-a3ef-dab1f611a48c",
+      "e8f6f1ab-8127-4751-ae35-bb0e744abdca",
+      "fceac9f9-0f72-42cb-9633-9eb18425d3d3",
+      "18d6b942-976a-4596-aaac-dfd4bebd8522",
+      "152b83bf-b60d-40d3-9b9c-53688eaf9d5d",
+      "409b6255-e9c7-43bd-bba5-8d8ce94f8107",
+      "2e49fae4-b254-8107-9ba3-e6cba90ef899"
+    ]
   },
   {
     "id": "ae58da73-77ba-42f7-85aa-07d2ccff4aef",
@@ -1053,7 +1747,9 @@
     ],
     "wikipedia": null,
     "website": "https://sola-ent.com/",
-    "filmRelations": []
+    "filmRelations": [
+      "9fc021d7-ad77-4de5-a43d-3bbbecabdae3"
+    ]
   },
   {
     "id": "e8e89e38-9e6a-49ea-b09c-b8bd04bbcf01",
@@ -1069,7 +1765,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Imagi_Animation_Studios",
     "website": null,
-    "filmRelations": []
+    "filmRelations": [
+      "7e6fd118-15fc-4039-979b-96e405a0d0b4"
+    ]
   },
   {
     "id": "ef2a6990-6ae7-46f0-aa23-f838cdd6655d",
@@ -1090,7 +1788,8 @@
     "filmRelations": [
       "f2870b6d-0468-4d92-b601-f439dbd161b3",
       "5eb6e31c-d7e9-4132-8a95-fab77ebb57c3",
-      "59bdcce1-fbe0-492a-9068-031dd984f85d"
+      "59bdcce1-fbe0-492a-9068-031dd984f85d",
+      "4259fae4-b254-814d-a688-ffc04d56e5ce"
     ]
   },
   {
@@ -1572,7 +2271,8 @@
     "wikipedia": null,
     "website": null,
     "filmRelations": [
-      "a7f25f47-c9ec-40ec-9713-56015db66218"
+      "a7f25f47-c9ec-40ec-9713-56015db66218",
+      "be929111-c5c1-41c5-b750-9da44e2dc815"
     ]
   },
   {
@@ -1708,7 +2408,8 @@
     "website": null,
     "filmRelations": [
       "1f87c243-a27a-4497-b394-13284fb46f5d",
-      "b8e8fb25-e7da-4445-a95b-0512978905a9"
+      "b8e8fb25-e7da-4445-a95b-0512978905a9",
+      "4a3b54aa-017f-4fba-a0ef-6e37342e7a65"
     ]
   },
   {
@@ -1802,7 +2503,8 @@
     "wikipedia": null,
     "website": null,
     "filmRelations": [
-      "7cafdaf1-b469-45b9-967b-23261e0d4d2b"
+      "7cafdaf1-b469-45b9-967b-23261e0d4d2b",
+      "4259fae4-b254-8174-a1f7-f096542f7ded"
     ]
   },
   {
@@ -1825,7 +2527,8 @@
       "bec84a44-aa01-4013-b19a-7555dfa11e65",
       "1f87c243-a27a-4497-b394-13284fb46f5d",
       "726fa20a-08d4-43ea-abc9-400ee883d26e",
-      "3dea1533-85f5-4b95-8330-7e3b6190c727"
+      "3dea1533-85f5-4b95-8330-7e3b6190c727",
+      "53f5ecf9-db1b-41fc-a377-8911fb28344c"
     ]
   },
   {
@@ -2079,7 +2782,9 @@
     "wikipedia": null,
     "website": null,
     "filmRelations": [
-      "c53f4c2b-e561-4d42-b336-66edf900e18e"
+      "c53f4c2b-e561-4d42-b336-66edf900e18e",
+      "9a390046-5d21-46f2-b173-00a78e994a15",
+      "7b1b09e1-c613-498a-b973-c30ecbd409b8"
     ]
   },
   {
@@ -2364,7 +3069,11 @@
     "website": null,
     "filmRelations": [
       "52d0e93a-6c09-44be-b9e7-df50a1aa8885",
-      "85d54878-9fa2-48b4-a6ca-c4514eb6a5dd"
+      "85d54878-9fa2-48b4-a6ca-c4514eb6a5dd",
+      "13bf1861-f29a-41e8-b678-9e75aa1ae297",
+      "32e8a3e5-7dbd-4807-a69b-40eb65bb157c",
+      "9d14dbfb-e0b9-4359-8d88-f9dee3c68f2a",
+      "4259fae4-b254-8194-b4f1-ee6581a58b39"
     ]
   },
   {
@@ -2382,7 +3091,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Lexington_Broadcast_Services_Company",
     "website": null,
     "filmRelations": [
-      "a8350e9c-b67d-432a-8a21-b6ef088c95b6"
+      "a8350e9c-b67d-432a-8a21-b6ef088c95b6",
+      "7e28fe67-b411-46e3-a87f-e2ba67c280d3"
     ]
   },
   {
@@ -2402,7 +3112,13 @@
     "website": null,
     "filmRelations": [
       "5c63507f-213d-4794-b784-77411718d970",
-      "ba2d18bd-d882-432b-ac6a-09d504cab903"
+      "ba2d18bd-d882-432b-ac6a-09d504cab903",
+      "bfbe3d22-4ad1-4ec2-be66-f29c0b2740c0",
+      "20ee38e6-42a9-40ba-80a8-45c653bfb55e",
+      "ede053c7-a935-4844-82bc-5c231b985cbe",
+      "e61c9e99-8d0e-4ea5-8b3e-b2e81a0a3232",
+      "a66fbc05-2fdc-4aa2-bfce-adbc8d4c7730",
+      "f564d646-a323-4460-b0b0-0a64c967ad82"
     ]
   },
   {
@@ -2462,7 +3178,9 @@
       "e17b93ba-90f6-4b9a-bad1-418ffebafba2",
       "6deed00a-a022-443a-ad58-ad95e9b5a34a",
       "396d9225-3512-4213-96a0-e596a0fc6523",
-      "6625786f-f553-41bc-ad6e-c67c13c45c45"
+      "6625786f-f553-41bc-ad6e-c67c13c45c45",
+      "07752584-fba2-4e73-9e48-28e099613b8a",
+      "78109308-7248-499f-ae58-1a11dd7a93ef"
     ]
   },
   {
@@ -2538,7 +3256,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Mitsuo_Iso",
     "website": "https://plsh.co.jp/",
     "filmRelations": [
-      "bcd87b9b-5aac-416f-9341-8fa8fd7bb720"
+      "bcd87b9b-5aac-416f-9341-8fa8fd7bb720",
+      "f800fb0e-a27a-4814-a656-53207e3f0936"
     ]
   },
   {
@@ -2693,7 +3412,8 @@
     "filmRelations": [
       "e17b93ba-90f6-4b9a-bad1-418ffebafba2",
       "532996b4-2434-475b-8e3f-3b2740e8aa03",
-      "765d6787-896f-491d-9332-5fc50d111743"
+      "765d6787-896f-491d-9332-5fc50d111743",
+      "3fd77ee6-a963-414a-a1c7-e3a3a597b429"
     ]
   },
   {
@@ -2713,7 +3433,14 @@
     "website": null,
     "filmRelations": [
       "97b6e004-706e-4be6-8096-7b4bf60fdec3",
-      "a28c2b75-ac6b-4629-89a5-c456a6ee8505"
+      "a28c2b75-ac6b-4629-89a5-c456a6ee8505",
+      "bdce927b-4b61-4fb8-9e77-9bd3354298fc",
+      "0aa57e70-78c5-46c6-be85-435d32218892",
+      "4269fae4-b254-81ea-8937-e15c0212a686",
+      "4269fae4-b254-81ab-a32d-fc9f9ca3721f",
+      "4269fae4-b254-8153-9d43-e9d96ffd1c71",
+      "4269fae4-b254-814c-b9e9-ddfbe408b0f4",
+      "4269fae4-b254-817d-bba1-cfc867e1a24c"
     ]
   },
   {
@@ -2809,7 +3536,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Bardel_Entertainment",
     "website": "https://bardel.ca/",
     "filmRelations": [
-      "7bc9369f-1b67-430d-9ba4-41207df0b94d"
+      "7bc9369f-1b67-430d-9ba4-41207df0b94d",
+      "72ead077-1f83-4d95-aa2a-141abf910ce8"
     ]
   },
   {
@@ -2890,7 +3618,8 @@
     "website": null,
     "filmRelations": [
       "c854828b-97bf-4545-b92f-1db14114bb41",
-      "849132d6-c9bf-494f-90cb-45b29aad8f01"
+      "849132d6-c9bf-494f-90cb-45b29aad8f01",
+      "6d3348ae-e710-492f-812c-1e61dd8dc778"
     ]
   },
   {
@@ -2929,7 +3658,9 @@
     "wikipedia": "https://en.wikipedia.org/wiki/World_Events_Productions",
     "website": "http://wep.com",
     "filmRelations": [
-      "50d65c67-cf2e-447d-be79-e06654087f44"
+      "50d65c67-cf2e-447d-be79-e06654087f44",
+      "6affc367-701a-4259-848b-f7a0ec30eefa",
+      "e57c6557-a203-4c8a-b1dc-ce2c3d787bb3"
     ]
   },
   {
@@ -2967,7 +3698,10 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Sunbow_Entertainment",
     "website": null,
     "filmRelations": [
-      "53bd5488-99d0-45b7-a58e-1b5a57a0491b"
+      "53bd5488-99d0-45b7-a58e-1b5a57a0491b",
+      "d4ce02c4-834d-4055-9a06-58334a3d55ef",
+      "2081514d-92fb-43a8-b1fa-1688761c25ba",
+      "c016faf7-9619-4f52-b81d-af03ca4e4a13"
     ]
   },
   {
@@ -3199,7 +3933,11 @@
       "20853c38-e5be-48b5-9052-cae68032e9e1",
       "64a88bb5-1096-4918-8db4-36a15bc294fb",
       "e9f12af3-ea04-48be-872d-6d9958e2539f",
-      "4e125834-a681-49a5-8de9-b3a4934e62a4"
+      "4e125834-a681-49a5-8de9-b3a4934e62a4",
+      "320a3550-bcd1-4e00-b0f0-b6b6d773c64d",
+      "e5841b9e-68d3-42af-aca4-847d6fd660cc",
+      "e85898c4-6a63-4a6f-9d51-c6907ee9b288",
+      "e77a0dc7-b04f-4308-89c3-58ae51d7d2c0"
     ]
   },
   {
@@ -3268,7 +4006,13 @@
       "281fda71-53ad-4f90-9f2d-0853f09e5018",
       "081581b3-ea8f-4caf-8de1-d865a79bec00",
       "891e2591-e5bf-4f52-94a7-f0a263804d02",
-      "5d2e1a5d-0881-4750-86a3-1c4c067f348e"
+      "5d2e1a5d-0881-4750-86a3-1c4c067f348e",
+      "6fbe16ed-a65a-46cc-a4fd-dd32e64e0430",
+      "69279032-a362-463f-8cfe-4dfd130a36e5",
+      "01633ea9-0a4f-43f8-ac15-be09822814e6",
+      "cca8da0c-b3f7-4b5b-962a-7b8e9ff06878",
+      "85ef668c-c33d-4ef1-bf2e-42302fa553ae",
+      "e2b658df-9332-4757-abc2-a6f18840a96b"
     ]
   },
   {
@@ -3290,7 +4034,8 @@
     "filmRelations": [
       "33f83870-ea71-4b80-86fd-4192437aeaa9",
       "5141c750-1d1b-4004-9724-d5a1fd07a434",
-      "e4c22a47-f240-4ed6-8a18-f2c8188eabaa"
+      "e4c22a47-f240-4ed6-8a18-f2c8188eabaa",
+      "4259fae4-b254-81b9-9c41-e97409598021"
     ]
   },
   {
@@ -3355,7 +4100,8 @@
       "d2c65c7a-f134-41c2-a294-0a9dfaa65f65",
       "e5d56b35-aa20-46cb-a3c5-7a981c7f8c8e",
       "081581b3-ea8f-4caf-8de1-d865a79bec00",
-      "1a33bcec-0419-489c-a998-2df6dc6989c3"
+      "1a33bcec-0419-489c-a998-2df6dc6989c3",
+      "c016faf7-9619-4f52-b81d-af03ca4e4a13"
     ]
   },
   {
@@ -3519,7 +4265,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/BreakThru_Films",
     "website": "https://www.breakthrufilms.pl/",
     "filmRelations": [
-      "046bbab2-0fbe-46e3-8f5e-3d1e09c719ed"
+      "046bbab2-0fbe-46e3-8f5e-3d1e09c719ed",
+      "2de9fae4-b254-8189-a565-e8091b1ded42"
     ]
   },
   {
@@ -3633,7 +4380,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Axis_Animation",
     "website": "https://axisstudiosgroup.com/",
-    "filmRelations": []
+    "filmRelations": [
+      "864d77f4-2624-4d10-9ecf-1b89802e3ce7"
+    ]
   },
   {
     "id": "0b53ae2f-9430-45c8-b2ed-20795aa8a540",
@@ -3689,7 +4438,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Ejen_Ali",
     "website": "https://www.wau.my/",
     "filmRelations": [
-      "8df92067-fbf8-4e5f-bbf1-1e2e92992e5d"
+      "8df92067-fbf8-4e5f-bbf1-1e2e92992e5d",
+      "4269fae4-b254-8155-8e58-dfe831e7cefc"
     ]
   },
   {
@@ -3728,7 +4478,8 @@
     "website": "https://www.robotplayground.com/",
     "filmRelations": [
       "0af613c9-0dac-4237-b516-fd50eef1940d",
-      "79fa3ea3-34fa-4b52-980e-f5b1aee87d98"
+      "79fa3ea3-34fa-4b52-980e-f5b1aee87d98",
+      "4269fae4-b254-81ec-95ba-cdea76b3550d"
     ]
   },
   {
@@ -3803,7 +4554,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Warner_Premiere",
     "website": null,
     "filmRelations": [
-      "5d564075-af66-4093-83ea-4fa8a56a10e4"
+      "5d564075-af66-4093-83ea-4fa8a56a10e4",
+      "c4d87dec-2305-4735-93af-4fa61b391508"
     ]
   },
   {
@@ -3842,7 +4594,8 @@
     "website": "https://www.france.tv/france-3/",
     "filmRelations": [
       "2dc9fae4-b254-81fa-80be-e63035e76d54",
-      "7ccf79c5-8c85-4a29-9229-256e30e4abd4"
+      "7ccf79c5-8c85-4a29-9229-256e30e4abd4",
+      "e2968c4b-a886-40b9-9f06-1dd18878078b"
     ]
   },
   {
@@ -4165,7 +4918,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Alberto_V%C3%A1zquez_(artist)",
     "website": "https://www.abano.es/",
-    "filmRelations": []
+    "filmRelations": [
+      "9095eff2-9ec9-4f08-90b3-e7fc797091c1"
+    ]
   },
   {
     "id": "59edebdb-3465-45e9-8fa6-14cec7ebe712",
@@ -4274,7 +5029,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Nexus_(animation_studio)",
     "website": "https://nexus-inc.co.jp/",
-    "filmRelations": []
+    "filmRelations": [
+      "f7309ab1-b666-48d8-8d31-af84301e58d7"
+    ]
   },
   {
     "id": "f43578ab-bc62-4037-9a03-686b309712bb",
@@ -4546,7 +5303,8 @@
       "39563538-5c58-40fc-a288-101e34822ed8",
       "c1dc8d0c-1789-42e6-bb0e-7b58d5ea4d36",
       "d04afc02-3aad-43f1-aba5-093028f1c1e3",
-      "f1daa373-56ed-43f4-abe2-f04b63cb01f0"
+      "f1daa373-56ed-43f4-abe2-f04b63cb01f0",
+      "b3ebe655-7df5-4c1b-b993-38da4c721a4b"
     ]
   },
   {
@@ -4593,7 +5351,9 @@
       "39563538-5c58-40fc-a288-101e34822ed8",
       "b1f878c4-2f18-4275-a154-20e9bc4bd22e",
       "ace793ac-2e86-41b2-986d-c9fcba4b7eca",
-      "6abe2966-2847-4662-aed7-f9e179b698da"
+      "6abe2966-2847-4662-aed7-f9e179b698da",
+      "b9b88106-e1b5-40d3-a8bd-04322da9eb64",
+      "6c1365d6-a60e-43ad-84f5-ba33b20ff9bb"
     ]
   },
   {
@@ -4628,7 +5388,14 @@
       "fd60f221-aa10-4dde-93fc-14ac36685c83",
       "cb9012ba-70a5-4116-9c51-c7536569578e",
       "980a946d-fbd5-4101-83ad-1c51afb4cb51",
-      "ff267c82-8ef5-4770-9ab9-62b89936e1b7"
+      "ff267c82-8ef5-4770-9ab9-62b89936e1b7",
+      "299b99ee-f534-4163-a7b5-3339b7a417f8",
+      "310602e5-4b8a-499d-8519-da49ab3d6ba0",
+      "4c0e522c-5084-4acd-aae4-d4060dd3d486",
+      "4e71c6bc-5539-49ec-8205-e9a822cea870",
+      "b9247d74-bcf1-428b-a28c-e2673e76a2c7",
+      "fd906ee3-ca02-40b1-841f-9a0f6f9c3121",
+      "d40ea9c7-a096-461a-9c78-3f24e7bc15c8"
     ]
   },
   {
@@ -4774,7 +5541,19 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Topcraft",
     "website": null,
     "filmRelations": [
-      "aa8c6a7e-246b-41a6-aa78-e03623722066"
+      "aa8c6a7e-246b-41a6-aa78-e03623722066",
+      "619767fd-bcd1-4bfd-acab-bcdd63674ca0",
+      "e71c3b04-391e-4208-bac7-b34c0a9f7374",
+      "64cb8721-247b-4281-a3d1-b6c37654552c",
+      "cce355b6-8897-4d29-8279-0ce66944ab1f",
+      "c560bc59-c419-4723-8e47-b44a1eaf67ed",
+      "580a8f6b-011a-4328-857f-40e47e71c2f1",
+      "f445ac0e-526e-4517-8541-2430823da0a7",
+      "0b233597-9514-40a2-ae6e-dee7b45a3b00",
+      "4259fae4-b254-81b9-9c41-e97409598021",
+      "4259fae4-b254-81a0-af13-e681c88a240f",
+      "4259fae4-b254-8168-a425-e4cd8b0b7172",
+      "4259fae4-b254-81b7-941a-deefb87d1369"
     ]
   },
   {
@@ -4795,7 +5574,8 @@
     "filmRelations": [
       "f553507c-f30e-4e69-b995-4e44d285dbb3",
       "d698bda6-eea4-4c00-8cf3-95bedd566d5b",
-      "173e979d-7843-4812-a75e-b4ae7339ea11"
+      "173e979d-7843-4812-a75e-b4ae7339ea11",
+      "88836e09-2bd7-4fa0-abe0-c48e1a5a2727"
     ]
   },
   {
@@ -4864,7 +5644,11 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Wang_Film_Productions",
     "website": "http://www.wangfilm.com/",
     "filmRelations": [
-      "35f22f9d-3f81-4d7a-b32b-c7f940d74e0b"
+      "35f22f9d-3f81-4d7a-b32b-c7f940d74e0b",
+      "9d53597c-6ac1-4e12-9103-afd8a1ddae98",
+      "4269fae4-b254-81ea-8937-e15c0212a686",
+      "4269fae4-b254-814c-b9e9-ddfbe408b0f4",
+      "4269fae4-b254-8153-9d43-e9d96ffd1c71"
     ]
   },
   {
@@ -4899,7 +5683,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Saerom_Animation",
     "website": "http://saeromani.com/",
-    "filmRelations": []
+    "filmRelations": [
+      "b37ad19d-753a-48bb-ba9a-4c8c94e760b2"
+    ]
   },
   {
     "id": "48a62d0f-1cb4-476f-a7cf-95942905706f",
@@ -5569,7 +6355,9 @@
       "3ef20d1d-a22d-4456-8ef4-50892c7636d0",
       "c0741367-2aec-4262-b5da-10b850add9fe",
       "9facc274-3026-4128-82af-9d41efbd162d",
-      "d54964c4-38a1-4bd0-91de-f817ea88747d"
+      "d54964c4-38a1-4bd0-91de-f817ea88747d",
+      "2f49fae4-b254-81ef-b902-e99d0688ecb5",
+      "406beff2-1cd2-4c52-b261-06bf4d9dfb68"
     ]
   },
   {
@@ -5692,7 +6480,11 @@
       "9e6dd5a2-a8ae-4030-9e89-2db2ce210019",
       "4b4d8248-98e6-4d99-9264-4ccc2d9b1e29",
       "44c1e390-0425-4aa8-af2b-9109cbc63340",
-      "a6108839-7121-4862-a11e-06230c9b81c4"
+      "a6108839-7121-4862-a11e-06230c9b81c4",
+      "985e9984-8142-4cda-a942-ae7975b9ca0c",
+      "1c3a0e4c-0314-418d-953a-f73264155e6a",
+      "0bffe444-a6cd-49ab-a567-8109af772e98",
+      "4259fae4-b254-81f2-8168-c7a9f201fa43"
     ]
   },
   {
@@ -5902,7 +6694,19 @@
       "acb339a8-4f48-4897-a27b-7b438fb25df3",
       "8f54c98a-88bd-40c6-a7fc-78500163adc0",
       "e90c85db-4094-45ef-b593-9a40c57d96be",
-      "7c212c63-84a6-4fb5-8695-8ce85f94df04"
+      "7c212c63-84a6-4fb5-8695-8ce85f94df04",
+      "4259fae4-b254-813c-b1ef-ce8be0dc3389",
+      "4259fae4-b254-8126-8603-e5f1515d7f52",
+      "4259fae4-b254-8192-823b-fb70a8502f0c",
+      "4259fae4-b254-810e-92df-fd057e7375e7",
+      "4259fae4-b254-8177-b744-f8ce615bf791",
+      "4259fae4-b254-8139-bd94-d6f5d74667ee",
+      "4259fae4-b254-8159-884a-e642c60845e2",
+      "4259fae4-b254-8124-9122-d8ba4efa5728",
+      "4259fae4-b254-8154-97e6-c6e4276f0389",
+      "4259fae4-b254-8162-bcbb-f0c3858c9885",
+      "4259fae4-b254-8147-9326-e5909aa16da3",
+      "4259fae4-b254-810f-886f-e990c252f9e7"
     ]
   },
   {
@@ -6055,7 +6859,10 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Brain%27s_Base",
     "website": "https://www.brainsbase.co.jp/",
-    "filmRelations": []
+    "filmRelations": [
+      "0e42829c-9588-4639-a086-5b30943445b8",
+      "cb8965ff-c167-4ad8-aced-4dbee5be511f"
+    ]
   },
   {
     "id": "8af040b3-97d9-46f6-855c-fcef972c6d7f",
@@ -6086,7 +6893,11 @@
       "415f5b09-21a9-4e1a-8dee-586f2a6807d9",
       "ed721652-eb9e-4d5b-90f1-eae2b976de8f",
       "447d2870-0bdf-4479-9974-bab9c02358e9",
-      "30a64b10-29a6-47bf-b72a-ef23d8b56b96"
+      "30a64b10-29a6-47bf-b72a-ef23d8b56b96",
+      "7547a5b1-e933-4389-a07e-37a3ba806e5c",
+      "550b1a18-6deb-4a97-8b4b-b9502c43238b",
+      "3e62971d-9c02-4eef-973a-19ff2eb107e1",
+      "6da37224-3b7a-4c11-b9a1-41b9f113841b"
     ]
   },
   {
@@ -6181,7 +6992,8 @@
     "website": null,
     "filmRelations": [
       "06594ff8-c5d0-4e62-85f7-93d8e1b957ad",
-      "46eda0d7-76f0-41c9-a102-e33f8c5cc542"
+      "46eda0d7-76f0-41c9-a102-e33f8c5cc542",
+      "53f5ecf9-db1b-41fc-a377-8911fb28344c"
     ]
   },
   {
@@ -6267,7 +7079,8 @@
       "e85898c4-6a63-4a6f-9d51-c6907ee9b288",
       "e5841b9e-68d3-42af-aca4-847d6fd660cc",
       "320a3550-bcd1-4e00-b0f0-b6b6d773c64d",
-      "0952577d-e2d8-4aaa-a75e-9b21da599c4f"
+      "0952577d-e2d8-4aaa-a75e-9b21da599c4f",
+      "5fddd78e-44ae-4f4c-9c45-0b15b14c7e24"
     ]
   },
   {
@@ -6304,7 +7117,10 @@
     "website": "https://tezukaosamu.net/en/",
     "filmRelations": [
       "e1c2720c-e070-489a-b802-dc840621cc45",
-      "46f3135f-8037-412c-9fec-a438a5da656b"
+      "46f3135f-8037-412c-9fec-a438a5da656b",
+      "31f68c88-3257-4871-90e2-7c9b27802ca8",
+      "4dd6eef5-e4af-4106-9312-de858bdb8b67",
+      "a61a5edf-6155-4bc1-9f76-05f5bca60554"
     ]
   },
   {
@@ -6322,7 +7138,10 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Shin-Ei_Animation",
     "website": "https://shin-ei-animation.jp/",
-    "filmRelations": []
+    "filmRelations": [
+      "4d5821b5-529f-41b4-bc0f-12ea9634c4f3",
+      "b12c2baf-26e5-44a9-8ebb-97dd3e412085"
+    ]
   },
   {
     "id": "b8a4f56a-53a1-4164-bab6-ab4bc3aad10f",
@@ -6342,7 +7161,9 @@
     "filmRelations": [
       "f553507c-f30e-4e69-b995-4e44d285dbb3",
       "887c3e43-98cb-403b-9167-915076558398",
-      "d1a87f4f-ca26-461f-b602-87e3200c1924"
+      "d1a87f4f-ca26-461f-b602-87e3200c1924",
+      "42072120-5745-47de-8cfe-479bcf4f58df",
+      "10b95200-740c-4772-97de-3f52acca6228"
     ]
   },
   {
@@ -6452,7 +7273,9 @@
       "23770b72-e1d0-4a4b-b879-8343986b2382",
       "8cc2293e-e851-439d-8975-f58d9eb1f46a",
       "c4ff53dd-097f-4108-84fc-cf0b0aa5e25e",
-      "b43ff5dc-066e-4adf-b620-198ea70d9979"
+      "b43ff5dc-066e-4adf-b620-198ea70d9979",
+      "65d249fc-a146-4a32-8c9f-77b89fcbc0b1",
+      "765476e9-fee4-4d85-aeb7-d430a974d6df"
     ]
   },
   {
@@ -6488,7 +7311,12 @@
       "f91b1911-cbbd-4946-81f7-bcb89cd4d99c",
       "e91eacff-9bff-4035-bfc7-5e4047cd142d",
       "f350f87d-3fc2-41a6-839e-95d7e4c6a7ac",
-      "14bd57ea-90f4-4c3a-928c-3af51ba0c10b"
+      "14bd57ea-90f4-4c3a-928c-3af51ba0c10b",
+      "d434c54e-99bc-4f93-a2c7-9995a34334d8",
+      "76ea3efa-3f90-4caf-bd55-921d40f6a745",
+      "550b1a18-6deb-4a97-8b4b-b9502c43238b",
+      "77b182cd-29d8-4c13-a536-2791d67baa05",
+      "73f9a004-1251-4efb-98c1-9aedf388144a"
     ]
   },
   {
@@ -6607,7 +7435,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Eight_Bit_(studio)",
     "website": "https://8bit-studio.co.jp/",
     "filmRelations": [
-      "c407475b-1cf6-4c76-943c-7ef850622f1a"
+      "c407475b-1cf6-4c76-943c-7ef850622f1a",
+      "57d95b27-b8f4-45f5-91c1-8d1c1285efad"
     ]
   },
   {
@@ -6800,7 +7629,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Actas",
     "website": "http://www.actas-inc.co.jp/",
-    "filmRelations": []
+    "filmRelations": [
+      "68315632-2940-4887-8b84-028e119dbe48"
+    ]
   },
   {
     "id": "a5a65a3e-e725-4f65-9121-4731c14677b7",
@@ -6832,7 +7663,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Yostar_Pictures",
     "website": "https://yostar-pictures.co.jp/",
-    "filmRelations": []
+    "filmRelations": [
+      "172e0238-97a8-451f-b92e-0b835ada3916"
+    ]
   },
   {
     "id": "9f355baa-620d-4d1d-ab8d-5cbfc19eb2a3",
@@ -7010,7 +7843,10 @@
       "eceb2959-1423-4534-884d-443f228444b5",
       "bc199502-6778-4c1f-ba29-54f800c93f63",
       "88becd73-005f-4de0-8908-0b121ac983e5",
-      "5ae5bb90-1e01-45fb-90b6-e66e84863542"
+      "5ae5bb90-1e01-45fb-90b6-e66e84863542",
+      "d7db667b-be1d-4b6c-8436-5721ded689f1",
+      "31891d6a-a746-4a12-83f9-8e6c35cafad3",
+      "f7929955-49a4-4d9f-90ae-fa88701ecc47"
     ]
   },
   {
@@ -7029,7 +7865,8 @@
     "website": "https://www.sanzigen.co.jp/",
     "filmRelations": [
       "aa87e8b6-6c68-410e-b7f9-31ecbada0803",
-      "f69364a0-e6d6-454d-8a30-9738268938e8"
+      "f69364a0-e6d6-454d-8a30-9738268938e8",
+      "5110cd18-7c9e-4708-9809-8ab6cc9eed6b"
     ]
   },
   {
@@ -7049,7 +7886,9 @@
     "website": "https://www.graphinica.com/en/",
     "filmRelations": [
       "d2c7a974-377c-4b2a-8cba-098fb37041d1",
-      "277f76f9-6659-462a-b6a3-ab549939b3dc"
+      "277f76f9-6659-462a-b6a3-ab549939b3dc",
+      "83a01e21-0f1e-4d63-bc1d-3b993570a45f",
+      "3e62971d-9c02-4eef-973a-19ff2eb107e1"
     ]
   },
   {
@@ -7107,7 +7946,8 @@
       "992412dd-401e-46ae-a221-f7d9c382b702",
       "5a429f2a-0a39-4a49-9ebb-96034809675c",
       "74ad1521-9557-4fe9-a6e3-126b07798f04",
-      "ab0b1771-8302-4d1b-a94d-bfc77e3d7112"
+      "ab0b1771-8302-4d1b-a94d-bfc77e3d7112",
+      "0c60f5e0-64ed-4d04-907e-98a33eadffdc"
     ]
   },
   {
@@ -7190,7 +8030,10 @@
       "3bb0e3bd-2f5c-4e7f-a254-08cf40332e8f",
       "a881e7ad-f108-4442-b11e-101009ea4f7c",
       "9b190610-cea5-49ea-86f5-a51c1408c85d",
-      "9c51474b-dd98-40bf-ab67-a3daeaa654e6"
+      "9c51474b-dd98-40bf-ab67-a3daeaa654e6",
+      "ca187ddc-087f-475e-ba59-2dd90a03e4c0",
+      "2109af82-6313-4a44-98c1-238303efd1e5",
+      "a1eaccec-c727-4571-b104-3cbb29ca86fd"
     ]
   },
   {
@@ -7264,7 +8107,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Studio_Colorido",
     "website": "https://colorido.co.jp/",
     "filmRelations": [
-      "ee0f37d5-df15-49b5-96f5-eea820ae1266"
+      "ee0f37d5-df15-49b5-96f5-eea820ae1266",
+      "16b818e9-f409-425c-a94c-38352dcc973d"
     ]
   },
   {
@@ -7318,7 +8162,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Nordisk_Film",
     "website": "https://nordiskfilm.com/",
-    "filmRelations": []
+    "filmRelations": [
+      "2de9fae4-b254-8121-bd16-d1d3b93bdbff"
+    ]
   },
   {
     "id": "2815cce5-31fd-47a2-807b-98fe92b1865d",
@@ -7337,7 +8183,9 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Dentsu",
     "website": "https://www.dentsu.co.jp/en/",
     "filmRelations": [
-      "a718dfd5-3066-4400-870f-cb543fbd34a7"
+      "a718dfd5-3066-4400-870f-cb543fbd34a7",
+      "6d3348ae-e710-492f-812c-1e61dd8dc778",
+      "6dd4f138-8963-4ea6-a9af-cae4c583fd03"
     ]
   },
   {
@@ -7374,7 +8222,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Valhalla_(1986_film)",
     "website": null,
-    "filmRelations": []
+    "filmRelations": [
+      "2dd9fae4-b254-81d9-b781-cae0c4b99e6d"
+    ]
   },
   {
     "id": "ae2edc72-4890-4c11-99c2-c25f1b13bb33",
@@ -7408,7 +8258,10 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Haoliners_Animation_League",
     "website": "http://www.haoliners.net/en/",
-    "filmRelations": []
+    "filmRelations": [
+      "be929111-c5c1-41c5-b750-9da44e2dc815",
+      "a7fc39ac-ac3d-4797-8afe-9b8f05ec34db"
+    ]
   },
   {
     "id": "d7c43d01-e6fc-48de-abab-8df47bb5b3c1",
@@ -7443,7 +8296,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/A/S_Palladium",
     "website": null,
-    "filmRelations": []
+    "filmRelations": [
+      "2dc9fae4-b254-81ff-b22f-e4193982a8ec"
+    ]
   },
   {
     "id": "9a1c4696-ac8e-4696-b8c5-e3864696e317",
@@ -7483,7 +8338,8 @@
     "filmRelations": [
       "150a535f-3e78-4ed3-82d9-d80d675de2ba",
       "36667bc7-2d58-400f-9240-652c4263d001",
-      "aa9aab62-db95-4cc3-836a-e14e8059aaa5"
+      "aa9aab62-db95-4cc3-836a-e14e8059aaa5",
+      "d1711bf7-2169-471b-b74c-a67a88fba3a3"
     ]
   },
   {
@@ -7558,7 +8414,10 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Groupe_M6",
     "website": "https://www.snd-films.com/",
-    "filmRelations": []
+    "filmRelations": [
+      "2de9fae4-b254-81a1-90de-db7d1e9bf5ab",
+      "2de9fae4-b254-8117-8271-c487cd09cada"
+    ]
   },
   {
     "id": "6a606b3a-8af7-4cbd-b670-9cfca4992ea6",
@@ -7578,7 +8437,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Channel_4",
     "website": "https://www.channel4.com/",
     "filmRelations": [
-      "3fd3601b-fc37-4343-ba08-8235a7b86c49"
+      "3fd3601b-fc37-4343-ba08-8235a7b86c49",
+      "92d0dfe4-928d-4f52-85a4-dba03dc31970"
     ]
   },
   {
@@ -7634,7 +8494,10 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Melusine_Productions",
     "website": "https://www.melusinestudio.com",
     "filmRelations": [
-      "8db3f8ed-a649-4ab1-b621-7f406f07ee18"
+      "8db3f8ed-a649-4ab1-b621-7f406f07ee18",
+      "3287584b-53f8-48d4-9ae2-a14cb9cf8700",
+      "1329608f-1622-4678-a437-7989588e5384",
+      "4a2673dc-809f-4c0f-b8b6-3946ad253c67"
     ]
   },
   {
@@ -7654,7 +8517,8 @@
     "website": null,
     "filmRelations": [
       "2e29fae4-b254-8106-a2ef-d70000fe4b5d",
-      "2dc9fae4-b254-8125-9c89-fbd17f9fa4db"
+      "2dc9fae4-b254-8125-9c89-fbd17f9fa4db",
+      "f45015d7-4b7c-462f-982a-9e4437924079"
     ]
   },
   {
@@ -8665,7 +9529,19 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Institute_for_the_Intellectual_Development_of_Children_and_Young_Adults",
     "website": "https://en.kpf.ir/",
     "filmRelations": [
-      "1028bc4c-0da3-4460-80c0-472786c330ac"
+      "1028bc4c-0da3-4460-80c0-472786c330ac",
+      "4259fae4-b254-819b-a3e9-d6ec7c091fac",
+      "4259fae4-b254-813a-a910-d0447228bf19",
+      "4259fae4-b254-8136-a611-eccbad6cf1cb",
+      "4259fae4-b254-8141-b258-da6490eebb55",
+      "4259fae4-b254-813c-8ca0-e5bdf5fce669",
+      "4259fae4-b254-8158-ba34-e96643f44991",
+      "4259fae4-b254-813d-b336-e43637656d25",
+      "4259fae4-b254-8180-ad4b-e42e7194f483",
+      "4269fae4-b254-8170-8ec2-feff885927aa",
+      "4269fae4-b254-8117-af81-d14a681fa92b",
+      "4269fae4-b254-81c0-8676-fb0a2dc5d73e",
+      "4269fae4-b254-818b-81aa-e1b1ea4602e7"
     ]
   },
   {
@@ -8914,7 +9790,8 @@
     "website": "https://atomart.lv/",
     "filmRelations": [
       "978b7b7b-2a99-46fe-9fed-80df6d6e47b2",
-      "d9014671-b6be-40d1-b7ba-da5dee8b4931"
+      "d9014671-b6be-40d1-b7ba-da5dee8b4931",
+      "4269fae4-b254-8123-881c-e328ea4ba582"
     ]
   },
   {
@@ -9055,7 +9932,8 @@
     "website": "https://www.geidai.ac.jp/english/film/animation",
     "filmRelations": [
       "82091739-c2e1-42b5-b0fe-b3863779c54f",
-      "be1445dc-25d5-44ea-b47c-2d0823ee8d6d"
+      "be1445dc-25d5-44ea-b47c-2d0823ee8d6d",
+      "2d5afe55-1042-40fa-a19f-7e0c63c48645"
     ]
   },
   {
@@ -9317,7 +10195,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/RPG_Metanoia",
     "website": null,
-    "filmRelations": []
+    "filmRelations": [
+      "2dc9fae4-b254-8167-8e4b-eda3ebf603ad"
+    ]
   },
   {
     "id": "4b6cafd8-5d74-41c4-92d8-d04b16c231fd",
@@ -9371,7 +10251,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Star_Cinema",
     "website": "https://www.starcinema.com.ph/",
-    "filmRelations": []
+    "filmRelations": [
+      "2dc9fae4-b254-8167-8e4b-eda3ebf603ad"
+    ]
   },
   {
     "id": "1246aa53-514a-4f06-a1e3-4c6cefb8a930",
@@ -9432,7 +10314,8 @@
       "f5e66732-f323-485e-a847-6a8a3d5a2b05",
       "a9bb0332-2fdb-4c62-96c4-8cf3c9193c09",
       "b36debf1-2792-4387-a13e-c1c8ad798ed1",
-      "979d1fb7-1ade-439f-a723-2f32446aa662"
+      "979d1fb7-1ade-439f-a723-2f32446aa662",
+      "1d5fe3c0-9186-4481-9fb6-597904970b77"
     ]
   },
   {
@@ -9491,7 +10374,8 @@
       "25b38d33-b5c5-41a7-a8cd-50a6c9c7b9d7",
       "5a29a1c9-a505-42bb-bd3b-85ec967862ff",
       "6b4d5427-26b7-4458-986b-2d3568963045",
-      "3b8d817f-88b4-4297-9745-e695792856e5"
+      "3b8d817f-88b4-4297-9745-e695792856e5",
+      "7f9ef5fb-7f80-4dd7-90a3-4cca0726a60f"
     ]
   },
   {
@@ -9999,7 +10883,9 @@
     ],
     "wikipedia": null,
     "website": "https://trestudio.vn",
-    "filmRelations": []
+    "filmRelations": [
+      "2dd9fae4-b254-81d7-a9af-e047f5a065ae"
+    ]
   },
   {
     "id": "56fc1cef-1c8a-431e-8c47-ba59c925410b",
@@ -10072,7 +10958,9 @@
     ],
     "wikipedia": null,
     "website": "https://www.dentsu-redder.com",
-    "filmRelations": []
+    "filmRelations": [
+      "2dd9fae4-b254-81d7-a9af-e047f5a065ae"
+    ]
   },
   {
     "id": "c8344ff1-47c5-4cb5-aecf-5b66af55a0b2",
@@ -10173,7 +11061,11 @@
       "2e49fae4-b254-81ff-84b0-d3f693791d08",
       "5698c38b-0c7f-4b76-bbad-f664d25545a9",
       "af28b02a-37fe-4e50-87e6-eca8ef07174a",
-      "f79963dc-61ee-4fe2-a6b8-8e09d926b622"
+      "f79963dc-61ee-4fe2-a6b8-8e09d926b622",
+      "2109af82-6313-4a44-98c1-238303efd1e5",
+      "a61a5edf-6155-4bc1-9f76-05f5bca60554",
+      "d40ea9c7-a096-461a-9c78-3f24e7bc15c8",
+      "4259fae4-b254-8128-a0db-f9a9f001377a"
     ]
   },
   {
@@ -10352,7 +11244,8 @@
     "filmRelations": [
       "1b487806-1f20-4c0d-a574-ba5ba36cf1c4",
       "92cb47f4-96ca-4a94-9475-1689521e684e",
-      "677c392b-1f00-405a-b7ed-d0123d67f1b4"
+      "677c392b-1f00-405a-b7ed-d0123d67f1b4",
+      "bb118899-c72f-46cf-9ee9-b5459da28b1b"
     ]
   },
   {
@@ -10393,7 +11286,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Adult_Swim",
     "website": "https://www.adultswim.com/",
     "filmRelations": [
-      "96db9ae8-fbf1-4ad3-93aa-32b3b8931aad"
+      "96db9ae8-fbf1-4ad3-93aa-32b3b8931aad",
+      "9e6dd5a2-a8ae-4030-9e89-2db2ce210019"
     ]
   },
   {
@@ -10451,7 +11345,9 @@
     "website": "https://www.adultswim.com",
     "filmRelations": [
       "7bc9369f-1b67-430d-9ba4-41207df0b94d",
-      "ceb9d126-3fb5-42be-9953-f36e3882ad43"
+      "ceb9d126-3fb5-42be-9953-f36e3882ad43",
+      "96db9ae8-fbf1-4ad3-93aa-32b3b8931aad",
+      "56b27238-37b4-41a8-a8bb-a52262d453a5"
     ]
   },
   {
@@ -10488,7 +11384,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Rooster_Teeth",
     "website": "https://roosterteeth.com/",
     "filmRelations": [
-      "677c392b-1f00-405a-b7ed-d0123d67f1b4"
+      "677c392b-1f00-405a-b7ed-d0123d67f1b4",
+      "72ead077-1f83-4d95-aa2a-141abf910ce8"
     ]
   },
   {
@@ -11424,7 +12321,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Tsuburaya_Productions",
     "website": "https://tsuburaya-prod.com/",
     "filmRelations": [
-      "9d18e2cc-ea56-4fd2-974b-2d4fd1296b13"
+      "9d18e2cc-ea56-4fd2-974b-2d4fd1296b13",
+      "7ed8b780-232d-48a2-b39a-aa8f46e6fcd4"
     ]
   },
   {
@@ -11479,7 +12377,8 @@
     "wikipedia": null,
     "website": "https://www.studiolico.com",
     "filmRelations": [
-      "a7263c8a-96b6-4089-beca-1f938a7f49f3"
+      "a7263c8a-96b6-4089-beca-1f938a7f49f3",
+      "be434824-0903-4e22-914b-075f85266acd"
     ]
   },
   {
@@ -11876,7 +12775,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Suresh_Eriyat",
     "website": "https://studioeeksaurus.com/",
     "filmRelations": [
-      "2dd9fae4-b254-8130-9ff5-d409913fd001"
+      "2dd9fae4-b254-8130-9ff5-d409913fd001",
+      "4269fae4-b254-811d-a89c-c4293973ca37"
     ]
   },
   {
@@ -12048,7 +12948,9 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Pirate%27s_Passage",
     "website": null,
-    "filmRelations": []
+    "filmRelations": [
+      "aa692f6a-379c-4efa-bfbe-f40a564fce1a"
+    ]
   },
   {
     "id": "0bcc3b51-efe9-4173-83c9-67a0a61be82d",
@@ -12186,7 +13088,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Roye_Okupe",
     "website": "https://youneekstudios.com/",
     "filmRelations": [
-      "1a347651-66d5-4ae1-8a37-2cf9f0c73a6d"
+      "1a347651-66d5-4ae1-8a37-2cf9f0c73a6d",
+      "4269fae4-b254-8132-82a1-d07e7c22f44e"
     ]
   },
   {
@@ -12268,7 +13171,8 @@
       "a695dca5-f477-4628-80dc-19d0ffe9e40b",
       "44b25a83-273c-4620-b43d-c1686b917162",
       "dfbc7f85-29de-493f-b5b3-353e40088089",
-      "cdde2c48-0840-4c0c-bb64-95488b535b7a"
+      "cdde2c48-0840-4c0c-bb64-95488b535b7a",
+      "be0580e7-ca07-45ba-a264-3c54cfae2c23"
     ]
   },
   {
@@ -12582,7 +13486,8 @@
       "5cb5227d-e262-42e7-9367-48ae06a6084c",
       "b50e7ce4-a228-4e5f-8803-259508e83bfd",
       "2f49fae4-b254-8164-ab9e-f4a8de75b059",
-      "2f49fae4-b254-81b4-9af2-e9e54f60d42c"
+      "2f49fae4-b254-81b4-9af2-e9e54f60d42c",
+      "2f49fae4-b254-815f-9a93-dc8e2fb76504"
     ]
   },
   {
@@ -12721,7 +13626,10 @@
       "1c234d03-b2ef-4fef-897c-1e43bb22fe63",
       "887c3e43-98cb-403b-9167-915076558398",
       "945e336b-f437-4711-ac47-e3f8d1fcf1fb",
-      "728a54df-cdf3-4bb6-b8bb-0a2b41f976ee"
+      "728a54df-cdf3-4bb6-b8bb-0a2b41f976ee",
+      "ae5fc6c0-b770-437a-82c6-585d792bb015",
+      "4259fae4-b254-81e7-bfa6-c7faa14205c4",
+      "4259fae4-b254-81a9-a046-d86d335deea7"
     ]
   },
   {
@@ -12768,7 +13676,10 @@
       "26283a0d-6cf9-42ea-b34f-09189c97eaf9",
       "fd101e50-64d5-4aac-a135-50e3b7dd337a",
       "36afba3c-3fac-4fdd-aeed-938a4ce37cd5",
-      "8c6e4eed-0df2-484b-b90e-db8ceba79db7"
+      "8c6e4eed-0df2-484b-b90e-db8ceba79db7",
+      "47f793dd-ba78-46c0-8930-9faf4b96a235",
+      "b7f30a7a-51b5-47dd-bb0c-85720e559645",
+      "4259fae4-b254-8128-a0db-f9a9f001377a"
     ]
   },
   {
@@ -13311,7 +14222,8 @@
     "website": "https://turmadamonica.uol.com.br/",
     "filmRelations": [
       "d0287464-344d-476e-a272-ce53569ece3e",
-      "4ddc3467-39b2-424b-9275-d9fc91292998"
+      "4ddc3467-39b2-424b-9275-d9fc91292998",
+      "4269fae4-b254-8121-9d49-ee8fe1dca221"
     ]
   },
   {
@@ -13330,7 +14242,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Rio_2096:_A_Story_of_Love_and_Fury",
     "website": "http://www.buritifilmes.com.br/",
     "filmRelations": [
-      "3b46e8c5-7c4b-431f-b749-da6f2a91188a"
+      "3b46e8c5-7c4b-431f-b749-da6f2a91188a",
+      "4269fae4-b254-81c0-bbda-fc54aeceee28"
     ]
   },
   {
@@ -13408,7 +14321,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Per_%C3%85hlin",
     "website": "https://pennfilm.se/",
     "filmRelations": [
-      "2dd9fae4-b254-8199-9459-d9a74495d26f"
+      "2dd9fae4-b254-8199-9459-d9a74495d26f",
+      "2de9fae4-b254-81e1-a51e-e2b16d0556a6"
     ]
   },
   {
@@ -13487,7 +14401,8 @@
     "filmRelations": [
       "2dc9fae4-b254-8104-bb76-f66f8504086e",
       "2dc9fae4-b254-81fa-80be-e63035e76d54",
-      "2dc9fae4-b254-81fb-9afe-df4883f6d482"
+      "2dc9fae4-b254-81fb-9afe-df4883f6d482",
+      "905b8c6e-9444-4ee1-88c6-c8c323a5bf0c"
     ]
   },
   {
@@ -13725,7 +14640,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Office_de_Radiodiffusion_T%C3%A9l%C3%A9vision_Fran%C3%A7aise",
     "website": null,
     "filmRelations": [
-      "2dc9fae4-b254-81b2-88db-f38326560aa0"
+      "2dc9fae4-b254-81b2-88db-f38326560aa0",
+      "ffba4cbf-928e-4cbf-b26d-744f266dfbec"
     ]
   },
   {
@@ -13910,7 +14826,14 @@
       "25b070f6-3a9c-41ca-a69a-a9abaed4ca16",
       "da032fba-4b05-49ed-8a98-076fe6d3aa43",
       "3dea1533-85f5-4b95-8330-7e3b6190c727",
-      "67326003-4a77-41cc-a000-89ed81185f1f"
+      "67326003-4a77-41cc-a000-89ed81185f1f",
+      "54a8e56a-41bc-4d9c-a468-44cfbeec8618",
+      "ba01c038-24d8-42c2-96f9-bda96c3a0554",
+      "3f9676ba-7f54-4fa6-b2ba-bce99fb9e3e3",
+      "e8ee0f3b-dc33-4505-b360-44a78a9aaf80",
+      "8623c599-b7e4-4c6c-9a0b-2b53971e487b",
+      "b7d1fbd5-01d3-457b-a38f-827f9a9a645d",
+      "4259fae4-b254-8192-8f18-d466f8f3261f"
     ]
   },
   {
@@ -14058,7 +14981,8 @@
     "filmRelations": [
       "730904b1-7f2b-44c1-bf33-ee02ef2d1a77",
       "8e157fb0-960a-4cc1-875e-007f6a10980d",
-      "bdea5055-422c-4086-a5b1-3c43264d4e4b"
+      "bdea5055-422c-4086-a5b1-3c43264d4e4b",
+      "d1711bf7-2169-471b-b74c-a67a88fba3a3"
     ]
   },
   {
@@ -14178,7 +15102,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Niyi_Akinmolayan",
     "website": "https://www.anthillstudios.com/",
     "filmRelations": [
-      "1daa5ae3-c52d-44a1-a14f-ac422a650b83"
+      "1daa5ae3-c52d-44a1-a14f-ac422a650b83",
+      "4269fae4-b254-8106-bae2-e29771044a46"
     ]
   },
   {
@@ -14379,7 +15304,9 @@
       "09958a8b-4c08-4073-b1c3-24561559eca8",
       "aa137177-dd02-4669-90f0-0d0e99a903c8",
       "36667bc7-2d58-400f-9240-652c4263d001",
-      "aa9aab62-db95-4cc3-836a-e14e8059aaa5"
+      "aa9aab62-db95-4cc3-836a-e14e8059aaa5",
+      "778e1059-8d1b-4e46-bdfa-7b248ad63984",
+      "c2d108d1-16e8-4cca-9f9d-9066c4a942ac"
     ]
   },
   {
@@ -14490,7 +15417,8 @@
       "bdce927b-4b61-4fb8-9e77-9bd3354298fc",
       "eca948ec-6b70-4b99-bf1b-6d816a7e0cad",
       "06e7e0a9-b95f-4e5f-a73e-c18706008a25",
-      "bd25bb16-05aa-42c4-9f35-8c45756605b4"
+      "bd25bb16-05aa-42c4-9f35-8c45756605b4",
+      "4269fae4-b254-817d-bba1-cfc867e1a24c"
     ]
   },
   {
@@ -14521,7 +15449,12 @@
       "fcbb153e-edd3-43d7-ac34-8353d748d307",
       "2233d2d0-2587-4e76-b2c0-fd2145c2a722",
       "4d452a7e-3bb0-4352-8961-a10305178fe3",
-      "88836e09-2bd7-4fa0-abe0-c48e1a5a2727"
+      "88836e09-2bd7-4fa0-abe0-c48e1a5a2727",
+      "efc2f06b-e18d-424d-94f9-d68db50132ee",
+      "c560bc59-c419-4723-8e47-b44a1eaf67ed",
+      "8a77cb86-d162-47ef-abee-ffa2cb5a0a96",
+      "8d3cdd2a-28db-4029-b329-f204d2cf39dd",
+      "4259fae4-b254-8154-ad33-ed98a2ff2c65"
     ]
   },
   {
@@ -14613,7 +15546,10 @@
     "filmRelations": [
       "782019b1-b975-41bf-a11f-6f475fdfaa66",
       "2dc9fae4-b254-81d8-8fca-dfa77fa0b366",
-      "a9bb0332-2fdb-4c62-96c4-8cf3c9193c09"
+      "a9bb0332-2fdb-4c62-96c4-8cf3c9193c09",
+      "e8228455-03ab-402c-9c41-a0f077002246",
+      "f5e66732-f323-485e-a847-6a8a3d5a2b05",
+      "91a66604-dc64-4787-94a0-9d935553abec"
     ]
   },
   {
@@ -14655,7 +15591,8 @@
     "filmRelations": [
       "2dd9fae4-b254-8191-9748-d40d9b1cbed6",
       "2de9fae4-b254-8146-8995-f97cd324bb31",
-      "d591c1cd-94aa-4aa1-92c5-2616479d67b7"
+      "d591c1cd-94aa-4aa1-92c5-2616479d67b7",
+      "2de9fae4-b254-8138-b36b-c82fefbf9d80"
     ]
   },
   {
@@ -14824,7 +15761,11 @@
     ],
     "wikipedia": "https://en.wikipedia.org/wiki/Fantastic_Planet",
     "website": null,
-    "filmRelations": []
+    "filmRelations": [
+      "2dc9fae4-b254-81d8-8fca-dfa77fa0b366",
+      "2dc9fae4-b254-8114-82fc-c28e9aa3158e",
+      "2e49fae4-b254-81ae-aed0-e60c820d1296"
+    ]
   },
   {
     "id": "6a29d4f8-1f5a-42f9-978d-1c0b1ea68920",
@@ -14865,7 +15806,8 @@
       "2dc9fae4-b254-8165-8fae-cbad940dde9b",
       "2dc9fae4-b254-81e9-a477-f4118c3eed94",
       "303d9f8e-8827-4be2-b5ef-8f37ecedd5a3",
-      "0b233597-9514-40a2-ae6e-dee7b45a3b00"
+      "0b233597-9514-40a2-ae6e-dee7b45a3b00",
+      "bde61f89-fbe6-4f41-846a-53d4e237256f"
     ]
   },
   {
@@ -15688,7 +16630,11 @@
       "4c53213e-7db5-42f5-8f66-a483d5686025",
       "c4ca0313-5818-47d8-b505-c067011158ac",
       "9eb1d33d-fd23-44c2-aff4-ec3204477bb5",
-      "2de9fae4-b254-81e9-9f21-cab1400c504e"
+      "2de9fae4-b254-81e9-9f21-cab1400c504e",
+      "4269fae4-b254-81c0-8c4f-e619e04a2312",
+      "4269fae4-b254-8122-a419-d8ba2c1945dc",
+      "4269fae4-b254-8106-ba37-f4f9fb088b7e",
+      "4269fae4-b254-81a5-8977-cc8b29806d60"
     ]
   },
   {

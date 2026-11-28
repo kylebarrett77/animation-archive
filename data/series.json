@@ -1,5 +1,234 @@
 [
   {
+    "id": "4269fae4-b254-81ed-bf60-e94b07dad5ea",
+    "url": "https://app.notion.com/p/Dogtanian-4269fae4b25481edbf60e94b07dad5ea",
+    "name": "Dogtanian",
+    "type": "Franchise",
+    "description": "BRB Internacional's Dogtanian (D'Artacán) franchise, created by Claudio Biern Boyd: anthropomorphic dog versions of Alexandre Dumas's musketeers led by Dogtanian, with Juliette, the Muskehounds Pontos, Amis and Dogos, Cardinal Richelieu and Milady. The 1981 series was animated by Nippon Animation; its sequel, set ten years later with Dogtanian married and a father, was animated by Wang Film Productions with TVE and Thames Television. A 1995 compilation film and a 2021 CGI feature followed.",
+    "watchOrder": "1. Dogtanian and the Three Muskehounds (D'Artacán y los tres Mosqueperros, 1981); 2. The Return of Dogtanian (El retorno de D'Artacán, 1990); 3. Dogtanian and the Three Muskehounds (2021 CGI feature, in the Queue, not yet in Films). The 1995 TV film Dogtanian: One for All and All for One, edited from the sequel, is not counted.",
+    "totalEntries": 3,
+    "yearsActive": "1981–2021",
+    "country": "Spain",
+    "studioRelation": [
+      "b8f45722-7c45-4caa-8c4b-c8825a3c44df",
+      "9208c580-5544-47f1-9d80-8382dc5ff549"
+    ],
+    "filmRelations": [
+      "0aa57e70-78c5-46c6-be85-435d32218892",
+      "4269fae4-b254-814c-b9e9-ddfbe408b0f4"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8148-9a93-f17f5c11e314",
+    "url": "https://app.notion.com/p/David-the-Gnome-4269fae4b25481489a93f17f5c11e314",
+    "name": "David the Gnome",
+    "type": "Franchise",
+    "description": "BRB Internacional's gnome franchise, created by Claudio Biern Boyd from Wil Huygen and Rien Poortvliet's Dutch book Gnomes (Leven en werken van de Kabouter, 1976). The series share the gnome world, the troll villains led by Holler, and continuity: Wisdom of the Gnomes follows the judge Klaus, whose wife David once treated, and David and Lisa appear in its finale. Later entries include The New World of the Gnomes (1997) and feature compilations edited from the series.",
+    "watchOrder": "1. The World of David the Gnome (David, el gnomo, 1985); 2. Wisdom of the Gnomes (La llamada de los gnomos, 1987); 3. The New World of the Gnomes (El nuevo mundo de los gnomos, 1997, not yet in the archive). Compilation films (The Gnomes' Great Adventure and others) are not counted.",
+    "totalEntries": 3,
+    "yearsActive": "1985–1997",
+    "country": "Spain",
+    "studioRelation": [
+      "b8f45722-7c45-4caa-8c4b-c8825a3c44df"
+    ],
+    "filmRelations": [
+      "97b6e004-706e-4be6-8096-7b4bf60fdec3",
+      "4269fae4-b254-8153-9d43-e9d96ffd1c71"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8187-8646-fd46bec58e23",
+    "url": "https://app.notion.com/p/Willy-Fog-4269fae4b25481878646fd46bec58e23",
+    "name": "Willy Fog",
+    "type": "Duology",
+    "description": "BRB Internacional's Jules Verne cycle created by Claudio Biern Boyd, starring the lion gentleman Willy Fog with Romy, Rigodon, Tico, Sullivan and Transfer. The 1983 series (animated in Japan by Nippon Animation) adapts Around the World in Eighty Days; its 1994 sequel Willy Fog 2 (animated by Wang Film Productions, Taiwan) adapts Journey to the Centre of the Earth and Twenty Thousand Leagues Under the Seas with the same characters, theme songs and lead Spanish voices.",
+    "watchOrder": "1. Around the World with Willy Fog (1983); 2. Willy Fog 2 (1994). BRB's 1995 compilation films (Around the World in 80 Days, Journey to the Center of the Earth, 20,000 Leagues Under the Sea) are not in the archive.",
+    "totalEntries": 2,
+    "yearsActive": "1983–1995",
+    "country": "Spain",
+    "studioRelation": [
+      "b8f45722-7c45-4caa-8c4b-c8825a3c44df",
+      "9208c580-5544-47f1-9d80-8382dc5ff549"
+    ],
+    "filmRelations": [
+      "bdce927b-4b61-4fb8-9e77-9bd3354298fc",
+      "4269fae4-b254-81ea-8937-e15c0212a686"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-81e2-8e90-ea11f7dbd5ce",
+    "url": "https://app.notion.com/p/Ejen-Ali-4269fae4b25481e28e90ea11f7dbd5ce",
+    "name": "Ejen Ali",
+    "type": "Franchise",
+    "description": "WAU Animation's Ejen Ali franchise, created by Usamah Zaid Yasin: the CGI spy-adventure television series that began in 2016 and its theatrical films, which share the boy agent Ali Ghazali, his M.A.T.A. colleagues Alicia, Bakar, Dayang and Rizwan, the futuristic city of Cyberaya and its villains. Ejen Ali: The Movie (2019) and Ejen Ali: The Movie 2 (2025) each set Malaysian box-office records for animation.",
+    "watchOrder": "1. Ejen Ali (TV series, 2016–); 2. Ejen Ali: The Movie (2019, not yet in the archive); 3. Ejen Ali: The Movie 2 (Misi: Satria) (2025).",
+    "totalEntries": 2,
+    "yearsActive": "2016–present",
+    "country": "Malaysia",
+    "studioRelation": [
+      "3b27ad1c-dd40-4b4b-bff1-ec2a855d26df"
+    ],
+    "filmRelations": [
+      "8df92067-fbf8-4e5f-bbf1-1e2e92992e5d",
+      "4269fae4-b254-8155-8e58-dfe831e7cefc"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-81a0-87e7-c535203ee1cb",
+    "url": "https://app.notion.com/p/Chhota-Bheem-4269fae4b25481a087e7c535203ee1cb",
+    "name": "Chhota Bheem",
+    "type": "Franchise",
+    "description": "Green Gold Animation's Chhota Bheem franchise, created and directed by Rajiv Chilaka: the POGO television series launched in 2008 and its many TV and theatrical films, which share the boy hero Bheem, his friends Chutki, Raju and Jaggu, the bully Kalia with Dholu and Bholu, and the village of Dholakpur. The archive's entries are a POGO TV film co-starring Hanuman and the franchise's first theatrical feature, both from 2012.",
+    "watchOrder": "1. Chhota Bheem aur Hanuman (POGO TV film, 1 May 2012); 2. Chhota Bheem and the Curse of Damyaan (theatrical, 18 May 2012). The TV series and the other Chhota Bheem films are not yet in the archive.",
+    "totalEntries": 2,
+    "yearsActive": "2008–present",
+    "country": "India",
+    "studioRelation": [
+      "4269fae4-b254-81fb-b19d-f3cf1a0f4490"
+    ],
+    "filmRelations": [
+      "4269fae4-b254-8192-b70a-cd75de3a667a",
+      "4269fae4-b254-817e-a7c7-e8e1a99b4949"
+    ]
+  },
+  {
+    "id": "4269fae4-b254-8174-8dea-debe7c9cbf5c",
+    "url": "https://app.notion.com/p/Monica-and-Friends-Turma-da-M-nica-4269fae4b25481748deadebe7c9cbf5c",
+    "name": "Monica and Friends (Turma da Mônica)",
+    "type": "Franchise",
+    "description": "Animated films from Mauricio de Sousa Produções based on Mauricio de Sousa's Turma da Mônica comics (from 1959), following Mônica, Cebolinha, Cascão, Magali and their friends in the Limoeiro neighbourhood. The entries share the same characters and studio, from the 1982 anthology feature that launched the film series to later single-story features.",
+    "watchOrder": "1. The Adventures of Monica and Friends (1982); 2. Monica's Gang in an Adventure in Time (2007). Other MSP features (A Princesa e o Robô, 1983; As Novas Aventuras da Turma da Mônica, 1986; and others) are not yet in the archive.",
+    "totalEntries": 2,
+    "yearsActive": "1982-present",
+    "country": "Brazil",
+    "studioRelation": [
+      "d11b5627-19be-4e77-83f5-902634af949e"
+    ],
+    "filmRelations": [
+      "4269fae4-b254-8121-9d49-ee8fe1dca221",
+      "d0287464-344d-476e-a272-ce53569ece3e"
+    ]
+  },
+  {
+    "id": "4259fae4-b254-818f-a0b2-ee6dfa825661",
+    "url": "https://app.notion.com/p/Scooby-Doo-4259fae4b254818fa0b2ee6dfa825661",
+    "name": "Scooby-Doo",
+    "type": "Franchise",
+    "description": "The Hanna-Barbera / Warner Bros. animated franchise created by Joe Ruby and Ken Spears in 1969, following the teenage sleuths of Mystery, Inc. and their Great Dane Scooby-Doo as they unmask fake monsters. The entries share characters and the core formula across several continuities and reboots.",
+    "watchOrder": "1. Scooby-Doo, Where Are You! (1969); 2. The New Scooby-Doo Movies (1972); 3. The Scooby & Scrappy-Doo/Puppy Hour (1982); 4. What's New, Scooby-Doo? (2002); 5. Scooby-Doo! Mystery Incorporated (2010)",
+    "totalEntries": 5,
+    "yearsActive": "1969-present",
+    "country": "USA",
+    "studioRelation": [
+      "a5cea408-7622-4adc-9af9-b2aad9dd60f8"
+    ],
+    "filmRelations": [
+      "f95f9d31-8ec9-4cb2-90c2-8b277c8799eb",
+      "4259fae4-b254-813a-8720-ffb331473798",
+      "bc622d10-4940-4868-a4b9-be24d73c704e",
+      "7062dc3f-fb5d-40ca-845c-b04402d7ee1c",
+      "8f194061-560c-49a5-8593-08e6522b2b41"
+    ]
+  },
+  {
+    "id": "4259fae4-b254-8106-8d82-ef88ecb2ac50",
+    "url": "https://app.notion.com/p/Josie-and-the-Pussycats-Hanna-Barbera-4259fae4b25481068d82ef88ecb2ac50",
+    "name": "Josie and the Pussycats (Hanna-Barbera)",
+    "type": "Duology",
+    "description": "Hanna-Barbera's two animated series about the Archie Comics pop trio Josie and the Pussycats, with a continuous cast of characters and voice actors. The 1970 original follows the band on a world tour of spy and mad-scientist adventures, and the 1972 spin-off launches the same group into deep space.",
+    "watchOrder": "1. Josie and the Pussycats (1970); 2. Josie and the Pussycats in Outer Space (1972)",
+    "totalEntries": 2,
+    "yearsActive": "1970-1974",
+    "country": "USA",
+    "studioRelation": [
+      "a5cea408-7622-4adc-9af9-b2aad9dd60f8"
+    ],
+    "filmRelations": [
+      "4259fae4-b254-815a-bad7-f9b46501c8b5",
+      "b9865ba4-986d-4c9a-afc2-2fd7bc486d7a"
+    ]
+  },
+  {
+    "id": "4259fae4-b254-8135-a937-cefacd37e7a9",
+    "url": "https://app.notion.com/p/Sabrina-the-Teenage-Witch-Animated-4259fae4b2548135a937cefacd37e7a9",
+    "name": "Sabrina the Teenage Witch (Animated)",
+    "type": "Franchise",
+    "description": "Animated series built around Archie Comics' Sabrina Spellman (created by George Gladir and Dan DeCarlo, 1962). Filmation's 1970 CBS hour paired her with the Groovie Goolies; DIC's 1999 series and its 2003 sequel Sabrina's Secret Life reimagined her as a younger witch. Shared character, separate continuities; the 1999 and 2003 series share continuity with each other.",
+    "watchOrder": "Sabrina and the Groovie Goolies (1970) → Sabrina: The Animated Series (1999) → Sabrina's Secret Life (2003)",
+    "totalEntries": 3,
+    "yearsActive": "1970–2004",
+    "country": "USA",
+    "studioRelation": [
+      "bb00339e-4970-412a-b3fe-5c56d623619c"
+    ],
+    "filmRelations": [
+      "4259fae4-b254-8147-9326-e5909aa16da3",
+      "e36c2182-0fe2-44ed-a35c-390bedace359",
+      "d4dc0621-7afc-41bc-81b2-cf3799ea1632"
+    ]
+  },
+  {
+    "id": "4259fae4-b254-8116-a861-e63930eef953",
+    "url": "https://app.notion.com/p/Wacky-Races-4259fae4b2548116a861e63930eef953",
+    "name": "Wacky Races",
+    "type": "Franchise",
+    "description": "Hanna-Barbera's Wacky Races franchise: the 1968 CBS racing comedy co-produced with Heatter-Quigley and its two 1969 CBS spin-offs, which carried the racers Penelope Pitstop, the Ant Hill Mob, Dick Dastardly and Muttley into series of their own. Shared characters, designs (Iwao Takamoto, Jerry Eisenberg) and voice cast (Janet Waldo, Paul Winchell, Don Messick).",
+    "watchOrder": "Wacky Races (1968) → The Perils of Penelope Pitstop (1969) / Dastardly and Muttley in Their Flying Machines (1969), both premiered September 13, 1969. Later revivals (Fender Bender 500, 1990; Wacky Races, 2017) not yet in the archive.",
+    "totalEntries": 3,
+    "yearsActive": "1968–1970",
+    "country": "USA",
+    "studioRelation": [
+      "a5cea408-7622-4adc-9af9-b2aad9dd60f8"
+    ],
+    "filmRelations": [
+      "738cac7a-a37b-489d-ade4-f94d6662f488",
+      "4259fae4-b254-8108-a109-d0b6661984e1",
+      "4259fae4-b254-8105-9a6d-e4741701a866"
+    ]
+  },
+  {
+    "id": "4259fae4-b254-8173-b84f-e12267024001",
+    "url": "https://app.notion.com/p/Rudolph-Frosty-Rankin-Bass-4259fae4b2548173b84fe12267024001",
+    "name": "Rudolph & Frosty (Rankin/Bass)",
+    "type": "Shared Universe",
+    "description": "The Rankin/Bass holiday specials built around Rudolph the Red-Nosed Reindeer and Frosty the Snowman, which share characters and continuity. Rudolph the Red-Nosed Reindeer (1964, Videocraft/MOM Animagic) and Frosty the Snowman (1969, cel animation by Mushi Production) each got a direct sequel in 1976: Rudolph's Shiny New Year and Frosty's Winter Wonderland (the latter introducing Crystal and Jack Frost). The feature-length crossover Rudolph and Frosty's Christmas in July (1979) unites both casts. Rudolph the Red-Nosed Reindeer and the Island of Misfit Toys (2001) is a later direct-to-video sequel to the 1964 special by a different producer (Golden Books Family Entertainment), included for continuity. The other Rankin/Bass Santa specials (Santa Claus Is Comin' to Town, The Year Without a Santa Claus) are not part of this entry.",
+    "watchOrder": "Release order: Rudolph the Red-Nosed Reindeer (1964) → Frosty the Snowman (1969) → Rudolph's Shiny New Year (1976) → Frosty's Winter Wonderland (1976) → Rudolph and Frosty's Christmas in July (1979) → Rudolph the Red-Nosed Reindeer and the Island of Misfit Toys (2001, non-Rankin/Bass). Watch both originals before the 1979 crossover.",
+    "totalEntries": 6,
+    "yearsActive": "1964–2001",
+    "country": "USA",
+    "studioRelation": [
+      "32293050-b6d0-437e-8e3e-711d4a6d6977",
+      "4259fae4-b254-81cd-8444-dc4c44bedaaf"
+    ],
+    "filmRelations": [
+      "4259fae4-b254-8142-b6b9-eee52e4fc11a",
+      "4259fae4-b254-8154-ad33-ed98a2ff2c65",
+      "c632c2c6-cdcb-48d3-857d-2a766e62bc9a",
+      "e71c3b04-391e-4208-bac7-b34c0a9f7374",
+      "faa8adec-71eb-4698-a73b-f6b00e83049f",
+      "0cccb5a2-2543-4cbe-b391-7d0e3c5b9466"
+    ]
+  },
+  {
+    "id": "4259fae4-b254-8156-a3ca-fb0dbd2f94e1",
+    "url": "https://app.notion.com/p/Rankin-Bass-Middle-earth-4259fae4b2548156a3cafb0dbd2f94e1",
+    "name": "Rankin/Bass Middle-earth",
+    "type": "Duology",
+    "description": "Rankin/Bass Productions' two animated television adaptations of J. R. R. Tolkien, both animated in Tokyo by Topcraft (the pre-Studio Ghibli studio) and directed and produced by Arthur Rankin Jr. and Jules Bass. The Return of the King (1980, ABC), developed as 'Frodo: The Hobbit II', is a direct sequel to The Hobbit (1977, NBC). The two share writer Romeo Muller, composer Maury Laws, theme singer Glenn Yarbrough, visual design and returning voices: Orson Bean (Bilbo, and also Frodo in the sequel), John Huston (Gandalf) and Brother Theodore (Gollum). The Return of the King opens at Bilbo's 129th birthday in Rivendell and bridges straight to the War of the Ring, skipping The Fellowship of the Ring and The Two Towers. Ralph Bakshi's theatrical The Lord of the Rings (1978) is a separate production by different filmmakers and not part of this duology, though Warner Home Video packaged all three as a boxed 'trilogy'.",
+    "watchOrder": "The Hobbit (1977) → The Return of the King (1980). Bakshi's The Lord of the Rings (1978) is unrelated despite Warner's trilogy box set; watch it between the two only to cover the story.",
+    "totalEntries": 2,
+    "yearsActive": "1977–1980",
+    "country": "USA",
+    "studioRelation": [
+      "32293050-b6d0-437e-8e3e-711d4a6d6977",
+      "174faa63-0bf5-4ab1-8bfa-5c6581b5b65c"
+    ],
+    "filmRelations": [
+      "4259fae4-b254-8168-a425-e4cd8b0b7172",
+      "4259fae4-b254-81b7-941a-deefb87d1369"
+    ]
+  },
+  {
     "id": "3429fae4-b254-81cf-aa13-df608c1e1a67",
     "url": "https://app.notion.com/p/Eureka-Seven-3429fae4b25481cfaa13df608c1e1a67",
     "name": "Eureka Seven",

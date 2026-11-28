@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-22T01:23:23.017Z",
-  "totalFilms": 2330,
+  "generatedAt": "2026-11-28T14:50:10.171Z",
+  "totalFilms": 2429,
   "missingData": {
     "noTitle": [],
     "noYear": [],
@@ -94,18 +94,18 @@
       "Silhouette",
       "Stop Motion"
     ],
-    "directors": 1631,
+    "directors": 1689,
     "formats": {
-      "Series": 1016,
-      "Feature": 598,
-      "Short": 695,
+      "Series": 1055,
+      "Feature": 627,
+      "Short": 726,
       "Segment": 21
     },
     "confidence": {
-      "★★★★": 1141,
-      "★★★": 523,
-      "★★★★★": 664,
-      "★★": 2
+      "★★★★": 1222,
+      "★★★": 537,
+      "★★★★★": 667,
+      "★★": 3
     }
   },
   "potentialDuplicates": [],
@@ -127,6 +127,30 @@
       "Mamoru Oshii (eps 1–106)"
     ],
     [
+      "Liu Yu-shu",
+      "Yu Shui",
+      "Liu Yi)",
+      "Liu Huai",
+      "Ling Shu",
+      "Liu Huiyi (刘蕙仪)"
+    ],
+    [
+      "Chiu Li-wei",
+      "Li Wei",
+      "Liu Wei"
+    ],
+    [
+      "Leo Liao",
+      "Li Yao (李耀)",
+      "Leon Ding",
+      "Yu Miao",
+      "Ou Xiao"
+    ],
+    [
+      "Jade Lien",
+      "Jay Oliva"
+    ],
+    [
       "Neko B",
       "Wei Qi",
       "Te Wei",
@@ -145,11 +169,8 @@
       "Xu Zao",
       "TBA",
       "Gu Jie",
-      "Li Yao (李耀)",
       "Su Da",
       "Yu Yang",
-      "Yu Miao",
-      "Ou Xiao",
       "A Da",
       "Ugarov",
       "Nazarov",
@@ -178,6 +199,12 @@
       "Zhou Chen (周琨)",
       "Zhang Chun",
       "Zhou Keqin"
+    ],
+    [
+      "Ervin Han",
+      "Lina Han",
+      "Rémi Chayé",
+      "Rintarō"
     ],
     [
       "Masako Sato",
@@ -246,8 +273,7 @@
     [
       "Priit Pärn",
       "Jérémie Périn",
-      "Rintaro",
-      "Rintarō"
+      "Rintaro"
     ],
     [
       "Brothers Quay",
@@ -265,19 +291,6 @@
       "Masashi Ikeda"
     ],
     [
-      "Lina Han",
-      "Nina Gantz",
-      "Yūji Nara",
-      "Ervin Han",
-      "Liang Xuan",
-      "Liu Huai",
-      "Ling Shu",
-      "Cha Kan",
-      "Călin Cazan",
-      "Picha",
-      "Lê Minh Hiền"
-    ],
-    [
       "Simin He",
       "VIVINOS"
     ],
@@ -287,12 +300,7 @@
       "Chris Marker"
     ],
     [
-      "Xie Junwei",
-      "Liu Wei"
-    ],
-    [
       "Zou Jing",
-      "Leon Ding",
       "Song Qing",
       "Xu Jingda",
       "Wu Qiang",
@@ -314,6 +322,10 @@
       "Shane Acker"
     ],
     [
+      "Aaron Lam",
+      "Aaron Lim"
+    ],
+    [
       "Ryōji Masuyama",
       "Yōji Fukuyama"
     ],
@@ -326,20 +338,12 @@
       "Pablo Holcer"
     ],
     [
-      "Yu Shui",
-      "Shi Yi",
-      "You Lei"
-    ],
-    [
-      "Liu Yi)",
-      "Ei Aoki",
-      "Li Wei",
-      "Jin Xi",
-      "Liu Huiyi (刘蕙仪)"
-    ],
-    [
       "Kenji Mutō",
       "Kōji Itō"
+    ],
+    [
+      "Nina Gantz",
+      "Nina Paley"
     ],
     [
       "Sarolta Szabó",
@@ -357,14 +361,23 @@
     [
       "Wang Xin",
       "Sung Shin",
+      "Liang Xuan",
       "Wang Genfa",
+      "Jin Xi",
       "Bardin",
       "Wan Guchan",
       "Fang Ming"
     ],
     [
       "Zhao Ji",
-      "G.B. Hajim"
+      "Ei Aoki",
+      "Shi Yi",
+      "G.B. Hajim",
+      "Cha Kan"
+    ],
+    [
+      "Alê Abreu",
+      "Brad Rau"
     ],
     [
       "Masayuki Miyaji",
@@ -401,12 +414,6 @@
       "Jun'ichi Sakata"
     ],
     [
-      "Brad Rau",
-      "Alê Abreu",
-      "Brad Bird",
-      "Brad Rader"
-    ],
-    [
       "Kōbun Shizuno",
       "Kobun Shizuno"
     ],
@@ -423,10 +430,6 @@
       "Gary Wang"
     ],
     [
-      "Rémi Chayé",
-      "Ram Mohan"
-    ],
-    [
       "Cheng Teng",
       "Chen Bo'er"
     ],
@@ -441,7 +444,8 @@
     ],
     [
       "Tensho",
-      "TSR)"
+      "TSR)",
+      "Tom Sito"
     ],
     [
       "Ha Huy Hoang",
@@ -502,6 +506,10 @@
     [
       "José Alejandro García Muñoz (Series Director)",
       "José Alejandro García Muñoz"
+    ],
+    [
+      "Álvaro Curiel",
+      "Álvaro Marins"
     ],
     [
       "Takayuki Inagaki",
@@ -823,6 +831,14 @@
       "John Gibbs"
     ],
     [
+      "Wang Yaquan",
+      "Wang Yaquan (animation director)"
+    ],
+    [
+      "Luis Ballester",
+      "Luis Ballester Bustos"
+    ],
+    [
       "Kent Butterworth",
       "Kent Butterworth (S6)"
     ],
@@ -875,11 +891,16 @@
     ],
     [
       "Bill Hutten",
-      "Bill Hutton"
+      "Bill Hutton",
+      "Bill Nunes"
     ],
     [
       "Tony Love",
       "Tony Bell"
+    ],
+    [
+      "Claudio Biern Boyd (creator)",
+      "Claudio Biern Boyd"
     ],
     [
       "Carl Urbano",
@@ -888,6 +909,10 @@
     [
       "Jules Bass",
       "Jules Bass (executive producers)"
+    ],
+    [
+      "Picha (Jean-Paul Walravens)",
+      "Picha"
     ],
     [
       "Gennady Sokolsky",
@@ -932,12 +957,16 @@
       "Steve Clark)"
     ],
     [
-      "Luis Ballester Bustos",
-      "Luis Ballester"
+      "Gwen Wetzler",
+      "Gwen Wetzler (animation director)"
     ],
     [
       "Toyoo Ashida (1944-2011)",
       "Toyoo Ashida"
+    ],
+    [
+      "Lev Milchin",
+      "Lê Minh Hiền"
     ],
     [
       "Rudy Larriva (S1-3)",
@@ -947,10 +976,6 @@
     [
       "Various (Hal Sutherland",
       "Hal Sutherland"
-    ],
-    [
-      "Gwen Wetzler",
-      "Gwen Wetzler (animation director)"
     ],
     [
       "George Gordon",
@@ -1003,6 +1028,10 @@
     [
       "Jiří Trnka",
       "Jiří Krejčík"
+    ],
+    [
+      "Kizo Nagashima",
+      "Kizo Nagashima (associate)"
     ],
     [
       "Bingjun Xia",
