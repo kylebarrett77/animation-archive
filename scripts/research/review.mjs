@@ -64,7 +64,10 @@ for (const file of files) {
       if (q.format && q.format !== 'Unknown' && p.Format && p.Format !== q.format) deltas.push(`Format ${q.format} → ${p.Format}`);
       if (q.director && p.Director && !q.director.split(/,|&/).some(d => d.trim() && String(p.Director).toLowerCase().includes(d.trim().toLowerCase().split(' ').pop()))) deltas.push(`Director "${q.director}" → "${p.Director}"`);
       if (deltas.length) flag(w, 'queue-delta', `${deltas.join('; ')}${String(f.conflicts || '').length < 20 ? ' (not explained in conflicts)' : ''}`, R.queue);
-      if (q.director && (resolve(ents.studios, q.director).status !== 'missing' || STUDIOISH.test(q.director))) flag(w, 'director-is-studio', `Queue director "${q.director}" looks like a studio; credited: ${p.Director}`, R.studioDir);
+      // A person's own '(Independent)' studio page (house convention for self-produced work) is not a studio-as-director signal.
+      const asStudio = q.director ? resolve(ents.studios, q.director) : { status: 'missing' };
+      const independentOnly = asStudio.status !== 'missing' && [asStudio.entity, ...(asStudio.candidates || [])].filter(Boolean).every(e => /\(Independent\)$/.test(e.name));
+      if (q.director && ((asStudio.status !== 'missing' && !independentOnly) || STUDIOISH.test(q.director))) flag(w, 'director-is-studio', `Queue director "${q.director}" looks like a studio; credited: ${p.Director}`, R.studioDir);
       if (p.Country && q.country && p.Country !== q.country && !/creative origin|country/i.test(p.Notes || '')) flag(w, 'country-unexplained', `Country changed to ${p.Country} but Notes don't explain why`, R.country);
     } else flag(w, 'queue-missing', 'No matching Queue item', null);
     if (/^\s*DUPLICATE OF:/i.test(f.conflicts || '')) flag(w, 'duplicate-of', `Will go to Queue status Duplicate, not Films: ${String(f.conflicts).slice(13, 200)}`, ruleRef(/One Films entry per series/));
