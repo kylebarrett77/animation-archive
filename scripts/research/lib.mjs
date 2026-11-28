@@ -114,9 +114,13 @@ export function findDuplicates(films, { titles, year, director }) {
   const dirKeys = new Set(String(director || '').split(/,|&|\band\b/).map(nameKey).filter(Boolean));
   const out = [];
   for (const f of films) {
-    if (year && f.year && Math.abs(f.year - year) > 1) continue;
+    const gap = year && f.year ? Math.abs(f.year - year) : 0;
+    if (gap > 5) continue;
     let best = 0; for (const a of mine) for (const b of f.names) best = Math.max(best, titleSimilarity(a, b));
     const sameDir = dirKeys.size && String(f.director || '').split(/,|&|\band\b/).map(nameKey).some(k => dirKeys.has(k));
+    // Production vs release year often differ (Amazon Symphony: Queue 1951, Films 1953). Beyond ±1 year,
+    // only an exact title or a near title by the same director counts; remakes further apart don't.
+    if (gap > 1 && !(best >= 0.999 || (sameDir && best >= 0.85))) continue;
     const strength = best >= 0.999 ? 'exact' : best >= 0.85 ? 'similar' : (sameDir && year && f.year === year && best >= 0.3) ? 'director-year' : null;
     if (strength) out.push({ id: f.id, title: f.title, year: f.year, format: f.format, similarity: +best.toFixed(2), strength });
   }
