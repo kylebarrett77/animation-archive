@@ -17,11 +17,14 @@
  */
 import { readdirSync, readFileSync, existsSync } from 'fs';
 import { queryAll } from '../lib/notion.js';
-import { loadEnv, DB, WORK_DIR, plain, filmsIndex } from './lib.mjs';
+import { loadEnv, DB, WORK_DIR, plain, filmsIndex, rulesIndex } from './lib.mjs';
 
 loadEnv();
 const a = process.argv.slice(2); const opt = (k, d) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : d; };
 const SIZE = Number(opt('--size', 10)), SHOW = Number(opt('--show', 12));
+// Kill switch: an Active rule titled "PAUSE …" in Research Rules stops every cycle at the planning step.
+const pause = (await rulesIndex()).find(r => r.status === 'Active' && /^PAUSE/i.test(r.rule));
+if (pause) { console.log(`Automation paused by Research Rules: "${pause.rule}". Set it to Retired to resume.`); process.exit(3); }
 const films = await filmsIndex();
 const have = {}; for (const f of films) have[f.country || '?'] = (have[f.country || '?'] || 0) + 1;
 const queue = (await queryAll(DB.queue)).map(p => ({ id: p.id, title: plain(p.properties.Title), status: p.properties.Status?.select?.name, country: p.properties.Country?.select?.name,
