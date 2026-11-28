@@ -58,11 +58,14 @@ console.log(`New Queue items considered: ${fresh.length} across ${countries.leng
 console.log('Country            Films  New  Top score');
 for (const c of countries.slice(0, SHOW)) console.log(`${c.c.padEnd(18)} ${String(c.films).padStart(5)} ${String(c.n).padStart(4)}  ${c.top.toFixed(2)}`);
 
-const batch = []; const used = [];
-for (const c of countries) { if (batch.length >= SIZE) break; const take = byCountry.get(c.c).slice(0, SIZE - batch.length); batch.push(...take); used.push(`${c.c} (${take.length})`); }
-console.log(`\nSuggested batch (${batch.length}): ${used.join(' + ')}`);
+// One country per brief: fill briefs of up to 5 from the top-ranked countries until the batch is full.
+const PER = 5; const briefs = [];
+for (const c of countries) {
+  const items = [...byCountry.get(c.c)];
+  while (items.length && briefs.reduce((n, b) => n + b.length, 0) < SIZE && briefs.length < Math.ceil(SIZE / PER)) briefs.push(items.splice(0, PER));
+  if (briefs.length >= Math.ceil(SIZE / PER)) break;
+}
+const batch = briefs.flat();
+console.log(`\nSuggested batch (${batch.length}), one country per brief: ${briefs.map((b, i) => `brief ${i + 1} = ${b[0].country} (${b.length})`).join(', ')}`);
 for (const q of batch) console.log(`  ${q.score.toFixed(2)}  ${q.country.padEnd(14)} ${(q.format || '?').padEnd(7)} ${q.title}${Number.isFinite(q.links) ? `  [${q.links} wiki]` : ''}`);
-const groups = []; for (let i = 0; i < batch.length; i += 5) groups.push(batch.slice(i, i + 5));
-const mixed = groups.filter(g => new Set(g.map(q => q.country)).size > 1).length;
-if (mixed) console.log(`\nnote: ${mixed} brief(s) would mix countries; consider a smaller batch or reorder so each brief is one country.`);
-console.log(`\nRun:\n  node scripts/research/brief.mjs --batch session<N> ${batch.map(q => JSON.stringify(q.title)).join(' ')}`);
+console.log(`\nRun:\n  node scripts/research/brief.mjs --batch session<N> --groups ${briefs.map(b => b.length).join(',')} ${batch.map(q => JSON.stringify(q.title)).join(' ')}`);

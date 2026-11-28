@@ -4,7 +4,7 @@
  *
  *   node scripts/research/brief.mjs --next 10            # next items from the promotion backlog
  *   node scripts/research/brief.mjs "Title A" "Title B"  # specific Queue titles
- *   options: --status Validated|New  --split 5  --batch NAME
+ *   options: --status Validated|New  --split 5  --groups 4,5  --batch NAME
  *            --world           skip USA/Japan items (audit priority: work beyond the two biggest industries)
  *            --country NAME    only items from this Queue country
  *
@@ -23,7 +23,7 @@ const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] :
 const N = Number(opt('--next', 0)); const status = opt('--status', 'Validated'); const split = Number(opt('--split', 5));
 const batch = opt('--batch', `batch-${stamp()}`);
 const WORLD = args.includes('--world'); const onlyCountry = opt('--country', null);
-const titles = args.filter((a, i) => !a.startsWith('--') && !['--next', '--status', '--split', '--batch', '--country'].includes(args[i - 1]));
+const titles = args.filter((a, i) => !a.startsWith('--') && !['--next', '--status', '--split', '--batch', '--country', '--groups'].includes(args[i - 1]));
 
 const PRIO = { High: 0, Medium: 1, Low: 2 };
 const queue = (await queryAll(DB.queue)).map(p => ({ id: p.id, title: plain(p.properties.Title), status: p.properties.Status?.select?.name, prio: p.properties.Priority?.select?.name,
@@ -93,7 +93,10 @@ const nativeLine = g => { const cs = [...new Set(g.map(p => p.queue.country).fil
 // ---- brief(s)
 const knownDirectors = [...new Set(ok.flatMap(p => p.directors.filter(d => d.entity).map(d => d.entity.name)))];
 const opts = k => schema.films[k].join(', ');
-const groups = []; for (let i = 0; i < ok.length; i += split) groups.push(ok.slice(i, i + split));
+// --groups 4,5 sets each brief's size (plan.mjs passes one country per brief); otherwise fixed --split chunks.
+const sizes = opt('--groups', '') ? opt('--groups').split(',').map(Number) : null;
+const groups = []; if (sizes) { let i = 0; for (const n of sizes) { if (i < ok.length) groups.push(ok.slice(i, i + n)); i += n; } if (i < ok.length) groups.push(ok.slice(i)); }
+else for (let i = 0; i < ok.length; i += split) groups.push(ok.slice(i, i + split));
 groups.forEach((g, gi) => {
   const out = `${dir}/draft-${gi + 1}.json`;
   const md = `Research ${g.length} animated works as DRAFT Films entries for a curated animation archive (Notion), following its Validation Protocol. Do NOT write to Notion. Write only the draft JSON, then run the linter (below) and fix every error before you finish. Use WebSearch (load with ToolSearch "select:WebSearch") and WebFetch.
