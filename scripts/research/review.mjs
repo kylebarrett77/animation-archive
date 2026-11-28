@@ -43,8 +43,8 @@ const isNative = (s, country) => {
 };
 const STUDIOISH = /\b(studios?|animation|films?|pictures|entertainment|productions?|media|lab|company|ltd|inc)\b/i;
 // Claims about the work's standing, not plot: "the first Iranian feature", "highest-grossing", "the only animated…".
-const CLAIM = /\b((?:the|its|country's|nation's)\s+(?:very\s+)?first\b(?!\s+(?:time|episode|season|part|half|act|translator|phase|film of|feature of|work of|short of))|first[- ]ever|highest[- ]grossing|best[- ]selling|record[- ](?:breaking|setting)|the only (?:animated|feature|film|series|animation)|earliest (?:surviving|known|animated)|pioneered)/i;
-const ATTRIB = /\b(according to|described as|calls?|called|claimed|claims|billed as|marketed as|reports?|reported(ly)?|per |by the count of|as .* puts it|says|said|counts?)\b/i;
+const CLAIM = /\b((?:the|its|country's|nation's|[A-Z][a-z]+(?:'s|n))\s+(?:very\s+)?first\s+(?:[\w-]+\s+){0,3}?(?:animated|animation|feature|full-length|feature-length|colou?r|sound|cartoon|puppet|stop[- ]motion|series|film)\b(?!\s+of\s+[A-Z])|first[- ]ever|highest[- ]grossing|best[- ]selling|record[- ](?:breaking|setting)|the only (?:animated|feature|film|series|animation)|earliest (?:surviving|known|animated)|pioneered)/;
+const ATTRIB = /\b(according to|described as|calls?|called|claimed|claims|billed as|marketed as|reports?|reported(ly)?|per |by the count of|as .* puts it|says|said|counts?)\b|\((?:[^()]*?(?:[A-Z][\w.-]+)[^()]*?[,;][^()]*|per [^()]+|[A-Z][\w-]+(?: [A-Z][\w-]+)*,? \d{4})\)/;   // named sources, or a parenthetical citation such as (DEFA-Stiftung, DIAF)
 const sentences = t => String(t || '').replace(/<[^>]+>/g, '').split(/(?<=[.!?])\s+/);
 
 for (const file of files) {
@@ -67,7 +67,7 @@ for (const file of files) {
     } else flag(w, 'queue-missing', 'No matching Queue item', null);
     // Claims
     const claimText = [p['Historical Context'], p.Notes].join(' ');   // not Synopsis/content: plot sentences trip the pattern
-    const claims = sentences(claimText).filter(s => CLAIM.test(s) && !ATTRIB.test(s)).slice(0, 4);
+    const claims = sentences(claimText).filter(s => CLAIM.test(s) && !ATTRIB.test(s) && !/\bnot (?:the|its|a) first\b/i.test(s)).slice(0, 4);
     if (claims.length) flag(w, 'claims', claims.map(s => `"${s.trim().slice(0, 140)}"`).join(' · '), R.claims);
     // Native sources
     if (!ENGLISH.has(p.Country)) {
