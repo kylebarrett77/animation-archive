@@ -15,7 +15,7 @@
  */
 import { writeFileSync, mkdirSync } from 'fs';
 import { queryAll } from '../lib/notion.js';
-import { loadEnv, DB, WORK_DIR, plain, schemaOptions, entityIndex, resolve, filmsIndex, findDuplicates, stamp } from './lib.mjs';
+import { loadEnv, DB, WORK_DIR, plain, schemaOptions, entityIndex, resolve, filmsIndex, findDuplicates, stamp, sourcesIndex, sourcesFor } from './lib.mjs';
 
 loadEnv();
 const args = process.argv.slice(2);
@@ -35,7 +35,7 @@ else picks = queue.filter(q => q.status === status && !q.linked && !/session 46/
     && (!WORLD || !['USA', 'Japan'].includes(q.country)) && (!onlyCountry || q.country === onlyCountry))
   .sort((a, b) => (PRIO[a.prio] ?? 3) - (PRIO[b.prio] ?? 3) || (a.year ?? 9999) - (b.year ?? 9999)).slice(0, N);   // undated items last
 
-const [films, ents, schema] = await Promise.all([filmsIndex(), entityIndex(), schemaOptions()]);
+const [films, ents, schema, srcIndex] = await Promise.all([filmsIndex(), entityIndex(), schemaOptions(), sourcesIndex()]);
 const pre = picks.map(q => {
   const yearInTitle = Number((q.title.match(/\([^)]*?\b(1[89]\d\d|20\d\d)\b[^)]*\)/) || [])[1]) || null;   // '(1989)', '(Los Fruittis, 1989)', '(2021 CGI film)'
   const dups = findDuplicates(films, { titles: [q.title, q.orig !== 'N/A' ? q.orig : ''], year: q.year || yearInTitle, director: q.director });
@@ -74,6 +74,10 @@ const NATIVE = {
   Uganda: 'Daily Monitor, New Vision', Ghana: 'Graphic Online, MyJoyOnline', Zimbabwe: 'The Herald, NewsDay',
   'North Korea': 'ko.wikipedia, KMDb, North Korean film literature (via South Korean archives)', Greece: 'el.wikipedia, Greek Film Centre', Austria: 'de.wikipedia, Filmarchiv Austria',
 };
+// The archive's own Sources DB (curated, with reliability): list what it holds for these works' countries.
+const curatedLine = g => { const cs = [...new Set(g.map(p => p.queue.country).filter(Boolean))];
+  const lines = cs.map(c => { const l = sourcesFor(srcIndex, c); return l.length ? `  - ${c}: ${l.map(x => `${x.name}${x.regional ? ' (regional)' : ''} [${x.reliability || '?'}] ${x.url}`).join('; ')}` : `  - ${c}: none yet. Note any good ${c} source you find in "conflicts" under "NEW SOURCE:" so it can be added`; });
+  return lines.join('\n'); };
 const nativeLine = g => { const cs = [...new Set(g.map(p => p.queue.country).filter(c => NATIVE[c]))]; return cs.length ? cs.map(c => `  - ${c}: ${NATIVE[c]}`).join('\n') : '  - (no native-language list for these countries; use the national film archive/database and Wikipedia in the original language)'; };
 
 // ---- brief(s)
@@ -90,7 +94,7 @@ ${g.map((p, i) => `${i + 1}. "${p.queue.title}"${queue.filter(x => x.title === p
 **Research rules:**
 - 3+ independent sources per work. Native-language sources first for non-English works, searched in the original script; they outrank English aggregators. Aim for at least 2 native-language sources per work beyond Wikipedia filmographies. For these works:
 ${nativeLine(g)}
-- English: Wikipedia, BCDB, Letterboxd, Cartoon Research, festival catalogues. Fan wikis support only.
+- The archive's Sources DB (curated; reliability in brackets). Check these first and prefer High:\n${curatedLine(g)}\n- English: Wikipedia, BCDB, Letterboxd, Cartoon Research, festival catalogues. Fan wikis support only.
 - Verify the year, format, episode count, runtime and director across 2+ sources.
 - Never invent URLs.
   - IMDb: tt-IDs confirmed via Wikidata P345 or a Wikipedia external link (IMDb blocks fetches). Use "N/A" if IMDb has no entry for the work itself; note any episode-only IDs in Notes.

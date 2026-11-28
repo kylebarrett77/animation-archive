@@ -37,3 +37,24 @@ node scripts/research/log-session.mjs --session 189 --title "Validation — …"
 | Session numbering collisions | log-session refuses an existing number |
 
 Drafts and logs live in `reports/research/` (gitignored). Set `RESEARCH_DIR` to use another folder.
+
+## Sources DB
+
+Briefs list the archive's curated Sources DB entries for each work's country (with reliability), via `sourcesFor()` in `lib.mjs`.
+After sessions, propose new sources from what drafts actually cited, review reliability, then add:
+
+```bash
+node scripts/research/sources-sync.mjs --sessions 190-195      # → reports/research/sources-proposal-*.md
+node scripts/research/sources-sync.mjs --add reviewed.json     # [{Name, URL, Type, Reliability, "Region Focus", Language, Specialty, Notes}]
+```
+
+## Discovery (roadmap stage 4)
+
+Find animated works from a country that are in neither Films nor the Queue (Wikidata, including predecessor states such as the People's Republic of Bulgaria), ranked by native-language Wikipedia coverage. Writes nothing without `--add`.
+
+```bash
+node scripts/research/discover.mjs --country Bulgaria                 # → reports/research/discovery/bulgaria-*.md
+node scripts/research/discover.mjs --country Bulgaria --add Q1,Q2     # Queue items (Status New, Source Found "Wikidata discovery (Qid)")
+```
+
+Discovered items then go through brief → lint → promote → log like any Queue item; Wikidata fields are leads, not facts.
