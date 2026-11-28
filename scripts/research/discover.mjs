@@ -51,12 +51,14 @@ const sparql = async q => {
     console.error(`Wikidata HTTP ${r.status}; retrying in ${wait}s (attempt ${attempt}/5)`); await new Promise(res => setTimeout(res, wait * 1000));
   }
 };
-const preds = (await sparql(`SELECT DISTINCT ?s WHERE { { ?s wdt:P1366 wd:${qid} } UNION { ?s wdt:P1366/wdt:P1366 wd:${qid} } }`)).map(b => b.s.value.split('/').pop());
+// Only predecessors replaced by this country alone: the People's Republic of Bulgaria → Bulgaria counts; the German Reich
+// (replaced by both German states, Austria…) does not, or pre-1945 German films would be filed as East German.
+const preds = (await sparql(`SELECT DISTINCT ?s WHERE { { ?s wdt:P1366 wd:${qid} } UNION { ?s wdt:P1366 ?m . ?m wdt:P1366 wd:${qid} . FILTER NOT EXISTS { ?m wdt:P1366 ?o2 FILTER(?o2 != wd:${qid}) } } FILTER NOT EXISTS { ?s wdt:P1366 ?other FILTER(?other != wd:${qid} && NOT EXISTS { ?other wdt:P1366 wd:${qid} }) } }`)).map(b => b.s.value.split('/').pop());
 const states = [qid, ...preds].map(q => `wd:${q}`).join(' ');
 // Three small queries (one big UNION times out): animated work types; films with an animation genre; shorts by an animator.
 const MATCH = [
   `VALUES ?kind { wd:Q202866 wd:Q17517379 wd:Q581714 wd:Q29168811 wd:Q117467246 wd:Q20650540 } ?item wdt:P31 ?kind .`,
-  `VALUES ?kind { wd:Q202866 wd:Q11425 wd:Q17517379 } ?item wdt:P136 ?kind ; wdt:P31/wdt:P279? wd:Q11424 .`,
+  `VALUES ?kind { wd:Q202866 wd:Q11425 wd:Q17517379 } VALUES ?film { wd:Q11424 wd:Q24862 wd:Q506240 wd:Q5398426 } ?item wdt:P136 ?kind ; wdt:P31 ?film .`,   // fixed film types: a subclass path here timed out on large countries
   `?item wdt:P31 wd:Q24862 ; wdt:P57/wdt:P106 wd:Q266569 . BIND(wd:Q24862 AS ?kind)`,
 ];
 // Phase 1: matching item IDs (fast). Phase 2: details in batches (labels/sitelinks in one big query time out).
