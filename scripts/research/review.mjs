@@ -35,7 +35,9 @@ const TLD = { Bulgaria: 'bg', 'East Germany': 'de', Germany: 'de', Iran: 'ir', B
   Portugal: 'pt', Netherlands: 'nl', Belgium: 'be', Sweden: 'se', Norway: 'no', Denmark: 'dk', Finland: 'fi', Turkey: 'tr', Israel: 'il', Egypt: 'eg', India: 'in', Mexico: 'mx', Argentina: 'ar', Cuba: 'cu',
   Chile: 'cl', Colombia: 'co', Vietnam: 'vn', Thailand: 'th', Indonesia: 'id', Malaysia: 'my', Philippines: 'ph', Greece: 'gr', Austria: 'at', Switzerland: 'ch' };
 const isNative = (s, country) => {
-  const h = hostOf(s.url || ''); const wiki = h.match(/^([a-z-]+)\.wikipedia\.org$/);
+  // Look through Wayback copies (web.archive.org/web/<ts>/<original>) to the original host.
+  const orig = String(s.url || '').replace(/^https?:\/\/web\.archive\.org\/web\/[^/]+\//, '');
+  const h = hostOf(/^https?:/.test(orig) ? orig : 'http://' + orig); const wiki = h.match(/^([a-z-]+)\.wikipedia\.org$/);
   if (wiki) return false;   // the rule asks for 2 beyond Wikipedia
   const langs = hostLang.get(h); if (langs && langs.some(l => l !== 'English')) return true;
   if (TLD[country] && h.endsWith('.' + TLD[country])) return true;
