@@ -180,7 +180,7 @@ const ALIAS = {
   Poland: 'Poland|Polish|Polsk', Hungary: 'Hungary|Hungarian|Pannónia', Yugoslavia: 'Yugoslav|Zagreb|Animafest', Croatia: 'Croatia|Croatian|Zagreb|Animafest', Estonia: 'Estonia|Estonian|Nukufilm',
   France: 'France|French|Français', Italy: 'Italy|Italian|Italiana', Netherlands: 'Netherlands|Dutch|Eye Film', Belgium: 'Belgium|Belgian|Belvision', Norway: 'Norway|Norwegian|Norsk',
   Sweden: 'Sweden|Swedish|Svensk', Switzerland: 'Swiss|Switzerland', Ireland: 'Ireland|Irish', UK: 'British|BFI|Britain', Canada: 'Canada|Canadian|NFB|OIAF', Australia: 'Australia|NFSA',
-  Mexico: 'Mexico|Mexican|Mexicana', Argentina: 'Argentina|Argentine', India: 'India|Indian', Israel: 'Israel', 'South Africa': 'Africa|African', Nigeria: 'Africa|African', Kenya: 'Africa|African',
+  Mexico: 'Mexico|Mexican|Mexicana', Portugal: 'Portugal|Portuguese|Português|Portuguesa', Finland: 'Finland|Finnish|Suomi|Elonet|KAVI', Romania: 'Romania|Romanian|AARC|Animafilm', Cuba: 'Cuba|Cuban|ICAIC|Habana', Vietnam: 'Vietnam|Vietnamese|Việt', Indonesia: 'Indonesia|Indonesian', 'Hong Kong': 'Hong Kong|HKMDB', Argentina: 'Argentina|Argentine', India: 'India|Indian', Israel: 'Israel', 'South Africa': 'Africa|African', Nigeria: 'Africa|African', Kenya: 'Africa|African',
 };
 /** Curated sources for a country: ones that name it (or its adjective/aliases) first, then up to 3 pan-regional ones; High reliability first. */
 export function sourcesFor(index, country, limit = 8) {
@@ -191,7 +191,9 @@ export function sourcesFor(index, country, limit = 8) {
   const named = index.filter(s => !GENERIC.test(s.name) && re.test(text(s))).sort(byRel);
   // Regional: tagged with the region but not naming some other single country (e.g. Retina Latina, not the Hungarian archive).
   const otherCountry = new RegExp(`(${Object.entries(ALIAS).filter(([c]) => c !== country && regionOf(c) === region).map(([, a]) => a).join('|') || '^$'})`, 'i');
-  const regional = region === 'Global' ? [] : index.filter(s => !GENERIC.test(s.name) && !named.includes(s) && s.regions.includes(region) && !otherCountry.test(text(s))).sort(byRel).slice(0, 3).map(s => ({ ...s, regional: true }));
+  // ...and readable beyond one language (English, French or several): a German-only broadcaster's dossiers are no help for Portugal.
+  const regional = region === 'Global' ? [] : index.filter(s => !GENERIC.test(s.name) && !named.includes(s) && s.regions.includes(region) && !otherCountry.test(text(s))
+    && (s.languages.length === 0 || s.languages.some(l => ['English', 'Multiple', 'French'].includes(l)))).sort(byRel).slice(0, 3).map(s => ({ ...s, regional: true }));
   return [...named, ...regional].slice(0, limit);
 }
 
