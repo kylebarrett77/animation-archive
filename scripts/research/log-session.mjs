@@ -60,7 +60,7 @@ if (existsSync(dir)) writeFileSync(`${dir}/overrides.json`, JSON.stringify(overr
 const nonEng = reviewStats.filter(x => x.nonEnglish);
 const metrics = { overrides: overrides.length, queueCorrections: reviewStats.reduce((n, x) => n + (x.queueDeltas || 0), 0),
   nativeShare: nonEng.length ? nonEng.filter(x => x.native >= 2).length / nonEng.length : null, failures: failed.length + logs.filter(l => l.recovered).length,
-  duplicates: Number(opt('--duplicates') || 0), cannotFind: Number(opt('--cannot-find') || 0) };
+  duplicates: Number(opt('--duplicates') || 0) + logs.flatMap(l => l.films || []).filter(f => f.duplicate).length, cannotFind: Number(opt('--cannot-find') || 0) + logs.flatMap(l => l.films || []).filter(f => f.cannotFind).length };
 
 const methodology = [
   `Promoted ${films.length} Queue item(s) to Films via the research pipeline (scripts/research: brief → lint → promote).`,

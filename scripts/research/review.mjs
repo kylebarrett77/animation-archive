@@ -35,7 +35,9 @@ const TLD = { Bulgaria: 'bg', 'East Germany': 'de', Germany: 'de', Iran: 'ir', B
   Portugal: 'pt', Netherlands: 'nl', Belgium: 'be', Sweden: 'se', Norway: 'no', Denmark: 'dk', Finland: 'fi', Turkey: 'tr', Israel: 'il', Egypt: 'eg', India: 'in', Mexico: 'mx', Argentina: 'ar', Cuba: 'cu',
   Chile: 'cl', Colombia: 'co', Vietnam: 'vn', Thailand: 'th', Indonesia: 'id', Malaysia: 'my', Philippines: 'ph', Greece: 'gr', Austria: 'at', Switzerland: 'ch' };
 const isNative = (s, country) => {
-  const h = hostOf(s.url || ''); const wiki = h.match(/^([a-z-]+)\.wikipedia\.org$/);
+  // Look through Wayback copies (web.archive.org/web/<ts>/<original>) to the original host.
+  const orig = String(s.url || '').replace(/^https?:\/\/web\.archive\.org\/web\/[^/]+\//, '');
+  const h = hostOf(/^https?:/.test(orig) ? orig : 'http://' + orig); const wiki = h.match(/^([a-z-]+)\.wikipedia\.org$/);
   if (wiki) return false;   // the rule asks for 2 beyond Wikipedia
   const langs = hostLang.get(h); if (langs && langs.some(l => l !== 'English')) return true;
   if (TLD[country] && h.endsWith('.' + TLD[country])) return true;
@@ -65,6 +67,8 @@ for (const file of files) {
       if (q.director && (resolve(ents.studios, q.director).status !== 'missing' || STUDIOISH.test(q.director))) flag(w, 'director-is-studio', `Queue director "${q.director}" looks like a studio; credited: ${p.Director}`, R.studioDir);
       if (p.Country && q.country && p.Country !== q.country && !/creative origin|country/i.test(p.Notes || '')) flag(w, 'country-unexplained', `Country changed to ${p.Country} but Notes don't explain why`, R.country);
     } else flag(w, 'queue-missing', 'No matching Queue item', null);
+    if (/^\s*DUPLICATE OF:/i.test(f.conflicts || '')) flag(w, 'duplicate-of', `Will go to Queue status Duplicate, not Films: ${String(f.conflicts).slice(13, 200)}`, ruleRef(/One Films entry per series/));
+    if (/^\s*CANNOT FIND:/i.test(f.conflicts || '')) flag(w, 'cannot-find', `Will go to Queue status Cannot Find, not Films: ${String(f.conflicts).slice(13, 200)}`, ruleRef(/Cannot Find/));
     // Claims
     const claimText = [p['Historical Context'], p.Notes].join(' ');   // not Synopsis/content: plot sentences trip the pattern
     const claims = sentences(claimText).filter(s => CLAIM.test(s) && !ATTRIB.test(s) && !/\bnot (?:the|its|a) first\b/i.test(s)).slice(0, 4);
