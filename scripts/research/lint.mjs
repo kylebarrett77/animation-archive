@@ -9,7 +9,7 @@ import { readFileSync } from 'fs';
 import { queryAll } from '../lib/notion.js';
 import { titleSimilarity } from '../lib/title-match.js';
 import { tmdbFindImdb, hasTmdb } from '../lib/tmdb.js';
-import { loadEnv, DB, plain, schemaOptions, entityIndex, resolve, filmsIndex, findDuplicates, wikidataByImdb, wikipediaSummary } from './lib.mjs';
+import { loadEnv, DB, plain, schemaOptions, entityIndex, resolve, filmsIndex, findDuplicates, wikidataByImdb, wikipediaSummary, queueMatches } from './lib.mjs';
 
 export async function lint(draft, ctx = {}) {
   const schema = ctx.schema || await schemaOptions();
@@ -27,8 +27,9 @@ export async function lint(draft, ctx = {}) {
     if (f.icon && !/^\p{RGI_Emoji}$/v.test(f.icon)) E(w, `icon "${f.icon}" is not a standard emoji (Notion rejects it); pick a single common emoji`);
     else if (f.icon && f.icon.includes('\u200d')) W(w, `icon "${f.icon}" is a joined emoji; Notion rejects some newer ones (promote falls back to 🎬)`);
     // queue
-    const q = queue.filter(x => x.title === f.queueTitle);
-    if (q.length !== 1) E(w, `queueTitle must match exactly one Queue item (matched ${q.length})`);
+    const q = queueMatches(queue, f);
+    if (q.length !== 1) E(w, f.queueId ? `queueId ${f.queueId} matches no Queue item` : `queueTitle must match exactly one Queue item (matched ${q.length}); if several share the title, add "queueId" (from precheck.json)`);
+    else if (f.queueId && q[0].title !== f.queueTitle) E(w, `queueId belongs to "${q[0].title}", not "${f.queueTitle}"`);
     else if (q[0].linked) E(w, 'Queue item is already linked to a Films entry');
     // fields
     for (const k of REQ) if (p[k] === undefined || p[k] === null || p[k] === '' || (Array.isArray(p[k]) && !p[k].length)) E(w, `missing ${k}`);
