@@ -108,7 +108,7 @@ export async function filmsIndex() {
     const pr = p.properties;
     const names = ['Title (English)', 'Original Title', 'Romanized Title'].map(k => plain(pr[k]))
       .concat(plain(pr['Alternate Titles']).split(/[;,|]/)).map(s => s.replace(/\([^)]*\)/g, ' ').trim()).filter(s => s && s !== 'N/A' && s !== 'None');
-    return { id: p.id, title: plain(pr['Title (English)']), year: pr.Year?.number, format: pr.Format?.select?.name, director: plain(pr.Director), names };
+    return { id: p.id, title: plain(pr['Title (English)']), year: pr.Year?.number, format: pr.Format?.select?.name, country: pr.Country?.select?.name, director: plain(pr.Director), names };
   });
 }
 /** Candidate duplicates for a work: strength 'exact' (same name, year ±1), 'similar' (≥0.85), 'director-year'. */
