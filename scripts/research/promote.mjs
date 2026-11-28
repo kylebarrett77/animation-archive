@@ -55,7 +55,8 @@ const ms = a => ({ multi_select: [].concat(a || []).filter(Boolean).map(name => 
 const ctx = { schema: await schemaOptions(), ents: await entityIndex(), films: await filmsIndex(),
   queue: (await queryAll(DB.queue)).map(p => ({ id: p.id, title: plain(p.properties.Title), linked: (p.properties['Film DB Entry']?.relation || []).length, notes: p.properties.Notes?.rich_text || [] })) };
 const cannotFind = f => /^\s*CANNOT FIND:/i.test(f.conflicts || '');   // research could not verify the work: route to Queue status Cannot Find
-const pending = draft.films.filter(f => !cannotFind(f) && !queueMatches(ctx.queue, f).some(q => q.linked));   // resumable: skip finished films
+const duplicateOf = f => (String(f.conflicts || '').match(/^\s*DUPLICATE OF:\s*([^\n]+)/i) || [])[1] || null;   // already in Films (e.g. an episode of a series entry): route to Queue status Duplicate
+const pending = draft.films.filter(f => !cannotFind(f) && !duplicateOf(f) && !queueMatches(ctx.queue, f).some(q => q.linked));   // resumable: skip finished films
 // Entities this pipeline already created (earlier run of this draft, or a parallel batch) are linked, not re-created.
 // Only exact-name pages whose id appears in a promote log qualify; hand-made pages and variants still fail lint.
 const pipelineIds = new Set(existsSync(WORK_DIR) ? readdirSync(WORK_DIR).filter(f => /^promote-session.*\.json$/.test(f) && !f.includes('-dry'))
@@ -106,6 +107,15 @@ const pageFor = {};
 for (const f of draft.films) {
   const p = f.properties; const q = queueMatches(ctx.queue, f)[0];
   if (q.linked) { log.films.push({ film: p['Title (English)'], skipped: 'already promoted' }); continue; }
+  if (duplicateOf(f)) {
+    if (DRY) { log.films.push({ film: f.queueTitle, dry: 'would set Queue to Duplicate' }); continue; }
+    const live = await n.pages.retrieve({ page_id: q.id }); const st = live.properties.Status?.select?.name;
+    if (st !== 'New' && st !== 'Validated') { log.films.push({ film: f.queueTitle, skipped: `Duplicate not applied: Queue status is ${st}` }); continue; }
+    const notes = [...(live.properties.Notes?.rich_text || [])]; if (notes.length) notes.push({ type: 'text', text: { content: '\n' } });
+    notes.push({ type: 'text', text: { content: `DUPLICATE of existing Films entry ${duplicateOf(f).slice(0, 1500)}. Session ${session}.` } });
+    await n.pages.update({ page_id: q.id, properties: { Status: { select: { name: 'Duplicate' } }, Notes: { rich_text: notes.slice(0, 100) } } });
+    log.films.push({ film: f.queueTitle, duplicate: true, queue: q.id, before: st }); continue;
+  }
   if (cannotFind(f)) {
     if (DRY) { log.films.push({ film: p['Title (English)'] || f.queueTitle, dry: 'would set Queue to Cannot Find' }); continue; }
     const live = await n.pages.retrieve({ page_id: q.id }); const st = live.properties.Status?.select?.name;
@@ -167,7 +177,7 @@ if (!DRY) for (const s of draft.series || []) {
 }
 
 save();
-for (const f of log.films) console.log(f.error ? `FAILED  ${f.film}: ${f.error}` : f.cannotFind ? `cannot  ${f.film}: Queue → Cannot Find` : f.skipped ? `skip    ${f.film}: ${f.skipped}` : f.dry ? `dry     ${f.film}: ${f.dry}` : `${f.resumed ? 'resumed' : 'created'} ${f.film} → ${f.page}${f.watchLinks.length ? ` (+${f.watchLinks.length} watch link)` : ''}`);
+for (const f of log.films) console.log(f.error ? `FAILED  ${f.film}: ${f.error}` : f.cannotFind ? `cannot  ${f.film}: Queue → Cannot Find` : f.duplicate ? `dup     ${f.film}: Queue → Duplicate` : f.skipped ? `skip    ${f.film}: ${f.skipped}` : f.dry ? `dry     ${f.film}: ${f.dry}` : `${f.resumed ? 'resumed' : 'created'} ${f.film} → ${f.page}${f.watchLinks.length ? ` (+${f.watchLinks.length} watch link)` : ''}`);
 for (const e of log.entities) console.log(`entity  ${e.director || e.studio} → ${e.id}`);
 for (const s of log.series) console.log(`series  ${s.series} ${s.id ? '→ ' + s.id : s.skipped}`);
 if (warnings.length) console.log(`${warnings.length} lint warning(s) recorded in ${out}`);

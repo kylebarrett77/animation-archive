@@ -65,6 +65,7 @@ for (const file of files) {
       if (q.director && (resolve(ents.studios, q.director).status !== 'missing' || STUDIOISH.test(q.director))) flag(w, 'director-is-studio', `Queue director "${q.director}" looks like a studio; credited: ${p.Director}`, R.studioDir);
       if (p.Country && q.country && p.Country !== q.country && !/creative origin|country/i.test(p.Notes || '')) flag(w, 'country-unexplained', `Country changed to ${p.Country} but Notes don't explain why`, R.country);
     } else flag(w, 'queue-missing', 'No matching Queue item', null);
+    if (/^\s*DUPLICATE OF:/i.test(f.conflicts || '')) flag(w, 'duplicate-of', `Will go to Queue status Duplicate, not Films: ${String(f.conflicts).slice(13, 200)}`, ruleRef(/One Films entry per series/));
     if (/^\s*CANNOT FIND:/i.test(f.conflicts || '')) flag(w, 'cannot-find', `Will go to Queue status Cannot Find, not Films: ${String(f.conflicts).slice(13, 200)}`, ruleRef(/Cannot Find/));
     // Claims
     const claimText = [p['Historical Context'], p.Notes].join(' ');   // not Synopsis/content: plot sentences trip the pattern
